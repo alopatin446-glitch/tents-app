@@ -1,0 +1,98 @@
+/* src/app/page.module.css */
+
+/* Основной контейнер на весь экран */
+.container {
+  background-color: #0B1A33; /* Задний фон */
+  min-height: 100vh;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: sans-serif;
+}
+
+/* Наша сложная Grid-сетка на 2 колонки */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Две равные колонки */
+  gap: 3rem; /* Отступ между колонками */
+  width: 100%;
+  max-width: 1200px;
+  padding: 2rem;
+}
+
+/* Общий стиль для каждой колонки (центровка внутри неё) */
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Центровка по той самой красной линии */
+  text-align: center;
+}
+
+/* Стиль для блоков видео (aspect ratio 9/16) */
+.videoBlock {
+  background-color: rgba(255, 255, 255, 0.1);
+  width: 100%;
+  max-width: 300px; /* Ограничим ширину для вертикального формата */
+  aspect-ratio: 9 / 16;
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Стиль для неонового текста "EASY MO CORE" */
+.neonTitle {
+  color: #7BFF00; /* Цвет обводки и надписи */
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+/* Стиль для обычного заголовка "CRM мягких окон" */
+.whiteTitle {
+  color: white;
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+/* Стиль для описания (оно сплошное, лежит под Grid) */
+.description {
+  grid-column: 1 / -1; /* Описание на всю ширину сетки */
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-top: 2rem;
+  margin-bottom: 3rem;
+  text-align: center;
+  max-width: 800px;
+}
+
+/* Дизайн Кнопок (КРИТИЧНО - вынесен в один блок) */
+.heroButton {
+  border: 2px solid #7BFF00; /* Neon outline */
+  background: transparent;
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+  padding: 1rem 2rem;
+  border-radius: 50px; /* Закругленная кнопка */
+  cursor: pointer;
+  width: 200px; /* Фиксированный размер, не зависит от текста */
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+/* Эффект при наведении на кнопку (для GPT на заметку) */
+.heroButton:hover {
+  background-color: #7BFF00;
+  color: #0B1A33;
+}
