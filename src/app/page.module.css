@@ -7,7 +7,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: sans-serif;
+  /* Используем переменную из layout.tsx с фоллбеком на sans-serif */
+  font-family: var(--font-montserrat), sans-serif; 
   margin: 0;
 }
 
