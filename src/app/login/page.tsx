@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import styles from '../page.module.css';
 
 export default function LoginPage() {
