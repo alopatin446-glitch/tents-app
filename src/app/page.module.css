@@ -78,15 +78,18 @@
 
 /* Дизайн Кнопок (КРИТИЧНО - вынесен в один блок) */
 .heroButton {
-  border: 2px solid #7BFF00; /* Neon outline */
+  border: 2px solid #7BFF00;
   background: transparent;
   color: white;
   font-size: 1rem;
   font-weight: bold;
-  padding: 1rem 2rem;
-  border-radius: 50px; /* Закругленная кнопка */
+  border-radius: 50px;
   cursor: pointer;
-  width: 200px; /* Фиксированный размер, не зависит от текста */
+  width: 200px;  /* Фиксированная ширина */
+  height: 56px; /* Фиксированная высота по совету GPT */
+  display: flex; /* Чтобы текст внутри кнопки был по центру */
+  justify-content: center;
+  align-items: center;
   text-align: center;
   transition: all 0.2s ease;
 }
