@@ -1,5 +1,3 @@
-/* src/app/page.module.css */
-
 .container {
   background-color: #0B1A33;
   min-height: 100vh;
@@ -7,17 +5,13 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  /* Используем переменную из layout.tsx с фоллбеком на sans-serif */
-  font-family: var(--font-montserrat), sans-serif; 
+  font-family: var(--font-montserrat), sans-serif;
   margin: 0;
 }
 
 .grid {
   display: grid;
-  /* Две колонки по бокам */
   grid-template-columns: repeat(2, 1fr);
-  /* Автоматические строки: элементы колонок, затем описание */
-  grid-template-rows: auto auto; 
   gap: 2rem;
   width: 100%;
   max-width: 1000px;
@@ -61,7 +55,6 @@
   text-transform: uppercase;
 }
 
-/* Кнопки теперь идут СРАЗУ под заголовками в колонках */
 .heroButton {
   border: 2px solid #7BFF00;
   background: transparent;
@@ -85,14 +78,38 @@
   box-shadow: 0 0 15px rgba(123, 255, 0, 0.4);
 }
 
-/* ОПИСАНИЕ: Теперь оно строго внизу и по центру всего проекта */
 .description {
-  grid-column: 1 / -1; /* Растягиваем на две колонки */
-  justify-self: center; /* Центруем по красной линии проекта */
+  grid-column: 1 / -1;
+  justify-self: center;
   text-align: center;
   color: rgba(255, 255, 255, 0.7);
   font-size: 1rem;
   line-height: 1.5;
-  margin-top: 4rem; /* Отступ от кнопок вверх */
+  margin-top: 4rem;
   max-width: 600px;
+}
+
+.authInput {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  color: white;
+  padding: 1rem;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 320px;
+  font-family: var(--font-montserrat), sans-serif;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.authInput:focus {
+  border-color: #7BFF00;
+}
+
+.authFormFields {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
 }
