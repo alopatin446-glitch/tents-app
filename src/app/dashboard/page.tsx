@@ -51,16 +51,18 @@ export default function DashboardPage() {
 
         {/* ГРИД ПАНЕЛИ (1fr 2fr) */}
         <div className={styles.dashboardGrid}>
-          {/* ЛЕВАЯ КАРТОЧКА (НЕОНОВАЯ РАКЕТА) */}
-          <div className={styles.mainActionCard}>
-            <div className={styles.neonIcon}>
-              <svg viewBox="0 0 24 24" width="80" height="80">
-                <path fill="none" stroke="#7BFF00" strokeWidth="1.5" d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71zM12 18l6.79 3 .71-.71z"></path>
-                <circle cx="12" cy="12" r="3" fill="none" stroke="#7BFF00" strokeWidth="1.5"></circle>
-              </svg>
-            </div>
-            <button className={styles.heroButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</button>
+         {/* ЛЕВАЯ КАРТОЧКА (ОБНОВЛЕННАЯ РАКЕТА) */}
+        <div className={styles.mainActionCard}>
+          <div className={styles.neonIcon}>
+            {/* Новая SVG Ракета (из референса) */}
+            <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#7BFF00" strokeWidth="1.5">
+              <path d="M4.5 16.5c-1.5 1.5-1.5 3.5 0 5s3.5 1.5 5 0M15 3c6 0 6 0 6 6s-6 12-12 12-4-4-4-4l2-2 3 3 5-5-5-5 3-3Z" />
+              <path d="M11 13c1.1 1.1 1.1 2.9 0 4s-2.9 1.1-4 0M17 7c.6.6.6 1.4 0 2s-1.4.6-2 0 .6-1.4 0-2 1.4-.6 2 0Z" />
+            </svg>
           </div>
+          {/* Используем наш новый класс rocketButton */}
+          <button className={styles.rocketButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</button>
+        </div>
 
           {/* ПРАВАЯ СЕТКА (3x2) */}
           <div className={styles.statsWrapper}>
