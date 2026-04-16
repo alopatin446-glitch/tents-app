@@ -63,22 +63,25 @@
   object-fit: cover;
 }
 
-/* Кнопка выхода */
+/* Кнопка ВЫЙТИ в красном неоновом стиле */
 .heroButton {
   background: transparent;
-  border: 1px solid var(--text-white);
-  color: var(--text-white);
-  padding: 6px 15px;
+  border: 2px solid #FF4D4D; /* Тот самый красный цвет */
+  color: #FF4D4D;
+  padding: 8px 20px;
   border-radius: var(--radius-button);
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: bold;
   cursor: pointer;
-  transition: 0.3s;
+  text-transform: uppercase;
+  transition: 0.3s ease;
+  letter-spacing: 1px;
 }
 
 .heroButton:hover {
-  background: var(--text-white);
-  color: var(--bg-main);
+  background: #FF4D4D;
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(255, 77, 77, 0.6); /* Красное свечение при наведении */
 }
 
 /* Основная колонка контента */
