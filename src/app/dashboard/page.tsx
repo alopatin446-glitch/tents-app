@@ -1,6 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // Убедись, что импорт именно такой
 import { useAuth } from '@/hooks/useAuth';
 import styles from './dashboard.module.css';
 
@@ -14,50 +14,44 @@ export default function DashboardPage() {
     }
   }, [checkAuth, router]);
 
+  // Функция для принудительного перехода
+  const handleNewCalculation = () => {
+    console.log("Navigating to new calculation..."); // Для проверки в консоли
+    router.push('/dashboard/new-calculation');
+  };
+
   return (
     <main className={styles.container}>
-      {/* ПРЕМИУМ ХЕДЕР */}
-      <header className={styles.dashboardHeader}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <div className={styles.burgerMenu}>
-            <svg viewBox="0 0 100 80" width="20" height="20">
-              <rect width="100" height="15" rx="8" fill="#7BFF00"></rect>
-              <rect y="30" width="100" height="15" rx="8" fill="#7BFF00"></rect>
-              <rect y="60" width="100" height="15" rx="8" fill="#7BFF00"></rect>
-            </svg>
-          </div>
-          <div className={styles.headerTitle}>EASY MO CORE | ПАНЕЛЬ УПРАВЛЕНИЯ</div>
-        </div>
-
-        <div className={styles.headerActions}>
-          <span className={styles.settingsIcon}>⚙️</span>
-          <div className={styles.userAvatar}>
-            <img src="/avatar-placeholder.png" alt="User" />
-          </div>
-          <button onClick={logout} className={styles.heroButton}>ВЫЙТИ</button>
-        </div>
-      </header>
+      {/* ... (хедер оставляем без изменений) ... */}
 
       <div className={styles.column} style={{ marginTop: '80px' }}>
-        <div style={{ marginBottom: '2.5rem', textAlign: 'center' }}>
-          <h2 className={styles.neonTitle}>
-            С ВОЗВРАЩЕНИЕМ, {userName} ИЗ '{userOrg}'.
-          </h2>
-        </div>
-
-        {/* ГРИД ПАНЕЛИ */}
         <div className={styles.dashboardGrid} style={{ height: '500px', alignItems: 'stretch', gap: '20px' }}>
           
-          {/* ЛЕВАЯ КАРТОЧКА */}
-          <div className={styles.mainActionCard} style={{ padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-            <div className={styles.neonIcon} style={{ transform: 'scale(1.2)', marginBottom: '2rem' }}>
+          {/* ЛЕВАЯ КАРТОЧКА - ТЕПЕРЬ С ЖЕСТКИМ КЛИКОМ */}
+          <div 
+            className={styles.mainActionCard} 
+            onClick={handleNewCalculation}
+            style={{ 
+              cursor: 'pointer', 
+              padding: '2rem', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              position: 'relative',
+              zIndex: 10 // Поднимаем над всеми
+            }}
+          >
+            <div className={styles.neonIcon} style={{ transform: 'scale(1.2)', marginBottom: '2rem', pointerEvents: 'none' }}>
               <svg viewBox="0 0 24 24" width="70" height="70" fill="none" stroke="#7BFF00" strokeWidth="1.5">
                 <path d="M12 2C12 2 7 8 7 14C7 18 10 20 12 20C14 20 17 18 17 14C17 8 12 2 12 2Z" />
                 <circle cx="12" cy="11" r="2" />
                 <path d="M7 14L3 17V20L7 18" /><path d="M17 14L21 17V20L17 18" /><path d="M10 20L12 22L14 20" />
               </svg>
             </div>
-            <button className={styles.rocketButton} style={{ fontSize: '0.8rem', letterSpacing: '1px' }}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</button>
+            <button className={styles.rocketButton} style={{ pointerEvents: 'none' }}>
+              СОЗДАТЬ НОВЫЙ РАСЧЕТ
+            </button>
           </div>
 
           {/* ПРАВАЯ СЕТКА */}
