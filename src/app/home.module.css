@@ -1,0 +1,74 @@
+/* Сеточная структура для главной страницы */
+.homeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Ровно две колонки */
+  width: 100%;
+  max-width: 1200px;
+  gap: 4rem;
+  margin-top: 50px;
+  z-index: 10;
+}
+
+.homeColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Блок видео (с зелеными рамками) */
+.videoBlock {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid var(--neon-green); /* Используем переменную */
+  border-radius: var(--radius-button);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--neon-green);
+  margin-bottom: 2rem;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.1); /* Неоновое свечение */
+}
+
+/* Заголовок для выбора Входа / Регистрации */
+.whiteTitle {
+  color: var(--text-white);
+  font-weight: bold;
+  font-size: 2.2rem;
+  text-transform: uppercase;
+  margin-bottom: 4rem;
+  letter-spacing: 1.5px;
+}
+
+/* Описание внизу на весь экран */
+.description {
+  grid-column: 1 / span 2; /* Текст на обе колонки внизу */
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.1rem;
+  margin-top: 3rem;
+  line-height: 1.6;
+}
+
+/* Кнопки выбора на главной */
+.loginButton {
+  background: transparent;
+  border: 2px solid var(--neon-green);
+  color: var(--neon-green);
+  padding: 14px 40px;
+  border-radius: var(--radius-button);
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: 0.3s;
+  display: inline-block;
+  text-align: center;
+}
+
+.loginButton:hover {
+  background: var(--neon-green);
+  color: var(--bg-main);
+  box-shadow: var(--neon-shadow);
+}

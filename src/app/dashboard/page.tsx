@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import styles from '../page.module.css';
+import styles from './dashboard.module.css';
 
 export default function DashboardPage() {
   const router = useRouter();

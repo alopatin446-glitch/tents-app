@@ -1,0 +1,118 @@
+/* Хедер для Dashboard */
+.dashboardHeader {
+  width: 100%;
+  height: 70px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4rem;
+  background: var(--bg-main);
+  border-bottom: 2px solid rgba(123, 255, 0, 0.3);
+  position: fixed;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Левый блок с ракетой */
+.mainActionCard {
+  background-color: var(--bg-main);
+  box-shadow: inset 0 0 15px rgba(123, 255, 0, 0.1), 0 0 2px var(--neon-green), 0 0 20px rgba(123, 255, 0, 0.4);
+  border-radius: var(--radius-button);
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.neonIcon svg {
+  filter: drop-shadow(0 0 10px rgba(123, 255, 0, 0.4)); /* Неоновое свечение ракеты */
+}
+
+/* Статистические карточки (3x2) */
+.statsWrapper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+/* Плитки статистики */
+.statCard {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: var(--radius-button);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 140px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Эффект свечения при наведении */
+.statCard:hover {
+  background: rgba(123, 255, 0, 0.05);
+  border-color: var(--neon-green);
+  box-shadow: 0 0 15px rgba(123, 255, 0, 0.3), inset 0 0 10px rgba(123, 255, 0, 0.1);
+  transform: translateY(-3px);
+}
+
+.headerTitle {
+  color: var(--neon-green);
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(123, 255, 0, 0.6), 0 0 15px rgba(123, 255, 0, 0.2);
+  margin-left: 1rem;
+}
+
+/* Бургер-меню */
+.burgerMenu {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.burgerMenu:hover {
+  transform: scale(1.1);
+}
+
+.burgerMenu svg {
+  filter: drop-shadow(0 0 5px rgba(123, 255, 0, 0.8));
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.settingsIcon {
+  cursor: pointer;
+  font-size: 1.4rem;
+  transition: transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
+}
+
+.settingsIcon:hover {
+  transform: rotate(45deg);
+}
+
+.userAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid var(--neon-green);
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.3);
+  background: #111;
+}

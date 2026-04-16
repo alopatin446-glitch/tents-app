@@ -1,26 +1,23 @@
 :root {
-  --background: #182234;
-  --foreground: #ffffff;
+  --bg-main: #182234;
   --neon-green: #7BFF00;
+  --neon-red: #FF4D4D;
+  --text-white: #FFFFFF;
+  --neon-shadow: 0 0 15px rgba(123, 255, 0, 0.4);
+  /* Главный рычаг дизайна */
+  --radius-button: 50px; 
 }
 
 * {
-  box-sizing: border-box;
-  padding: 0;
   margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-html,
 body {
-  max-width: 100vw;
+  min-height: 100vh; /* Исправлено: min-height вместо height */
+  background: var(--bg-main);
+  color: var(--text-white);
+  font-family: 'Montserrat', sans-serif;
   overflow-x: hidden;
-  background: var(--background);
-  color: var(--foreground);
-  /* Montserrat — приоритет, далее похожие */
-  font-family: 'Montserrat', 'Inter', sans-serif; 
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
 }
