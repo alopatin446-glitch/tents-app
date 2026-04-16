@@ -1,9 +1,11 @@
 .authWrapper {
   display: flex;
+  flex-direction: column; /* Чтобы заголовок был над формой */
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   background-color: var(--bg-main);
+  padding: 20px;
 }
 
 .authFormFields {
@@ -16,16 +18,33 @@
   border: 1px solid rgba(123, 255, 0, 0.15);
   width: 100%;
   max-width: 400px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+}
+
+.neonTitle {
+  color: var(--neon-green);
+  font-weight: 800;
+  font-size: 2.2rem;
+  text-transform: uppercase;
+  text-shadow: 0 0 15px rgba(123, 255, 0, 0.4);
+}
+
+.whiteTitle {
+  color: var(--text-white);
+  font-weight: 800;
+  font-size: 2.2rem;
+  text-transform: uppercase;
 }
 
 .authInput {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 14px 20px;
-  border-radius: var(--radius-button); /* Теперь тоже капсула! */
+  border-radius: var(--radius-button);
   color: var(--text-white);
   outline: none;
   transition: 0.3s;
+  width: 100%;
 }
 
 .authInput:focus {
@@ -49,4 +68,22 @@
   background: var(--neon-green);
   color: var(--bg-main);
   box-shadow: var(--neon-shadow);
+}
+
+.registerButton {
+  background: transparent;
+  border: 2px solid var(--neon-red);
+  color: var(--neon-red);
+  padding: 14px;
+  border-radius: var(--radius-button);
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: 0.3s;
+}
+
+.registerButton:hover {
+  background: var(--neon-red);
+  color: white;
+  box-shadow: 0 0 20px rgba(255, 77, 77, 0.4);
 }
