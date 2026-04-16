@@ -68,46 +68,46 @@ export default function DashboardPage() {
           {/* ПРАВАЯ СЕТКА (3x2) */}
           <div className={styles.statsWrapper} style={{ gap: '25px', display: 'grid', gridTemplateRows: '1fr 1fr' }}>
             {/* Карточка 1 */}
-            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <p className={styles.statLabel} style={{ fontSize: '0.85rem' }}>ГОТОВЫЕ ЗАКАЗЫ</p>
-              <p className={styles.statValue} style={{ fontSize: '2.8rem', marginTop: '0.8rem', fontWeight: '800' }}>28</p>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+              <p className={styles.statLabel} style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '0.5rem' }}>ГОТОВЫЕ ЗАКАЗЫ</p>
+              <p className={styles.statValue} style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)' }}>28</p>
             </div>
 
             {/* Карточка 2 */}
-            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <p className={styles.statLabel} style={{ fontSize: '0.85rem' }}>ОБЩАЯ СУММА ЗА МЕСЯЦ</p>
-              <p className={styles.statValue} style={{ fontSize: '2.4rem', marginTop: '0.8rem', fontWeight: '800' }}>2,450,000 ₽</p>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+              <p className={styles.statLabel} style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.5rem' }}>СУММА ЗА МЕСЯЦ</p>
+              <p className={styles.statValue} style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)' }}>2,450,000 ₽</p>
             </div>
 
-            {/* Карточка 3 */}
-            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <p className={styles.statLabel} style={{ fontSize: '0.85rem' }}>ПРОГРЕС ЦЕЛИ</p>
-              <div className={styles.gaugeWrapper} style={{ marginTop: '1.5rem', transform: 'scale(1.3)' }}>
+            {/* Карточка 3 (СПИДОМЕТР) */}
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', overflow: 'hidden' }}>
+              <p className={styles.statLabel} style={{ fontSize: '1.5rem', fontWeight: '800', textAlign: 'center' }}>ПРОГРЕСС ЦЕЛИ</p>
+              <div className={styles.gaugeWrapper} style={{ marginTop: '2.5rem', transform: 'scale(1.8)', transformOrigin: 'center' }}>
                 <svg viewBox="0 0 100 50">
                   <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
                   <path d="M 10 50 A 40 40 0 0 1 70 20" fill="none" stroke="#7BFF00" strokeWidth="10" strokeDasharray="100" className={styles.gaugeProgress} />
                 </svg>
-                <div className={styles.gaugeValue}>75%</div>
+                <div className={styles.gaugeValue} style={{ fontSize: '10px' }}>75%</div>
               </div>
             </div>
 
             {/* ВТОРОЙ РЯД */}
             {/* Карточка 4 */}
-            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <p className={styles.statLabel} style={{ fontSize: '0.85rem' }}>АКТИВНЫЕ КЛИЕНТЫ</p>
-              <p className={styles.statValue} style={{ fontSize: '2.8rem', marginTop: '0.8rem', fontWeight: '800' }}>124</p>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+              <p className={styles.statLabel} style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '0.5rem' }}>КЛИЕНТЫ</p>
+              <p className={styles.statValue} style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)' }}>124</p>
             </div>
 
             {/* Карточка 5 */}
-            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <p className={styles.statLabel} style={{ fontSize: '0.85rem' }}>СРЕДНИЙ ЧЕК</p>
-              <p className={styles.statValue} style={{ fontSize: '2.4rem', marginTop: '0.8rem', fontWeight: '800' }}>87,500 ₽</p>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+              <p className={styles.statLabel} style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '0.5rem' }}>СРЕДНИЙ ЧЕК</p>
+              <p className={styles.statValue} style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)' }}>87,500 ₽</p>
             </div>
 
             {/* Карточка 6 */}
-            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <p className={styles.statLabel} style={{ fontSize: '0.85rem' }}>В ОЖИДАНИИ</p>
-              <p className={styles.statValue} style={{ fontSize: '2.8rem', marginTop: '0.8rem', fontWeight: '800' }}>5</p>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'center' }}>
+              <p className={styles.statLabel} style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '0.5rem' }}>ОЖИДАНИЕ</p>
+              <p className={styles.statValue} style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)' }}>5</p>
             </div>
           </div> {/* Конец statsWrapper */}
         </div> {/* Конец dashboardGrid */}
