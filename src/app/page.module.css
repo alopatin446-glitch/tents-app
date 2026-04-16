@@ -218,3 +218,40 @@
   color: #fff;
   box-shadow: 0 0 20px rgba(123, 255, 0, 0.5);
 }
+
+/* --- СТИЛИ ДЛЯ АВТОРИЗАЦИИ (LOGIN/REGISTER) --- */
+
+.authWrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Центр по вертикали */
+  align-items: center;    /* Центр по горизонтали */
+  min-height: 100vh;
+  width: 100%;
+}
+
+.authFormFields {
+  display: flex;
+  flex-direction: row; /* Поля в одну линию, как на скрине */
+  align-items: center;
+  gap: 15px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(123, 255, 0, 0.1);
+}
+
+.authInput {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 15px;
+  border-radius: 6px;
+  color: #fff;
+  outline: none;
+  width: 200px;
+  transition: border-color 0.3s;
+}
+
+.authInput:focus {
+  border-color: #7BFF00;
+}

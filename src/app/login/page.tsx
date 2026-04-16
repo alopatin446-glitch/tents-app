@@ -11,7 +11,6 @@ export default function LoginPage() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-
     if (!login(email, password)) {
       alert('Ошибка доступа. Проверьте данные.');
     }
@@ -19,10 +18,11 @@ export default function LoginPage() {
 
   return (
     <main className={styles.container}>
-      <form onSubmit={handleSubmit} className={styles.column}>
-        <h1 className={styles.neonTitle}>ВХОД</h1>
+      {/* Используем authWrapper вместо обычного column */}
+      <div className={styles.authWrapper}>
+        <h1 className={styles.neonTitle} style={{ marginBottom: '2rem' }}>ВХОД</h1>
 
-        <div className={styles.authFormFields}>
+        <form onSubmit={handleSubmit} className={styles.authFormFields}>
           <input
             type="email"
             placeholder="Почта"
@@ -40,8 +40,8 @@ export default function LoginPage() {
           <button type="submit" className={styles.heroButton}>
             ВОЙТИ
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </main>
   );
 }
