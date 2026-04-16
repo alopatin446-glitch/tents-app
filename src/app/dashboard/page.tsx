@@ -54,7 +54,6 @@ export default function DashboardPage() {
           {/* ЛЕВАЯ КАРТОЧКА (НЕОНОВАЯ РАКЕТА) */}
           <div className={styles.mainActionCard}>
             <div className={styles.neonIcon}>
-              {/* SVG НЕОНОВОЙ РАКЕТЫ */}
               <svg viewBox="0 0 24 24" width="80" height="80">
                 <path fill="none" stroke="#7BFF00" strokeWidth="1.5" d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71zM12 18l6.79 3 .71-.71z"></path>
                 <circle cx="12" cy="12" r="3" fill="none" stroke="#7BFF00" strokeWidth="1.5"></circle>
@@ -65,14 +64,17 @@ export default function DashboardPage() {
 
           {/* ПРАВАЯ СЕТКА (3x2) */}
           <div className={styles.statsWrapper}>
+            {/* Карточка 1 */}
             <div className={styles.statCard}>
               <p className={styles.statLabel}>ГОТОВЫЕ ЗАКАЗЫ</p>
               <p className={styles.statValue}>28</p>
             </div>
+            {/* Карточка 2 */}
             <div className={styles.statCard}>
               <p className={styles.statLabel}>ОБЩАЯ СУММА ЗА МЕСЯЦ</p>
               <p className={styles.statValue}>2,450,000 ₽</p>
             </div>
+            {/* Карточка 3 */}
             <div className={styles.statCard}>
               <p className={styles.statLabel}>ПРОГРЕСС ЦЕЛИ</p>
               <div className={styles.gaugeWrapper}>
@@ -83,9 +85,26 @@ export default function DashboardPage() {
                 <div className={styles.gaugeValue}>75%</div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+
+            {/* ВТОРОЙ РЯД (Новые карточки) */}
+            {/* Карточка 4 */}
+            <div className={styles.statCard}>
+              <p className={styles.statLabel}>АКТИВНЫЕ КЛИЕНТЫ</p>
+              <p className={styles.statValue}>124</p>
+            </div>
+            {/* Карточка 5 */}
+            <div className={styles.statCard}>
+              <p className={styles.statLabel}>СРЕДНИЙ ЧЕК</p>
+              <p className={styles.statValue}>87,500 ₽</p>
+            </div>
+            {/* Карточка 6 */}
+            <div className={styles.statCard}>
+              <p className={styles.statLabel}>В ОЖИДАНИИ</p>
+              <p className={styles.statValue}>5</p>
+            </div>
+          </div> {/* Конец statsWrapper */}
+        </div> {/* Конец dashboardGrid */}
+      </div> {/* Закрытие contentSection (проверь, есть ли он у тебя выше) */}
     </main>
   );
 }

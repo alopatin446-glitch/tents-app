@@ -48,10 +48,9 @@
 /* ГЛАВНЫЙ ГРИД: Лево (350px) и Право (остальное) */
 .dashboardGrid {
   display: grid;
-  grid-template-columns: 350px 1fr; 
+  grid-template-columns: 350px 1fr; /* Лево фиксировано, право — всё остальное */
   gap: 2rem;
-  width: 100%;
-  align-items: stretch; /* Растягивает левую карточку во всю высоту правой сетки */
+  align-items: stretch;
 }
 
 /* ЛЕВАЯ КАРТОЧКА: Делаем её "высокой" */
@@ -71,23 +70,24 @@
   filter: drop-shadow(0 0 10px rgba(123, 255, 0, 0.4)); /* "Неон" для ракеты */
 }
 
-/* СЕТКА СТАТИСТИКИ 3x2 */
+/* Правая часть: 3 колонки и ровно 2 ряда */
 .statsWrapper {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr); 
   gap: 1.5rem;
 }
 
+/* Сами карточки */
 .statCard {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   padding: 1.5rem;
-  min-height: 140px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: all 0.3s ease;
+  min-height: 180px; /* Чтобы карточки были солидными по высоте */
 }
 
 .statCard:hover {
