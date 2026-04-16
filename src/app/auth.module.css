@@ -72,18 +72,19 @@
 
 .registerButton {
   background: transparent;
-  border: 2px solid var(--neon-red);
-  color: var(--neon-red);
+  border: 2px solid var(--neon-green); /* Стала зеленой */
+  color: #ffffff;                      /* Буквы стали белыми */
   padding: 14px;
   border-radius: var(--radius-button);
   font-weight: 700;
   cursor: pointer;
   text-transform: uppercase;
   transition: 0.3s;
+  width: 100%;
 }
 
 .registerButton:hover {
-  background: var(--neon-red);
-  color: white;
-  box-shadow: 0 0 20px rgba(255, 77, 77, 0.4);
+  background: var(--neon-green);
+  color: var(--bg-main);               /* При наведении текст станет темным для читаемости */
+  box-shadow: var(--neon-shadow);      /* Добавил то самое зеленое свечение */
 }
