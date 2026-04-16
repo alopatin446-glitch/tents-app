@@ -1,11 +1,20 @@
-/* Сеточная структура для главной страницы */
+/* Главный контейнер на весь экран */
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--bg-main);
+  padding: 40px;
+}
+
+/* Сетка из двух колонок */
 .homeGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* Ровно две колонки */
+  grid-template-columns: 1fr 1fr;
   width: 100%;
   max-width: 1200px;
-  gap: 4rem;
-  margin-top: 50px;
+  gap: 6rem; /* Увеличил разрыв для воздуха */
   z-index: 10;
 }
 
@@ -17,53 +26,55 @@
   text-align: center;
 }
 
-/* Блок видео (с зелеными рамками) */
+/* Рамки для видео */
 .videoBlock {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: rgba(0, 0, 0, 0.4);
-  border: 2px solid var(--neon-green); /* Используем переменную */
+  border: 2px solid var(--neon-green);
   border-radius: var(--radius-button);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--neon-green);
-  margin-bottom: 2rem;
-  box-shadow: 0 0 20px rgba(123, 255, 0, 0.1); /* Неоновое свечение */
+  margin-bottom: 2.5rem;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.1);
 }
 
-/* Заголовок для выбора Входа / Регистрации */
-.whiteTitle {
-  color: var(--text-white);
-  font-weight: bold;
+/* Неоновый заголовок слева */
+.neonTitle {
+  color: var(--neon-green);
+  font-weight: 800;
   font-size: 2.2rem;
   text-transform: uppercase;
-  margin-bottom: 4rem;
-  letter-spacing: 1.5px;
+  margin-bottom: 3.5rem;
+  letter-spacing: 2px;
+  text-shadow: 0 0 15px rgba(123, 255, 0, 0.4);
 }
 
-/* Описание внизу на весь экран */
-.description {
-  grid-column: 1 / span 2; /* Текст на обе колонки внизу */
-  text-align: center;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 1.1rem;
-  margin-top: 3rem;
-  line-height: 1.6;
+/* Белый заголовок справа */
+.whiteTitle {
+  color: var(--text-white);
+  font-weight: 800;
+  font-size: 2.2rem;
+  text-transform: uppercase;
+  margin-bottom: 3.5rem;
+  letter-spacing: 2px;
 }
 
-/* Кнопки выбора на главной */
+/* Базовая кнопка (Зеленая) */
 .loginButton {
   background: transparent;
   border: 2px solid var(--neon-green);
   color: var(--neon-green);
-  padding: 14px 40px;
+  padding: 14px 0;
   border-radius: var(--radius-button);
   font-weight: 700;
   cursor: pointer;
   text-transform: uppercase;
   transition: 0.3s;
-  display: inline-block;
+  width: 100%;
+  text-decoration: none;
   text-align: center;
 }
 
@@ -71,4 +82,37 @@
   background: var(--neon-green);
   color: var(--bg-main);
   box-shadow: var(--neon-shadow);
+}
+
+/* Специальный класс для кнопки регистрации (Белый неон) */
+.registerButton {
+  background: transparent;
+  border: 2px solid var(--text-white);
+  color: var(--text-white);
+  padding: 14px 0;
+  border-radius: var(--radius-button);
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: 0.3s;
+  width: 100%;
+  text-decoration: none;
+  text-align: center;
+}
+
+.registerButton:hover {
+  background: var(--text-white);
+  color: var(--bg-main);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Описание внизу */
+.description {
+  grid-column: 1 / span 2;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.1rem;
+  margin-top: 5rem;
+  line-height: 1.8;
+  letter-spacing: 0.5px;
 }

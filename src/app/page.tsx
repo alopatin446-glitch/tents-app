@@ -4,16 +4,13 @@ import styles from './home.module.css';
 export default function Home() {
   return (
     <main className={styles.container}>
-      
-      {/* Используем homeGrid вместо обычного grid */}
       <div className={styles.homeGrid}>
         
         {/* ЛЕВАЯ КОЛОНКА */}
         <div className={styles.homeColumn}>
           <div className={styles.videoBlock}>Здесь будет видео</div>
           <h1 className={styles.neonTitle}>EASY MO CORE</h1>
-          {/* Сделаем кнопку зеленой для красоты входа */}
-          <Link href="/login" className={styles.loginButton} style={{maxWidth: '200px'}}>
+          <Link href="/login" className={styles.loginButton}>
             Войти
           </Link>
         </div>
@@ -22,7 +19,7 @@ export default function Home() {
         <div className={styles.homeColumn}>
           <div className={styles.videoBlock}>Здесь будет видео</div>
           <h1 className={styles.whiteTitle}>CRM МЯГКИХ ОКОН</h1>
-          <Link href="/register" className={styles.loginButton} style={{maxWidth: '200px', borderColor: '#fff', color: '#fff'}}>
+          <Link href="/register" className={styles.registerButton}>
             Регистрация
           </Link>
         </div>
