@@ -122,3 +122,54 @@
   /* Свечение для полосок бургера */
   filter: drop-shadow(0 0 5px rgba(123, 255, 0, 0.8));
 }
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem; /* Расстояние между шестерней, юзером и кнопкой */
+}
+
+.settingsIcon {
+  cursor: pointer;
+  font-size: 1.4rem;
+  transition: transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.2));
+}
+
+.settingsIcon:hover {
+  transform: rotate(45deg); /* Прикольный эффект при наведении */
+}
+
+.userAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid #7BFF00;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.3);
+  background: #111;
+}
+
+/* Красная неоновая кнопка ВЫЙТИ */
+.heroButton {
+  background: transparent;
+  border: 1px solid #ff4d4d; /* Красный контур */
+  color: #ff4d4d;
+  padding: 6px 15px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  /* Красный неон */
+  box-shadow: inset 0 0 5px rgba(255, 77, 77, 0.2), 0 0 10px rgba(255, 77, 77, 0.2);
+}
+
+.heroButton:hover {
+  background: #ff4d4d;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 77, 77, 0.6);
+}

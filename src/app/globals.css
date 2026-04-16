@@ -1,5 +1,5 @@
 :root {
-  --background: #05080d;
+  --background: #182234;
   --foreground: #ffffff;
   --neon-green: #7BFF00;
 }
@@ -14,9 +14,10 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
-  background: var(--background); /* Вот здесь мы фиксируем черный цвет */
+  background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Montserrat — приоритет, далее похожие */
+  font-family: 'Montserrat', 'Inter', sans-serif; 
 }
 
 a {
