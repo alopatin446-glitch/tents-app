@@ -17,31 +17,28 @@ export default function LoginPage() {
   };
 
   return (
-    <main className={styles.container}>
-      {/* Используем authWrapper вместо обычного column */}
-      <div className={styles.authWrapper}>
-        <h1 className={styles.neonTitle} style={{ marginBottom: '2rem' }}>ВХОД</h1>
+    <main className={styles.authWrapper}>
+      <h1 className={styles.neonTitle} style={{ marginBottom: '2.5rem' }}>ВХОД</h1>
 
-        <form onSubmit={handleSubmit} className={styles.authFormFields}>
-          <input
-            type="email"
-            placeholder="Почта"
-            className={styles.authInput}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Пароль"
-            className={styles.authInput}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <button type="submit" className={styles.heroButton}>
-            ВОЙТИ
-          </button>
-        </form>
-      </div>
+      <form onSubmit={handleSubmit} className={styles.authFormFields}>
+        <input
+          type="email"
+          placeholder="Почта"
+          className={styles.authInput}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Пароль"
+          className={styles.authInput}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <button type="submit" className={styles.loginButton}>
+          ВОЙТИ
+        </button>
+      </form>
     </main>
   );
 }

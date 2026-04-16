@@ -224,34 +224,114 @@
 .authWrapper {
   display: flex;
   flex-direction: column;
-  justify-content: center; /* Центр по вертикали */
-  align-items: center;    /* Центр по горизонтали */
+  justify-content: center; 
+  align-items: center;    
   min-height: 100vh;
   width: 100%;
+  background-color: #182234; /* Фон как на дашборде */
 }
 
 .authFormFields {
   display: flex;
-  flex-direction: row; /* Поля в одну линию, как на скрине */
+  flex-direction: column; /* ТЕПЕРЬ СТРОГО СТОЛБИКОМ */
   align-items: center;
-  gap: 15px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 20px;
-  border-radius: 12px;
-  border: 1px solid rgba(123, 255, 0, 0.1);
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 40px;
+  border-radius: 20px;
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 400px; /* Чтобы форма не была слишком широкой */
 }
 
 .authInput {
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 10px 15px;
-  border-radius: 6px;
+  padding: 12px 15px;
+  border-radius: 8px;
   color: #fff;
   outline: none;
-  width: 200px;
-  transition: border-color 0.3s;
+  width: 100%; /* Растягиваем на всю ширину контейнера */
+  transition: all 0.3s ease;
 }
 
 .authInput:focus {
   border-color: #7BFF00;
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.2);
+}
+
+/* ЗЕЛЕНАЯ КНОПКА СПЕЦИАЛЬНО ДЛЯ ВХОДА */
+.loginButton {
+  background: transparent;
+  border: 1px solid #7BFF00;
+  color: #7BFF00;
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  width: 100%;
+  margin-top: 10px;
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.1);
+}
+
+.loginButton:hover {
+  background: #7BFF00;
+  color: #182234;
+  box-shadow: 0 0 25px rgba(123, 255, 0, 0.4);
+}
+
+/* --- СТИЛИ ГЛАВНОЙ СТРАНИЦЫ (ВЫБОР: ВХОД/РЕГИСТРАЦИЯ) --- */
+
+.homeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Ровно две колонки */
+  width: 100%;
+  max-width: 1200px;
+  gap: 4rem;
+  margin-top: 50px;
+  z-index: 10;
+}
+
+.homeColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.videoBlock {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px solid rgba(123, 255, 0, 0.3);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7BFF00;
+  margin-bottom: 2rem;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.1);
+}
+
+.whiteTitle {
+  color: #ffffff;
+  font-weight: bold;
+  font-size: 2.2rem;
+  text-transform: uppercase;
+  margin-bottom: 4rem;
+  letter-spacing: 1.5px;
+}
+
+.description {
+  grid-column: 1 / span 2; /* Текст на обе колонки внизу */
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1.1rem;
+  margin-top: 3rem;
+  line-height: 1.6;
 }
