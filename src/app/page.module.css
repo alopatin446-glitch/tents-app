@@ -94,3 +94,31 @@
   box-shadow: 0 0 20px rgba(123, 255, 0, 0.15); /* "Неон" при наведении */
   transform: translateY(-5px);
 }
+
+.headerTitle {
+  color: #7BFF00 !important; /* Яркий неон */
+  font-weight: 800;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  /* Эффект свечения */
+  text-shadow: 0 0 8px rgba(123, 255, 0, 0.6), 0 0 15px rgba(123, 255, 0, 0.2);
+  margin-left: 1rem; /* Чтобы текст не прилипал к бургер-меню */
+}
+
+/* Бургер-меню (три полоски) */
+.burgerMenu {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.burgerMenu:hover {
+  transform: scale(1.1); /* Слегка увеличивается при наведении */
+}
+
+.burgerMenu svg {
+  /* Свечение для полосок бургера */
+  filter: drop-shadow(0 0 5px rgba(123, 255, 0, 0.8));
+}
