@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { TEST_USER } from '../core/auth/mockUser';
+import { TEST_USER } from '@/core/auth/mockUser';
 
 export const useAuth = () => {
   const router = useRouter();
@@ -8,7 +8,7 @@ export const useAuth = () => {
   const login = (email: string, pass: string) => {
     if (email === TEST_USER.email && pass === TEST_USER.password) {
       localStorage.setItem('isAuth', 'true');
-      router.push('/dashboard'); 
+      router.push('/dashboard');
       return true;
     }
     return false;

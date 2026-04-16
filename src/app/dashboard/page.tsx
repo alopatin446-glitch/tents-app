@@ -16,8 +16,10 @@ export default function DashboardPage() {
 
   return (
     <main className={styles.container}>
+      {/* ПРЕМИУМ ХЕДЕР НА ВСЮ ШИРИНУ */}
       <header className={styles.dashboardHeader}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          {/* БУРГЕР-МЕНЮ (SVG) */}
           <div className={styles.burgerMenu}>
             <svg viewBox="0 0 100 80" width="20" height="20">
               <rect width="100" height="15" rx="8" fill="#7BFF00"></rect>
@@ -27,7 +29,7 @@ export default function DashboardPage() {
           </div>
           <div className={styles.headerTitle}>EASY MO CORE | ПАНЕЛЬ УПРАВЛЕНИЯ</div>
         </div>
-
+        
         <div className={styles.headerActions}>
           <span className={styles.settingsIcon}>⚙️</span>
           <div className={styles.userAvatar}>
@@ -40,15 +42,19 @@ export default function DashboardPage() {
       </header>
 
       <div className={styles.column} style={{ marginTop: '100px' }}>
+        {/* ПРИВЕТСТВИЕ */}
         <div style={{ marginBottom: '3rem', textAlign: 'center' }}>
           <h2 className={styles.neonTitle}>
             С ВОЗВРАЩЕНИЕМ, {userName} ИЗ '{userOrg}'.
           </h2>
         </div>
 
+        {/* ГРИД ПАНЕЛИ (1fr 2fr) */}
         <div className={styles.dashboardGrid}>
+          {/* ЛЕВАЯ КАРТОЧКА (НЕОНОВАЯ РАКЕТА) */}
           <div className={styles.mainActionCard}>
             <div className={styles.neonIcon}>
+              {/* SVG НЕОНОВОЙ РАКЕТЫ */}
               <svg viewBox="0 0 24 24" width="80" height="80">
                 <path fill="none" stroke="#7BFF00" strokeWidth="1.5" d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71zM12 18l6.79 3 .71-.71z"></path>
                 <circle cx="12" cy="12" r="3" fill="none" stroke="#7BFF00" strokeWidth="1.5"></circle>
@@ -57,6 +63,7 @@ export default function DashboardPage() {
             <button className={styles.heroButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</button>
           </div>
 
+          {/* ПРАВАЯ СЕТКА (3x2) */}
           <div className={styles.statsWrapper}>
             <div className={styles.statCard}>
               <p className={styles.statLabel}>ГОТОВЫЕ ЗАКАЗЫ</p>
