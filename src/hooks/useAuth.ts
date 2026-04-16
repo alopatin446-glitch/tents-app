@@ -23,5 +23,8 @@ export const useAuth = () => {
     return typeof window !== 'undefined' && localStorage.getItem('isAuth') === 'true';
   };
 
-  return { login, logout, checkAuth };
+  const userName = TEST_USER.name;
+  const userOrg = TEST_USER.org;
+
+  return { login, logout, checkAuth, userName, userOrg };
 };

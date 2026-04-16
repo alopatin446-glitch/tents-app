@@ -2,12 +2,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { TEST_USER } from '@/core/auth/mockUser';
 import styles from '../page.module.css';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { checkAuth, logout } = useAuth();
+  const { checkAuth, logout, userName, userOrg } = useAuth();
 
   useEffect(() => {
     if (!checkAuth()) {
@@ -15,13 +14,20 @@ export default function DashboardPage() {
     }
   }, [checkAuth, router]);
 
-  const userName = TEST_USER.name;
-  const userOrg = TEST_USER.org;
-
   return (
     <main className={styles.container}>
       <header className={styles.dashboardHeader}>
-        <div className={styles.headerTitle}>EASY MO CORE | ПАНЕЛЬ УПРАВЛЕНИЯ</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div className={styles.burgerMenu}>
+            <svg viewBox="0 0 100 80" width="20" height="20">
+              <rect width="100" height="15" rx="8" fill="#7BFF00"></rect>
+              <rect y="30" width="100" height="15" rx="8" fill="#7BFF00"></rect>
+              <rect y="60" width="100" height="15" rx="8" fill="#7BFF00"></rect>
+            </svg>
+          </div>
+          <div className={styles.headerTitle}>EASY MO CORE | ПАНЕЛЬ УПРАВЛЕНИЯ</div>
+        </div>
+
         <div className={styles.headerActions}>
           <span className={styles.settingsIcon}>⚙️</span>
           <div className={styles.userAvatar}>
@@ -33,7 +39,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className={styles.column} style={{ marginTop: '80px' }}>
+      <div className={styles.column} style={{ marginTop: '100px' }}>
         <div style={{ marginBottom: '3rem', textAlign: 'center' }}>
           <h2 className={styles.neonTitle}>
             С ВОЗВРАЩЕНИЕМ, {userName} ИЗ '{userOrg}'.
@@ -42,7 +48,12 @@ export default function DashboardPage() {
 
         <div className={styles.dashboardGrid}>
           <div className={styles.mainActionCard}>
-            <div style={{ fontSize: '5rem' }}>🚀</div>
+            <div className={styles.neonIcon}>
+              <svg viewBox="0 0 24 24" width="80" height="80">
+                <path fill="none" stroke="#7BFF00" strokeWidth="1.5" d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71zM12 18l6.79 3 .71-.71z"></path>
+                <circle cx="12" cy="12" r="3" fill="none" stroke="#7BFF00" strokeWidth="1.5"></circle>
+              </svg>
+            </div>
             <button className={styles.heroButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</button>
           </div>
 
@@ -57,12 +68,12 @@ export default function DashboardPage() {
             </div>
             <div className={styles.statCard}>
               <p className={styles.statLabel}>ПРОГРЕСС ЦЕЛИ</p>
-              <div style={{ width: '100px', margin: '0 auto' }}>
+              <div className={styles.gaugeWrapper}>
                 <svg viewBox="0 0 100 50">
-                  <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
-                  <path d="M 10 50 A 40 40 0 0 1 70 20" fill="none" stroke="#7BFF00" strokeWidth="8" strokeDasharray="100" />
+                  <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
+                  <path d="M 10 50 A 40 40 0 0 1 70 20" fill="none" stroke="#7BFF00" strokeWidth="10" strokeDasharray="100" className={styles.gaugeProgress} />
                 </svg>
-                <div style={{ fontSize: '0.8rem', color: '#7BFF00', fontWeight: 'bold' }}>75%</div>
+                <div className={styles.gaugeValue}>75%</div>
               </div>
             </div>
           </div>

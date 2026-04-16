@@ -260,3 +260,82 @@
   font-size: 1.6rem;
   font-weight: bold;
 }
+
+.dashboardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 1rem 3rem;
+  background: rgba(10, 15, 25, 0.9);
+  border-bottom: 1px solid rgba(123, 255, 0, 0.15);
+  box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.burgerMenu {
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.burgerMenu:hover {
+  opacity: 1;
+}
+
+.headerTitle {
+  color: #7BFF00;
+  font-weight: bold;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 12px rgba(123, 255, 0, 0.4);
+}
+
+.statCard, .mainActionCard {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: 20px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 15px rgba(123, 255, 0, 0.03);
+}
+
+.statCard:hover, .mainActionCard:hover {
+  border-color: rgba(123, 255, 0, 0.4);
+  box-shadow: 0 0 25px rgba(123, 255, 0, 0.15);
+  transform: translateY(-5px);
+}
+
+.mainActionCard {
+  gap: 0;
+  padding: 3rem;
+  border-color: rgba(123, 255, 0, 0.2);
+}
+
+.neonIcon svg {
+  filter: drop-shadow(0 0 10px rgba(123, 255, 0, 0.5));
+}
+
+.gaugeWrapper {
+  width: 110px;
+  margin: 1rem auto 0;
+  position: relative;
+}
+
+.gaugeProgress {
+  filter: drop-shadow(0 0 8px rgba(123, 255, 0, 0.6));
+}
+
+.gaugeValue {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.2rem;
+  color: #7BFF00;
+  font-weight: bold;
+}
