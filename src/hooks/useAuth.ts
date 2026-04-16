@@ -16,7 +16,8 @@ export const useAuth = () => {
 
   const logout = () => {
     localStorage.removeItem('isAuth');
-    router.push('/login');
+    // Раньше было '/login', теперь отправляем на главную с выбором
+    router.push('/'); 
   };
 
   const checkAuth = () => {
