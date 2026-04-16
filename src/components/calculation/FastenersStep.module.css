@@ -1,0 +1,74 @@
+.fastenersGrid {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 30px;
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.sectionTitle {
+  color: var(--neon-green);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+
+.infoBlock {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(123, 255, 0, 0.15);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.description {
+  margin: 0;
+  color: white;
+  line-height: 1.6;
+}
+
+.saveButton {
+  margin-top: 30px;
+  align-self: flex-start;
+  background: var(--neon-green);
+  color: black;
+  border: none;
+  padding: 15px 30px;
+  font-weight: 800;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.4);
+  transition: 0.3s;
+}
+
+.saveButton:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 30px var(--neon-green);
+}
+
+.infoCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+}
+
+.infoCard h3 {
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+  color: var(--neon-green);
+}
+
+.infoCard p {
+  margin: 0;
+  color: white;
+  line-height: 1.5;
+}

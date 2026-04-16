@@ -3,9 +3,31 @@
 import { useState } from 'react';
 import styles from './calculation.module.css';
 import ClientStep from '@/components/calculation/ClientStep';
+import ItemsStep from '@/components/calculation/ItemsStep';
+import FastenersStep from '@/components/calculation/FastenersStep';
+
+interface ClientData {
+  fio: string;
+  phone: string;
+  address: string;
+  source: string;
+  comment: string;
+  status: string;
+}
+
+interface WindowItem {
+  id: number;
+  name: string;
+  width: number;
+  height: number;
+  material: string;
+  kantColor: string;
+  fastenerType: string;
+  fastenerStep: number;
+}
 
 // Мы сохраняем структуру заказа, чтобы ничего не упало
-const initialWindow = (id: number) => ({
+const initialWindow = (id: number): WindowItem => ({
   id,
   name: `Окно ${id}`,
   width: 200,
@@ -18,9 +40,9 @@ const initialWindow = (id: number) => ({
 
 export default function NewCalculation() {
   const [activeTab, setActiveTab] = useState('Клиент');
-  
+
   // СОСТОЯНИЕ КЛИЕНТА (Родительский мозг)
-  const [clientData, setClientData] = useState({
+  const [clientData, setClientData] = useState<ClientData>({
     fio: '',
     phone: '',
     address: '',
@@ -29,18 +51,33 @@ export default function NewCalculation() {
     status: 'Новый',
   });
 
-  const [windows, setWindows] = useState([initialWindow(1)]);
+  const [windows, setWindows] = useState<WindowItem[]>([initialWindow(1)]);
 
   const menuItems = [
-    'Клиент', 'Изделия', 'Крепежи', 'Дополнения', 
-    'Каркас', 'Расчёт', 'Цены', 'Для производства'
+    'Клиент',
+    'Изделия',
+    'Крепежи',
+    'Дополнения',
+    'Каркас',
+    'Расчёт',
+    'Цены',
+    'Для производства',
   ];
 
   // ТОТ САМЫЙ ВЫКЛЮЧАТЕЛЬ
-  const handleSaveClient = (updatedData: any) => {
+  const handleSaveClient = (updatedData: ClientData) => {
     setClientData(updatedData);
-    console.log("ДАННЫЕ КЛИЕНТА ЗАФИКСИРОВАНЫ. Запускаю общий алгоритм...");
+    console.log('ДАННЫЕ КЛИЕНТА ЗАФИКСИРОВАНЫ. Запускаю общий алгоритм...');
     // Здесь позже будет вызов глобальной функции расчета
+  };
+
+  const handleSaveItems = (updatedWindows: WindowItem[]) => {
+    setWindows(updatedWindows);
+    console.log('ИЗДЕЛИЯ ЗАФИКСИРОВАНЫ. Запускаю общий алгоритм...');
+  };
+
+  const handleSaveFasteners = () => {
+    console.log('КРЕПЕЖИ ЗАФИКСИРОВАНЫ. Запускаю общий алгоритм...');
   };
 
   return (
@@ -61,21 +98,34 @@ export default function NewCalculation() {
       </aside>
 
       <section className={styles.contentArea}>
-        {/* РАЗДЕЛ: КЛИЕНТ (ПОДКЛЮЧАЕМ МОДУЛЬ) */}
         {activeTab === 'Клиент' && (
-          <ClientStep 
-            initialData={clientData} 
-            onSave={handleSaveClient} 
+          <ClientStep
+            initialData={clientData}
+            onSave={handleSaveClient}
           />
         )}
 
-        {/* ЗАГЛУШКИ ДЛЯ ОСТАЛЬНЫХ (ЧТОБЫ НЕ ПУСТОТА) */}
-        {activeTab !== 'Клиент' && (
-          <div className={styles.placeholder}>
-            <h2>Раздел "{activeTab}"</h2>
-            <p>В процессе переноса в модульную систему...</p>
-          </div>
+        {activeTab === 'Изделия' && (
+          <ItemsStep
+            windows={windows}
+            onSave={handleSaveItems}
+          />
         )}
+
+        {activeTab === 'Крепежи' && (
+          <FastenersStep
+            onSave={handleSaveFasteners}
+          />
+        )}
+
+        {activeTab !== 'Клиент' &&
+          activeTab !== 'Изделия' &&
+          activeTab !== 'Крепежи' && (
+            <div className={styles.placeholder}>
+              <h2>Раздел "{activeTab}"</h2>
+              <p>В процессе переноса в модульную систему...</p>
+            </div>
+          )}
       </section>
     </main>
   );

@@ -1,0 +1,128 @@
+.itemsGrid {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 30px;
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.sectionTitle {
+  color: var(--neon-green);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.itemCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(123, 255, 0, 0.15);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.itemTitle {
+  margin: 0;
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.itemBadge {
+  color: var(--neon-green);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputGroup label {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+.neonInput {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  padding: 12px;
+  border-radius: 8px;
+  color: white;
+  transition: 0.3s;
+}
+
+.neonInput:focus {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.2);
+  outline: none;
+}
+
+.saveButton {
+  margin-top: 30px;
+  align-self: flex-start;
+  background: var(--neon-green);
+  color: black;
+  border: none;
+  padding: 15px 30px;
+  font-weight: 800;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.4);
+  transition: 0.3s;
+}
+
+.saveButton:hover {
+  transform: scale(1.02);
+  box-shadow: 0 0 30px var(--neon-green);
+}
+
+.infoCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+}
+
+.infoCard h3 {
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+  color: var(--neon-green);
+}
+
+.infoCard p {
+  margin: 0;
+  color: white;
+  line-height: 1.5;
+}
