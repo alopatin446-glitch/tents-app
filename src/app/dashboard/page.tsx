@@ -51,42 +51,38 @@ export default function DashboardPage() {
 
         {/* ГРИД ПАНЕЛИ (1fr 2fr) */}
         <div className={styles.dashboardGrid}>
-         {/* ЛЕВАЯ КАРТОЧКА (ОБНОВЛЕННАЯ РАКЕТА) */}
-        <div className={styles.mainActionCard}>
-          <div className={styles.neonIcon}>
-            <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#7BFF00" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              {/* Корпус ракеты */}
-              <path d="M12 2C12 2 7 8 7 14C7 18 10 20 12 20C14 20 17 18 17 14C17 8 12 2 12 2Z" />
-              {/* Иллюминатор */}
-              <circle cx="12" cy="11" r="2" />
-              {/* Левое крыло */}
-              <path d="M7 14L3 17V20L7 18" />
-              {/* Правое крыло */}
-              <path d="M17 14L21 17V20L17 18" />
-              {/* Сопло/Пламя */}
-              <path d="M10 20L12 22L14 20" />
-            </svg>
+          {/* ЛЕВАЯ КАРТОЧКА (РАКЕТА) */}
+          <div className={styles.mainActionCard} style={{ padding: '3rem 2rem' }}>
+            <div className={styles.neonIcon} style={{ transform: 'scale(1.2)', marginBottom: '2rem' }}>
+              <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#7BFF00" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2C12 2 7 8 7 14C7 18 10 20 12 20C14 20 17 18 17 14C17 8 12 2 12 2Z" />
+                <circle cx="12" cy="11" r="2" />
+                <path d="M7 14L3 17V20L7 18" />
+                <path d="M17 14L21 17V20L17 18" />
+                <path d="M10 20L12 22L14 20" />
+              </svg>
+            </div>
+            <button className={styles.rocketButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</button>
           </div>
-          {/* Используем наш новый класс rocketButton */}
-          <button className={styles.rocketButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</button>
-        </div>
 
           {/* ПРАВАЯ СЕТКА (3x2) */}
           <div className={styles.statsWrapper}>
-            {/* Карточка 1 — УВЕЛИЧЕННАЯ */}
+            {/* Карточка 1 */}
             <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem' }}>
               <p className={styles.statLabel}>ГОТОВЫЕ ЗАКАЗЫ</p>
               <p className={styles.statValue} style={{ fontSize: '2.2rem', marginTop: '1rem' }}>28</p>
             </div>
+
             {/* Карточка 2 */}
-            <div className={styles.mainActionCard}>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem' }}>
               <p className={styles.statLabel}>ОБЩАЯ СУММА ЗА МЕСЯЦ</p>
-              <p className={styles.statValue}>2,450,000 ₽</p>
+              <p className={styles.statValue} style={{ fontSize: '2.2rem', marginTop: '1rem' }}>2,450,000 ₽</p>
             </div>
+
             {/* Карточка 3 */}
-            <div className={styles.mainActionCard}>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem' }}>
               <p className={styles.statLabel}>ПРОГРЕС ЦЕЛИ</p>
-              <div className={styles.gaugeWrapper}>
+              <div className={styles.gaugeWrapper} style={{ marginTop: '1rem', transform: 'scale(1.1)' }}>
                 <svg viewBox="0 0 100 50">
                   <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
                   <path d="M 10 50 A 40 40 0 0 1 70 20" fill="none" stroke="#7BFF00" strokeWidth="10" strokeDasharray="100" className={styles.gaugeProgress} />
@@ -95,21 +91,23 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ВТОРОЙ РЯД (Новые карточки) */}
+            {/* ВТОРОЙ РЯД */}
             {/* Карточка 4 */}
-            <div className={styles.mainActionCard}>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem' }}>
               <p className={styles.statLabel}>АКТИВНЫЕ КЛИЕНТЫ</p>
-              <p className={styles.statValue}>124</p>
+              <p className={styles.statValue} style={{ fontSize: '2.2rem', marginTop: '1rem' }}>124</p>
             </div>
+
             {/* Карточка 5 */}
-            <div className={styles.mainActionCard}>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem' }}>
               <p className={styles.statLabel}>СРЕДНИЙ ЧЕК</p>
-              <p className={styles.statValue}>87,500 ₽</p>
+              <p className={styles.statValue} style={{ fontSize: '2.2rem', marginTop: '1rem' }}>87,500 ₽</p>
             </div>
+
             {/* Карточка 6 */}
-            <div className={styles.mainActionCard}>
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem' }}>
               <p className={styles.statLabel}>В ОЖИДАНИИ</p>
-              <p className={styles.statValue}>5</p>
+              <p className={styles.statValue} style={{ fontSize: '2.2rem', marginTop: '1rem' }}>5</p>
             </div>
           </div> {/* Конец statsWrapper */}
         </div> {/* Конец dashboardGrid */}
