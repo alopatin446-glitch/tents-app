@@ -93,22 +93,28 @@
   gap: 1.5rem;
 }
 
-/* Сами карточки */
+/* ОБНОВЛЕННЫЕ ПЛИТКИ СТАТИСТИКИ (Правая сетка) */
 .statCard {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.01); /* Очень тонкий фон */
+  border: 1px solid rgba(123, 255, 0, 0.1); /* Тонкая зеленая рамка */
+  border-radius: 18px;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 180px; /* Чтобы карточки были солидными по высоте */
+  min-height: 140px; /* Фиксированная высота для ровного грида */
+  transition: all 0.3s ease;
+  position: relative; /* Для эффектов */
 }
 
+/* ЭФФЕКТ СВЕЧЕНИЯ ПРИ НАВЕДЕНИИ (Как у ракеты) */
 .statCard:hover {
-  border-color: #7BFF00;
-  box-shadow: 0 0 20px rgba(123, 255, 0, 0.15); /* "Неон" при наведении */
-  transform: translateY(-5px);
+  background: rgba(123, 255, 0, 0.05); /* Легкая зеленая заливка */
+  border-color: #7BFF00; /* Яркая рамка */
+  box-shadow: 
+    0 0 15px rgba(123, 255, 0, 0.3), /* Внешний неон */
+    inset 0 0 10px rgba(123, 255, 0, 0.1); /* Внутренний блик */
+  transform: translateY(-3px); /* Легкий подъем */
 }
 
 .headerTitle {

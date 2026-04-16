@@ -67,15 +67,14 @@ export default function DashboardPage() {
               <path d="M10 20L12 22L14 20" />
             </svg>
           </div>
-          
           {/* Используем наш новый класс rocketButton */}
           <button className={styles.rocketButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</button>
         </div>
 
           {/* ПРАВАЯ СЕТКА (3x2) */}
           <div className={styles.statsWrapper}>
-            {/* Карточка 1 */}
-            <div className={styles.statCard}>
+            {/* Карточка 1 — ЗАМЕНЯЕМ ТОЛЬКО ЭТОТ БЛОК */}
+            <div className={styles.mainActionCard}>
               <p className={styles.statLabel}>ГОТОВЫЕ ЗАКАЗЫ</p>
               <p className={styles.statValue}>28</p>
             </div>
