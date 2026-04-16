@@ -1,115 +1,102 @@
-/* ОБНОВЛЕННЫЕ ИСПРАВЛЕННЫЕ СТИЛИ */
+/* ЖЕСТКИЙ СБРОС ФОНА НАВСЕГДА */
+.container {
+  min-height: 100vh;
+  width: 100vw;
+  background-color: #05080d !important; /* Глубокий черный, не подлежит обсуждению */
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+  overflow-x: hidden;
+  padding: 0;
+}
 
+/* ХЕДЕР С ГЛУБОКИМ ФОНОМ */
 .dashboardHeader {
+  width: 100%;
+  height: 70px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: fixed;
-  left: 0;
-  right: 0;
-  width: 100%;
-  padding: 1rem 3rem; /* Отступы по бокам */
-  background: rgba(10, 15, 25, 0.9);
+  padding: 0 4rem;
+  background: rgba(10, 15, 25, 0.95);
   border-bottom: 1px solid rgba(123, 255, 0, 0.15);
-  box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+  position: fixed;
+  top: 0;
   z-index: 1000;
 }
 
-.burgerMenu {
-  cursor: pointer;
-  opacity: 0.8;
-  transition: opacity 0.3s ease;
-}
-
-.burgerMenu:hover {
-  opacity: 1;
-}
-
-.headerTitle {
-  color: #7BFF00;
-  font-weight: bold;
-  font-size: 1.1rem;
-  letter-spacing: 0.5px;
-  text-shadow: 0 0 12px rgba(123, 255, 0, 0.4);
-}
-
-.headerActions {
+/* ЦЕНТРОВКА КОНТЕНТА */
+.contentSection {
+  margin-top: 100px;
+  width: 100%;
+  max-width: 1400px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  padding: 2rem 4rem;
 }
 
-.settingsIcon {
-  font-size: 1.5rem;
-  cursor: pointer;
-  opacity: 0.7;
+/* ПРИВЕТСТВИЕ: СДЕЛАТЬ "ДОРОГО" */
+.neonTitle {
+  color: #7BFF00;
+  text-shadow: 0 0 15px rgba(123, 255, 0, 0.5); /* "Неон" */
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 2.2rem;
+  letter-spacing: 1.5px; /* Разрядка */
+  margin-bottom: 4rem;
+  text-align: center;
 }
 
-.userAvatar {
-  width: 35px;
-  height: 35px;
-  border-radius: 50%;
-  border: 2px solid #7BFF00;
-  overflow: hidden;
-  background: #222;
-}
-
+/* ГРИД: РАКЕТА (350px) И СЕТКА (1fr) */
 .dashboardGrid {
   display: grid;
-  grid-template-columns: 350px 1fr; 
-  gap: 2rem;
+  grid-template-columns: 350px 1fr;
+  gap: 2.5rem;
   width: 100%;
-  max-width: 1200px;
-  margin-top: 100px;
+  align-items: stretch;
 }
 
+/* ГЛАВНАЯ КАРТОЧКА: SVG ДОЛЖЕН СВЕТИТЬСЯ */
+.mainActionCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  border-radius: 24px;
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.neonIcon svg {
+  filter: drop-shadow(0 0 10px rgba(123, 255, 0, 0.4)); /* "Неон" для ракеты */
+}
+
+/* СЕТКА СТАТИСТИКИ 3x2 */
 .statsWrapper {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
 }
 
-.statCard, .mainActionCard {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid rgba(123, 255, 0, 0.1);
+.statCard {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
-  padding: 2rem;
+  padding: 1.5rem;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   transition: all 0.3s ease;
-  box-shadow: 0 0 15px rgba(123, 255, 0, 0.03);
 }
 
-.statCard:hover, .mainActionCard:hover {
-  border-color: rgba(123, 255, 0, 0.4);
-  box-shadow: 0 0 25px rgba(123, 255, 0, 0.15);
+.statCard:hover {
+  border-color: #7BFF00;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.15); /* "Неон" при наведении */
   transform: translateY(-5px);
-}
-
-.mainActionCard {
-  gap: 0;
-  padding: 3rem;
-  border-color: rgba(123, 255, 0, 0.2);
-}
-
-.neonIcon svg {
-  filter: drop-shadow(0 0 10px rgba(123, 255, 0, 0.5));
-}
-
-.gaugeWrapper {
-  width: 110px;
-  margin: 1rem auto 0;
-  position: relative;
-}
-
-.gaugeProgress {
-  filter: drop-shadow(0 0 8px rgba(123, 255, 0, 0.6));
-}
-
-.gaugeValue {
-  position: absolute;
-  top: 60%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 1.2rem;
-  color: #7BFF00;
-  font-weight: bold;
 }
