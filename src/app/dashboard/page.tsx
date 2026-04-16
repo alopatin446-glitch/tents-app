@@ -54,12 +54,20 @@ export default function DashboardPage() {
          {/* ЛЕВАЯ КАРТОЧКА (ОБНОВЛЕННАЯ РАКЕТА) */}
         <div className={styles.mainActionCard}>
           <div className={styles.neonIcon}>
-            {/* Новая SVG Ракета (из референса) */}
-            <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#7BFF00" strokeWidth="1.5">
-              <path d="M4.5 16.5c-1.5 1.5-1.5 3.5 0 5s3.5 1.5 5 0M15 3c6 0 6 0 6 6s-6 12-12 12-4-4-4-4l2-2 3 3 5-5-5-5 3-3Z" />
-              <path d="M11 13c1.1 1.1 1.1 2.9 0 4s-2.9 1.1-4 0M17 7c.6.6.6 1.4 0 2s-1.4.6-2 0 .6-1.4 0-2 1.4-.6 2 0Z" />
+            <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#7BFF00" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              {/* Корпус ракеты */}
+              <path d="M12 2C12 2 7 8 7 14C7 18 10 20 12 20C14 20 17 18 17 14C17 8 12 2 12 2Z" />
+              {/* Иллюминатор */}
+              <circle cx="12" cy="11" r="2" />
+              {/* Левое крыло */}
+              <path d="M7 14L3 17V20L7 18" />
+              {/* Правое крыло */}
+              <path d="M17 14L21 17V20L17 18" />
+              {/* Сопло/Пламя */}
+              <path d="M10 20L12 22L14 20" />
             </svg>
           </div>
+          
           {/* Используем наш новый класс rocketButton */}
           <button className={styles.rocketButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</button>
         </div>
