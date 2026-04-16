@@ -79,12 +79,12 @@ export default function DashboardPage() {
               <p className={styles.statValue}>28</p>
             </div>
             {/* Карточка 2 */}
-            <div className={styles.statCard}>
+            <div className={styles.mainActionCard}>
               <p className={styles.statLabel}>ОБЩАЯ СУММА ЗА МЕСЯЦ</p>
               <p className={styles.statValue}>2,450,000 ₽</p>
             </div>
             {/* Карточка 3 */}
-            <div className={styles.statCard}>
+            <div className={styles.mainActionCard}>
               <p className={styles.statLabel}>ПРОГРЕС ЦЕЛИ</p>
               <div className={styles.gaugeWrapper}>
                 <svg viewBox="0 0 100 50">
@@ -97,17 +97,17 @@ export default function DashboardPage() {
 
             {/* ВТОРОЙ РЯД (Новые карточки) */}
             {/* Карточка 4 */}
-            <div className={styles.statCard}>
+            <div className={styles.mainActionCard}>
               <p className={styles.statLabel}>АКТИВНЫЕ КЛИЕНТЫ</p>
               <p className={styles.statValue}>124</p>
             </div>
             {/* Карточка 5 */}
-            <div className={styles.statCard}>
+            <div className={styles.mainActionCard}>
               <p className={styles.statLabel}>СРЕДНИЙ ЧЕК</p>
               <p className={styles.statValue}>87,500 ₽</p>
             </div>
             {/* Карточка 6 */}
-            <div className={styles.statCard}>
+            <div className={styles.mainActionCard}>
               <p className={styles.statLabel}>В ОЖИДАНИИ</p>
               <p className={styles.statValue}>5</p>
             </div>
