@@ -3,14 +3,15 @@
 import { useState } from 'react';
 import styles from './calculation.module.css';
 
-// Структура нового окна
 const initialWindow = (id: number) => ({
   id,
   name: `Окно ${id}`,
   width: 200,
   height: 200,
   material: 'ПВХ 700 мкм (Прозрачная)',
-  kantColor: 'Коричневый'
+  kantColor: 'Коричневый',
+  fastenerType: 'Поворотная скоба', // Тип крепления
+  fastenerStep: 40,               // Шаг между креплениями в см
 });
 
 export default function NewCalculation() {
@@ -25,14 +26,12 @@ export default function NewCalculation() {
 
   const currentWindow = windows[activeWindowIndex];
 
-  // Добавление нового окна
   const addWindow = () => {
     const newId = windows.length + 1;
     setWindows(prev => [...prev, initialWindow(newId)]);
     setActiveWindowIndex(windows.length);
   };
 
-  // Универсальное обновление параметров (БЕЗ МУТАЦИИ)
   const updateWindow = (key: string, value: any) => {
     setWindows(prev => prev.map((win, index) => 
       index === activeWindowIndex ? { ...win, [key]: value } : win
@@ -41,7 +40,6 @@ export default function NewCalculation() {
 
   return (
     <main className={styles.mainContainer}>
-      {/* ЛЕВАЯ ПАНЕЛЬ НАВИГАЦИИ */}
       <aside className={styles.sidebar}>
         <div className={styles.orderBadge}>ЗАКАЗ: НОВЫЙ</div>
         <nav className={styles.navMenu}>
@@ -57,44 +55,9 @@ export default function NewCalculation() {
         </nav>
       </aside>
 
-      {/* ПРАВАЯ ЧАСТЬ - КОНТЕНТ */}
       <section className={styles.contentArea}>
         
-        {/* РАЗДЕЛ: КЛИЕНТ */}
-        {activeTab === 'Клиент' && (
-          <div className={styles.formGrid}>
-            <h2 className={styles.sectionTitle}>Данные клиента</h2>
-            <div className={styles.inputGroup}><label>ФИО</label><input type="text" placeholder="Иванов Иван Иванович" className={styles.neonInput} /></div>
-            <div className={styles.inputGroup}><label>Телефон</label><input type="tel" placeholder="+7 (999) 000-00-00" className={styles.neonInput} /></div>
-            <div className={styles.inputGroup}><label>Адрес (Название в поиске)</label><input type="text" placeholder="ул. Ленина, д. 150" className={styles.neonInput} /></div>
-            <div className={styles.row}>
-              <div className={styles.inputGroup}>
-                <label>Откуда узнали</label>
-                <select className={styles.neonSelect}>
-                  <option>Авито</option><option>Сарафанное радио</option><option>Сайт</option>
-                </select>
-              </div>
-              <div className={styles.inputGroup}>
-                <label>Статус заказа</label>
-                <select className={styles.neonSelect}>
-                  <option>Замер</option><option>Расчет</option><option>Производство</option>
-                </select>
-              </div>
-            </div>
-            <div className={styles.inputGroup}><label>Комментарий</label><textarea className={styles.neonTextarea}></textarea></div>
-            <div className={styles.photoGrid}>
-               <div className={styles.photoBox}><span>+ Фото объекта</span></div>
-               <div className={styles.photoBox}><span>+ Фото замера</span></div>
-               <div className={styles.photoBox}><span>+ Фото договора</span></div>
-            </div>
-            <div className={styles.statsCard}>
-                <div className={styles.statLine}>Площадь: <span>0 м²</span></div>
-                <div className={styles.statLineBold}>Прибыль: <span className={styles.neonText}>0 ₽</span></div>
-            </div>
-          </div>
-        )}
-
-        {/* РАЗДЕЛ: ИЗДЕЛИЯ (КОНСТРУКТОР) */}
+        {/* ВКЛАДКА ИЗДЕЛИЯ — ТОЛЬКО ГЕОМЕТРИЯ */}
         {activeTab === 'Изделия' && (
           <div className={styles.calcWrapper}>
             <div className={styles.windowTabs}>
@@ -109,35 +72,24 @@ export default function NewCalculation() {
               ))}
               <button className={styles.addWinBtn} onClick={addWindow}>+ Добавить</button>
             </div>
-
             <div className={styles.workspace}>
               <div className={styles.paramsPanel}>
                 <h2 className={styles.sectionTitle}>Геометрия {currentWindow.name}</h2>
-                <div className={styles.inputGroup}>
-                  <label>Ширина (см)</label>
+                <div className={styles.inputGroup}><label>Ширина (см)</label>
                   <input type="number" value={currentWindow.width} onChange={(e) => updateWindow('width', Number(e.target.value))} className={styles.neonInput} />
                 </div>
-                <div className={styles.inputGroup}>
-                  <label>Высота (см)</label>
+                <div className={styles.inputGroup}><label>Высота (см)</label>
                   <input type="number" value={currentWindow.height} onChange={(e) => updateWindow('height', Number(e.target.value))} className={styles.neonInput} />
                 </div>
-                <div className={styles.inputGroup}>
-                  <label>Материал</label>
+                <div className={styles.inputGroup}><label>Материал</label>
                   <select className={styles.neonSelect} value={currentWindow.material} onChange={(e) => updateWindow('material', e.target.value)}>
                     <option>ПВХ 700 мкм</option><option>ПВХ 500 мкм</option><option>Полиуретан</option>
                   </select>
                 </div>
               </div>
-
               <div className={styles.visualPanel}>
                 <div className={styles.blueprintContainer}>
-                  <div 
-                    className={styles.windowDrawing}
-                    style={{ 
-                      ['--draw-width' as any]: `${Math.min(currentWindow.width, 300)}px`, 
-                      ['--draw-height' as any]: `${Math.min(currentWindow.height, 300)}px` 
-                    }}
-                  >
+                  <div className={styles.windowDrawing} style={{ ['--draw-width' as any]: `${Math.min(currentWindow.width, 300)}px`, ['--draw-height' as any]: `${Math.min(currentWindow.height, 300)}px` }}>
                     <span className={styles.dimW}>{currentWindow.width} см</span>
                     <span className={styles.dimH}>{currentWindow.height} см</span>
                   </div>
@@ -147,8 +99,43 @@ export default function NewCalculation() {
           </div>
         )}
 
-        {/* ЗАГЛУШКА ДЛЯ ОСТАЛЬНЫХ ТАБОВ */}
-        {!['Клиент', 'Изделия'].includes(activeTab) && (
+        {/* ВКЛАДКА КРЕПЕЖИ — ОЖИВЛЯЕМ ЕЁ */}
+        {activeTab === 'Крепежи' && (
+          <div className={styles.formGrid}>
+            <h2 className={styles.sectionTitle}>Фурнитура для {currentWindow.name}</h2>
+            <div className={styles.inputGroup}>
+              <label>Тип крепления (верх/бока)</label>
+              <select 
+                className={styles.neonSelect} 
+                value={currentWindow.fastenerType} 
+                onChange={(e) => updateWindow('fastenerType', e.target.value)}
+              >
+                <option>Поворотная скоба</option>
+                <option>Люверс (кольцо)</option>
+                <option>Французская скоба</option>
+                <option>Ремешок</option>
+              </select>
+            </div>
+            <div className={styles.inputGroup}>
+              <label>Шаг крепления (см)</label>
+              <input 
+                type="range" min="20" max="60" step="5" 
+                value={currentWindow.fastenerStep} 
+                onChange={(e) => updateWindow('fastenerStep', Number(e.target.value))}
+                className={styles.neonInput} 
+              />
+              <div style={{ textAlign: 'right', color: '#7BFF00', fontSize: '0.9rem' }}>{currentWindow.fastenerStep} см</div>
+            </div>
+            <div className={styles.statsCard}>
+               <p>Расчетное кол-во фурнитуры: <span className={styles.neonText}>
+                 {Math.ceil(((currentWindow.width + currentWindow.height) * 2) / currentWindow.fastenerStep)} шт.
+               </span></p>
+            </div>
+          </div>
+        )}
+
+        {/* ОСТАЛЬНЫЕ ЗАГЛУШКИ */}
+        {!['Клиент', 'Изделия', 'Крепежи'].includes(activeTab) && (
           <div className={styles.placeholder}>Раздел "{activeTab}" в разработке</div>
         )}
       </section>

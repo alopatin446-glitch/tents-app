@@ -1,6 +1,6 @@
 'use client';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // Убедись, что импорт именно такой
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import styles from './dashboard.module.css';
 
@@ -14,23 +14,42 @@ export default function DashboardPage() {
     }
   }, [checkAuth, router]);
 
-  // Функция для принудительного перехода
   const handleNewCalculation = () => {
-    console.log("Navigating to new calculation..."); // Для проверки в консоли
+    console.log("Navigating to new calculation...");
     router.push('/dashboard/new-calculation');
   };
 
   return (
     <main className={styles.container}>
-      {/* ... (хедер оставляем без изменений) ... */}
+      {/* ВОССТАНОВЛЕННЫЙ ХЕДЕР (Который GPT удалил) */}
+      <header className={styles.dashboardHeader}>
+        <div className={styles.headerTitle}>EASY MO CORE | ПАНЕЛЬ УПРАВЛЕНИЯ</div>
+        <div className={styles.headerActions}>
+          <div className={styles.settingsIcon}>⚙️</div>
+          <div className={styles.userAvatar}>
+             {/* Заглушка аватара */}
+             <div style={{ color: '#7BFF00', fontSize: '10px', textAlign: 'center', marginTop: '10px' }}>
+               {userName ? userName[0] : 'U'}
+             </div>
+          </div>
+          <button onClick={logout} className={styles.heroButton}>ВЫЙТИ</button>
+        </div>
+      </header>
 
-      <div className={styles.column} style={{ marginTop: '80px' }}>
-        <div className={styles.dashboardGrid} style={{ height: '500px', alignItems: 'stretch', gap: '20px' }}>
+      <div className={styles.column} style={{ marginTop: '90px' }}>
+        <h2 className={styles.neonTitle} style={{ marginBottom: '2rem', textAlign: 'center' }}>
+          С ВОЗВРАЩЕНИЕМ, {userName || 'ПОЛЬЗОВАТЕЛЬ'} ИЗ "{userOrg || 'EASY MO'}".
+        </h2>
+
+        <div className={styles.dashboardGrid} style={{ minHeight: '500px', gap: '20px' }}>
           
-          {/* ЛЕВАЯ КАРТОЧКА - ТЕПЕРЬ С ЖЕСТКИМ КЛИКОМ */}
+          {/* ЛЕВАЯ КАРТОЧКА - ИСПРАВЛЕНА И ДОСТУПНА */}
           <div 
             className={styles.mainActionCard} 
             onClick={handleNewCalculation}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleNewCalculation(); }}
+            role="button"
+            tabIndex={0}
             style={{ 
               cursor: 'pointer', 
               padding: '2rem', 
@@ -39,7 +58,7 @@ export default function DashboardPage() {
               justifyContent: 'center', 
               alignItems: 'center',
               position: 'relative',
-              zIndex: 10 // Поднимаем над всеми
+              zIndex: 10
             }}
           >
             <div className={styles.neonIcon} style={{ transform: 'scale(1.2)', marginBottom: '2rem', pointerEvents: 'none' }}>
@@ -49,14 +68,13 @@ export default function DashboardPage() {
                 <path d="M7 14L3 17V20L7 18" /><path d="M17 14L21 17V20L17 18" /><path d="M10 20L12 22L14 20" />
               </svg>
             </div>
-            <button className={styles.rocketButton} style={{ pointerEvents: 'none' }}>
+            <div className={styles.rocketButton} style={{ pointerEvents: 'none' }}>
               СОЗДАТЬ НОВЫЙ РАСЧЕТ
-            </button>
+            </div>
           </div>
 
           {/* ПРАВАЯ СЕТКА */}
           <div className={styles.statsWrapper} style={{ gap: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: '1fr 1fr' }}>
-            
             {[
               { label: 'ГОТОВЫЕ ЗАКАЗЫ', value: '28' },
               { label: 'СУММА ЗА МЕСЯЦ', value: '2,450,000 ₽' },
@@ -69,7 +87,6 @@ export default function DashboardPage() {
                 <p className={styles.statLabel} style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.8rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '1px' }}>
                   {item.label}
                 </p>
-                
                 {item.isGauge ? (
                   <div className={styles.gaugeWrapper} style={{ transform: 'scale(1.5)', marginTop: '1rem' }}>
                     <svg viewBox="0 0 100 50" width="100">
@@ -85,7 +102,6 @@ export default function DashboardPage() {
                 )}
               </div>
             ))}
-
           </div>
         </div>
       </div>
