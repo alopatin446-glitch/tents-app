@@ -71,11 +71,10 @@
   filter: drop-shadow(0 0 10px rgba(123, 255, 0, 0.4)); /* "Неон" для ракеты */
 }
 
-/* ПРАВАЯ СЕТКА: 3 колонки, 2 ряда */
+/* СЕТКА СТАТИСТИКИ 3x2 */
 .statsWrapper {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 колонки */
-  grid-template-rows: repeat(2, 1fr);    /* 2 ряда одинаковой высоты */
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
 }
 
