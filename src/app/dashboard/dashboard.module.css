@@ -171,3 +171,13 @@
   color: var(--neon-green);
   font-weight: bold;
 }
+
+.mainActionLink {
+  text-decoration: none;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.mainActionLink:active {
+  transform: scale(0.98);
+}
