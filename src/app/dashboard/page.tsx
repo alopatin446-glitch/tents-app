@@ -78,7 +78,7 @@ export default function DashboardPage() {
             </div>
             {/* Карточка 3 */}
             <div className={styles.statCard}>
-              <p className={styles.statLabel}>ПРОГРЕСС ЦЕЛИ</p>
+              <p className={styles.statLabel}>ПРОГРЕС ЦЕЛИ</p>
               <div className={styles.gaugeWrapper}>
                 <svg viewBox="0 0 100 50">
                   <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
