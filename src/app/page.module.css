@@ -1,16 +1,11 @@
 /* ЖЕСТКИЙ СБРОС ФОНА НАВСЕГДА */
 .container {
   min-height: 100vh;
-  width: 100vw;
-  background-color: #05080d !important; /* Глубокий черный, не подлежит обсуждению */
-  color: #ffffff;
+  width: 100%;
+  background: transparent; /* Уступаем место фону из globals.css */
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  position: relative;
-  overflow-x: hidden;
-  padding: 0;
 }
 
 /* ХЕДЕР С ГЛУБОКИМ ФОНОМ */
