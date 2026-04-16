@@ -73,10 +73,10 @@ export default function DashboardPage() {
 
           {/* ПРАВАЯ СЕТКА (3x2) */}
           <div className={styles.statsWrapper}>
-            {/* Карточка 1 — ЗАМЕНЯЕМ ТОЛЬКО ЭТОТ БЛОК */}
-            <div className={styles.mainActionCard}>
+            {/* Карточка 1 — УВЕЛИЧЕННАЯ */}
+            <div className={styles.mainActionCard} style={{ padding: '2.5rem 2rem' }}>
               <p className={styles.statLabel}>ГОТОВЫЕ ЗАКАЗЫ</p>
-              <p className={styles.statValue}>28</p>
+              <p className={styles.statValue} style={{ fontSize: '2.2rem', marginTop: '1rem' }}>28</p>
             </div>
             {/* Карточка 2 */}
             <div className={styles.mainActionCard}>
