@@ -113,3 +113,56 @@
   gap: 1.5rem;
   width: 100%;
 }
+
+.dashboardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  padding: 1.5rem 2rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(123, 255, 0, 0.1);
+  position: absolute;
+  top: 0;
+}
+
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: 1fr 2fr; 
+  gap: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  margin-top: 100px;
+}
+
+.statsWrapper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.statCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: 16px;
+  padding: 1.5rem;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.statCard:hover {
+  border-color: rgba(123, 255, 0, 0.4);
+  transform: translateY(-5px);
+}
+
+.mainActionCard {
+  background: rgba(123, 255, 0, 0.02);
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  border-radius: 20px;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
