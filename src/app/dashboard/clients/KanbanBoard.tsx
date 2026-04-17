@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import styles from './KanbanBoard.module.css';
-import StageColumn from './StageColumn';
+import StageColumn from '@/app/dashboard/clients/StageColumn';
 import { Client, Stage } from './types';
 
 const STAGES: Stage[] = [

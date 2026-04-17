@@ -5,7 +5,6 @@ export interface Client {
   totalPrice: number;
   status: 'new' | 'calc' | 'negotiation' | 'install';
   phone?: string;
-  lastContactDate?: string; // Для тех самых уведомлений о срочности
 }
 
 export interface Stage {
