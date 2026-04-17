@@ -1,20 +1,22 @@
 /* Основной контейнер, где лежат аккордеоны и правая панель */
 .container {
   display: flex;
-  justify-content: center; /* Центрируем всю композицию */
+  justify-content: center; /* Центрируем всю рабочую область */
   align-items: flex-start;
-  gap: 40px;               /* Расстояние между центром и правой панелью */
-  padding: 20px;
   width: 100%;
+  padding: 40px 20px;
+  gap: 30px;               /* Расстояние между центром и правой панелью */
+  box-sizing: border-box;
 }
 
 /* ЦЕНТРАЛЬНАЯ ЧАСТЬ (Аккордеоны) */
 .accordionArea {
-  flex: 0 1 800px;        /* Это магия: не растет больше 800px, но может сужаться */
-  max-width: 800px;       /* Жесткий лимит ширины для "стройности" */
+  /* Фиксируем ширину как на эталоне */
+  flex: 0 0 700px;         /* 0 0 означает: не расти и не сжиматься, быть ровно 700px */
+  width: 700px;            /* Для надежности дублируем */
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
 }
 
 .section {
@@ -25,13 +27,18 @@
   transition: 0.3s;
 }
 
-/* Стили для самих плашек, чтобы они выглядели как на референсе */
+/* Сами плашки делаем аккуратными */
 .header {
+  width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  padding: 15px 25px;
-  /* ... остальные стили ... */
+  padding: 12px 20px;      /* Чуть уменьшили падинги для компактности */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .header:hover { 
@@ -57,9 +64,14 @@
 
 /* ПРАВАЯ ЧАСТЬ (Служебная инфа) */
 .stickySidebar {
-  flex: 0 0 300px;        /* Жестко фиксируем ширину 300px, чтобы не гуляла */
+  /* Фиксируем правую панель, чтобы она не уезжала */
+  flex: 0 0 280px;         /* Строго 280px ширины */
+  width: 280px;
   position: sticky;
   top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .infoCard {
