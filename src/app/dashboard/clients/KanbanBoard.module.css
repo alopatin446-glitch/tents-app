@@ -5,21 +5,22 @@
   height: 100vh;
   background-color: #0f172a;
   overflow: hidden;
-  /* Вот этот отступ опустит ВЕСЬ контент сразу */
-  padding-top: 20px; 
+  /* Ключевое изменение здесь: */
+  padding: 20px 0 0 0; 
   box-sizing: border-box;
 }
 
 /* ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ */
 .sidebar {
   background-color: rgba(30, 41, 59, 0.5);
-  padding: 10px; /* Внутренние отступы элементов внутри меню */
+  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 20px;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
-  /* Убираем жесткую высоту 100vh, пусть занимает всё место в сетке */
-  height: 100%; 
+  /* Скруглим верхний правый угол сайдбара, чтобы он не казался обрубленным */
+  border-radius: 15px 15px 0 0; 
+  height: 100%;
 }
 
 /* ОБЛАСТЬ ДОСКИ (СКРОЛЛ КОЛОНОК) */
@@ -30,7 +31,7 @@
   overflow-x: hidden;
   height: 100%;
   align-items: flex-start;
-  /* Убираем верхний паддинг отсюда, так как он есть в mainWrapper */
+  /* Убираем лишние отступы здесь, оставляем только боковые */
   padding: 0 15px 20px 10px; 
 }
 
