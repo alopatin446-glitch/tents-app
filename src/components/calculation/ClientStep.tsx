@@ -48,7 +48,7 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
                                     <input type="tel" name="phone" value={clientData.phone || ''} onChange={handleChange} className={styles.neonInput} />
                                 </div>
                                 <div className={styles.inputGroup}>
-                                    <label>Источник</label>
+                                    <label>Откуда узнали</label>
                                     <select name="source" value={clientData.source || ''} onChange={handleChange} className={styles.neonSelect}>
                                         <option value="">Выберите источник...</option>
                                         {sourceOptions.map(o => <option key={o} value={o}>{o}</option>)}
