@@ -1,12 +1,17 @@
+/* Основной контейнер, где лежат аккордеоны и правая панель */
 .container {
-  display: grid;
-  grid-template-columns: 1fr 320px; /* Сужаем поля ввода за счет широкого сайдбара */
-  gap: 30px;
+  display: flex;
+  justify-content: center; /* Центрируем всю композицию */
   align-items: flex-start;
-  position: relative;
+  gap: 40px;               /* Расстояние между центром и правой панелью */
+  padding: 20px;
+  width: 100%;
 }
 
+/* ЦЕНТРАЛЬНАЯ ЧАСТЬ (Аккордеоны) */
 .accordionArea {
+  flex: 0 1 800px;        /* Это магия: не растет больше 800px, но может сужаться */
+  max-width: 800px;       /* Жесткий лимит ширины для "стройности" */
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -20,18 +25,19 @@
   transition: 0.3s;
 }
 
+/* Стили для самих плашек, чтобы они выглядели как на референсе */
 .header {
-  padding: 20px 40px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 15px 25px;
+  /* ... остальные стили ... */
 }
 
-.header:hover { background: rgba(123, 255, 0, 0.05); }
+.header:hover { 
+  background: rgba(123, 255, 0, 0.05); 
+  border-color: rgba(123, 255, 0, 0.2); /* Слегка подсветим и рамку при наведении */
+}
 
 .content {
   padding: 0 40px 30px 40px;
@@ -49,13 +55,11 @@
 .inputGroup { display: flex; flex-direction: column; gap: 8px; }
 .inputGroup label { font-size: 0.7rem; color: rgba(255,255,255,0.4); text-transform: uppercase; }
 
-/* Sticky эффект для правой колонки */
+/* ПРАВАЯ ЧАСТЬ (Служебная инфа) */
 .stickySidebar {
+  flex: 0 0 300px;        /* Жестко фиксируем ширину 300px, чтобы не гуляла */
   position: sticky;
   top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
 .infoCard {
