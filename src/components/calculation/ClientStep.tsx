@@ -88,7 +88,7 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
                     )}
                 </div>
 
-                {/* БЛОК 2: ФОТО И МАТЕРИАЛЫ */}
+                {/* БЛОК 2: МЕДИА */}
                 <div className={styles.section}>
                     <div className={styles.header} onClick={() => toggleSection('media')}>
                         <span>Фото и материалы</span>
@@ -96,14 +96,8 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
                     </div>
                     {openSections.media && (
                         <div className={styles.content}>
-                            <div className={styles.inputGroup}>
-                                <label>Фото объекта</label>
-                                <input type="file" name="photoObject" className={styles.neonInput} />
-                            </div>
-                            <div className={styles.inputGroup}>
-                                <label>Фото замера</label>
-                                <input type="file" name="photoMeasurement" className={styles.neonInput} />
-                            </div>
+                            <div className={styles.inputGroup}><label>Фото объекта</label><input type="file" name="photoObject" className={styles.neonInput} /></div>
+                            <div className={styles.inputGroup}><label>Фото замера</label><input type="file" name="photoMeasurement" className={styles.neonInput} /></div>
                             <div className={styles.inputGroup}>
                                 <label>Дата монтажа</label>
                                 <input type="date" name="installDate" value={clientData.installDate || ''} onChange={handleChange} className={styles.neonInput} />
@@ -118,10 +112,7 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
                                     style={{ borderRadius: '25px', minHeight: '80px', paddingTop: '12px' }}
                                 />
                             </div>
-                            <div className={styles.inputGroup}>
-                                <label>Фото Договора</label>
-                                <input type="file" name="photoContract" className={styles.neonInput} />
-                            </div>
+                            <div className={styles.inputGroup}><label>Фото Договора</label><input type="file" name="photoContract" className={styles.neonInput} /></div>
                         </div>
                     )}
                 </div>
@@ -135,18 +126,9 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
                     {openSections.payments && (
                         <div className={styles.content}>
                             <div className={styles.row}>
-                                <div className={styles.inputGroup}>
-                                    <label>Стоимость заказа</label>
-                                    <input type="number" name="totalPrice" value={clientData.totalPrice || ''} onChange={handleChange} className={styles.neonInput} />
-                                </div>
-                                <div className={styles.inputGroup}>
-                                    <label>Аванс</label>
-                                    <input type="number" name="advance" value={clientData.advance || ''} onChange={handleChange} className={styles.neonInput} />
-                                </div>
-                                <div className={styles.inputGroup}>
-                                    <label>Остаток</label>
-                                    <input type="number" name="balance" value={clientData.balance || ''} onChange={handleChange} className={styles.neonInput} />
-                                </div>
+                                <div className={styles.inputGroup}><label>Стоимость заказа</label><input type="number" name="totalPrice" value={clientData.totalPrice || ''} onChange={handleChange} className={styles.neonInput} /></div>
+                                <div className={styles.inputGroup}><label>Аванс</label><input type="number" name="advance" value={clientData.advance || ''} onChange={handleChange} className={styles.neonInput} /></div>
+                                <div className={styles.inputGroup}><label>Остаток</label><input type="number" name="balance" value={clientData.balance || ''} onChange={handleChange} className={styles.neonInput} /></div>
                                 <div className={styles.inputGroup}>
                                     <label>Тип оплаты</label>
                                     <select name="paymentType" value={clientData.paymentType || ''} onChange={handleChange} className={styles.neonSelect}>
@@ -170,14 +152,17 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
                     </div>
                     {openSections.results && (
                         <div className={styles.content}>
-                            <div className={styles.statLine}>Площадь: <strong>0 м²</strong></div>
-                            <div className={styles.statLine}>Прибыль: <strong className={styles.profitText}>0 ₽</strong></div>
+                            <div className={styles.statLine}><span>Площадь:</span><strong>{clientData.area || '0'} м²</strong></div>
+                            <div className={styles.statLine}><span>Стоимость:</span><strong>{clientData.totalPrice || '0'} ₽</strong></div>
+                            <div className={styles.statLine}><span>Себестоимость:</span><strong style={{ color: '#ff4d4d' }}>{clientData.costPrice || '0'} ₽</strong></div>
+                            <hr className={styles.divider} style={{ margin: '10px 0' }} />
+                            <div className={styles.statLine}><span>Прибыль/Маржа:</span><strong className={styles.profitText}>{(Number(clientData.totalPrice || 0) - Number(clientData.costPrice || 0))} ₽</strong></div>
                         </div>
                     )}
                 </div>
-            </div>
+            </div> {/* Конец accordionArea */}
 
-            {/* САЙДБАР */}
+            {/* САЙДБАР (Теперь он СНАРУЖИ accordionArea, как и должно быть) */}
             <div className={styles.stickySidebar}>
                 <div className={styles.infoCard}>
                     <h3>Служебная информация</h3>
@@ -196,6 +181,6 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
                     <button className={styles.exitBtn}>ВЫЙТИ</button>
                 </div>
             </div>
-        </div>
+        </div> // Конец container
     );
 }
