@@ -5,7 +5,6 @@ import styles from './calculation.module.css';
 import ClientStep from '@/components/calculation/ClientStep';
 import ItemsStep from '@/components/calculation/ItemsStep';
 import FastenersStep from '@/components/calculation/FastenersStep';
-import OrderManagement from '@/components/calculation/OrderManagement';
 
 interface ClientData {
   fio: string;
@@ -127,7 +126,6 @@ export default function NewCalculation() {
         </div>
 
         {/* НИЖНЯЯ ЧАСТЬ: ПУЛЬТ УПРАВЛЕНИЯ (ВСЕГДА ВИДЕН) */}
-        <OrderManagement />
       </section>
     </main>
   );
