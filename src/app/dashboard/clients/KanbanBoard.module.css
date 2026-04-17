@@ -98,3 +98,33 @@
   color: #fff;
   transform: translateX(5px);
 }
+
+/* Панель массовых действий в сайдбаре */
+.actionPanel {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 68, 68, 0.05);
+  border: 1px solid rgba(255, 68, 68, 0.2);
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Кнопка удаления */
+.deleteBtn {
+  background: #ff4444;
+  color: #fff;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.3s;
+  font-size: 0.8rem;
+}
+
+.deleteBtn:hover {
+  background: #cc0000;
+  transform: scale(1.02);
+}

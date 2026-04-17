@@ -10,10 +10,21 @@ interface StageColumnProps {
   stage: Stage;
   clients: Client[];
   id: string;
-  onClientClick: (client: Client) => void; // Добавили описание функции
+  selectedIds: string[]; // Список всех выбранных ID
+  onClientSelect: (id: string) => void; // Функция выбора (ЛКМ)
+  onClientEdit: (client: Client) => void; // Функция редактирования (ПКМ)
+  onClientOpenFull: (client: Client) => void; // Функция открытия карты (2хЛКМ)
 }
 
-export default function StageColumn({ stage, clients, id, onClientClick }: StageColumnProps) {
+export default function StageColumn({ 
+  stage, 
+  clients, 
+  id, 
+  selectedIds, 
+  onClientSelect, 
+  onClientEdit, 
+  onClientOpenFull 
+}: StageColumnProps) {
   const { setNodeRef } = useDroppable({ id });
   const totalSum = clients.reduce((acc, client) => acc + client.totalPrice, 0);
 
@@ -30,7 +41,10 @@ export default function StageColumn({ stage, clients, id, onClientClick }: Stage
           <ClientCard 
             key={client.id} 
             client={client} 
-            onClick={() => onClientClick(client)} // Передаем клик в карточку
+            isSelected={selectedIds.includes(client.id)} // Проверяем, выбран ли этот клиент
+            onSelect={() => onClientSelect(client.id)}
+            onEdit={() => onClientEdit(client)}
+            onOpenFull={() => onClientOpenFull(client)}
           />
         ))}
       </div>

@@ -29,21 +29,32 @@ export default function KanbanBoard() {
     { id: '4', name: 'ТехноНиколь', address: 'Промзона, корп. 2', totalPrice: 540000, status: 'install', phone: '8 800 555-35-35' },
   ]);
 
+  // СОСТОЯНИЯ
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Сенсоры для разделения клика и драга
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5, // Если сдвиг меньше 5px — это клик, если больше — начало драга
-      },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+
+  // ЛОГИКА ВЫБОРА (ЛКМ)
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
+    );
+  };
+
+  // ЛОГИКА УДАЛЕНИЯ ВЫБРАННЫХ
+  const deleteSelected = () => {
+    if (confirm(`Удалить выбранных клиентов (${selectedIds.length} шт.)?`)) {
+      setClients(prev => prev.filter(c => !selectedIds.includes(c.id)));
+      setSelectedIds([]);
+    }
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
-
     const clientId = active.id as string;
     const newStatus = over.id as Client['status'];
 
@@ -55,19 +66,26 @@ export default function KanbanBoard() {
   };
 
   return (
-    <DndContext 
-      sensors={sensors} 
-      collisionDetection={closestCorners} 
-      onDragEnd={handleDragEnd}
-    >
+    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
       <div className={styles.mainWrapper}>
         <aside className={styles.sidebar}>
           <h2 style={{fontSize: '1.1rem', fontWeight: 800, color: '#fff'}}>УПРАВЛЕНИЕ</h2>
           <input type="text" placeholder="Поиск..." className="neonInput" style={{width: '100%'}} />
+          
           <div className={styles.quickFilters}>
             <button className={styles.filterBtn}>🔥 ГОРЯЩИЕ</button>
             <button className={styles.filterBtn}>💸 ДОЛЖНИКИ</button>
           </div>
+
+          {/* ПАНЕЛЬ УДАЛЕНИЯ (появляется только если выбрано что-то) */}
+          {selectedIds.length > 0 && (
+            <div className={styles.actionPanel}>
+              <div style={{color: '#7BFF00', fontSize: '0.75rem', fontWeight: 800}}>ВЫБРАНО: {selectedIds.length}</div>
+              <button onClick={deleteSelected} className={styles.deleteBtn}>УДАЛИТЬ КАРТОЧКИ</button>
+              <button onClick={() => setSelectedIds([])} className={styles.filterBtn} style={{fontSize: '0.7rem', padding: '8px'}}>ОТМЕНА</button>
+            </div>
+          )}
+
           <div style={{marginTop: 'auto'}}>
             <button className="navButton active" style={{width: '100%'}}>+ КЛИЕНТ</button>
           </div>
@@ -79,8 +97,11 @@ export default function KanbanBoard() {
               key={stage.id} 
               id={stage.id} 
               stage={stage} 
-              clients={clients.filter(c => c.status === stage.id)} 
-              onClientClick={(client) => setEditingClient(client)}
+              clients={clients.filter(c => c.status === stage.id)}
+              selectedIds={selectedIds}
+              onClientSelect={toggleSelect}
+              onClientEdit={(client) => setEditingClient(client)}
+              onClientOpenFull={(client) => alert(`Переход в полную карту: ${client.name}`)}
             />
           ))}
         </div>
