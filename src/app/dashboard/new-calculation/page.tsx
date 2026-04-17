@@ -64,16 +64,16 @@ export default function NewCalculation() {
 
   const handleSaveClient = (updatedData: ClientData) => {
     setClientData(updatedData);
-    console.log('ДАННЫЕ КЛИЕНТА ЗАФИКСИРОВАНЫ. Запускаю общий алгоритм...');
+    console.log('ДАННЫЕ КЛИЕНТА ЗАФИКСИРОВАНЫ');
   };
 
   const handleSaveItems = (updatedWindows: WindowItem[]) => {
     setWindows(updatedWindows);
-    console.log('ИЗДЕЛИЯ ЗАФИКСИРОВАНЫ. Запускаю общий алгоритм...');
+    console.log('ИЗДЕЛИЯ ЗАФИКСИРОВАНЫ');
   };
 
   const handleSaveFasteners = () => {
-    console.log('КРЕПЕЖИ ЗАФИКСИРОВАНЫ. Запускаю общий алгоритм...');
+    console.log('КРЕПЕЖИ ЗАФИКСИРОВАНЫ');
   };
 
   return (
@@ -94,38 +94,32 @@ export default function NewCalculation() {
       </aside>
 
       <section className={styles.contentArea}>
-        {/* ВЕРХНЯЯ ЧАСТЬ: КОНТЕНТ ВКЛАДОК */}
-        <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px' }}>
-          {activeTab === 'Клиент' && (
-            <ClientStep
-              initialData={clientData}
-              onSave={handleSaveClient}
-            />
-          )}
+        {activeTab === 'Клиент' && (
+          <ClientStep
+            initialData={clientData}
+            onSave={handleSaveClient}
+          />
+        )}
 
-          {activeTab === 'Изделия' && (
-            <ItemsStep
-              windows={windows}
-              onSave={handleSaveItems}
-            />
-          )}
+        {activeTab === 'Изделия' && (
+          <ItemsStep
+            windows={windows}
+            onSave={handleSaveItems}
+          />
+        )}
 
-          {activeTab === 'Крепежи' && (
-            <FastenersStep
-              onSave={handleSaveFasteners}
-            />
-          )}
+        {activeTab === 'Крепежи' && (
+          <FastenersStep
+            onSave={handleSaveFasteners}
+          />
+        )}
 
-          {/* Автоматическая заглушка для еще не созданных модулей */}
-          {!['Клиент', 'Изделия', 'Крепежи'].includes(activeTab) && (
-            <div className={styles.placeholder}>
-              <h2>Раздел "{activeTab}"</h2>
-              <p>В процессе переноса в модульную систему...</p>
-            </div>
-          )}
-        </div>
-
-        {/* НИЖНЯЯ ЧАСТЬ: ПУЛЬТ УПРАВЛЕНИЯ (ВСЕГДА ВИДЕН) */}
+        {!['Клиент', 'Изделия', 'Крепежи'].includes(activeTab) && (
+          <div className={styles.placeholder}>
+            <h2>Раздел "{activeTab}"</h2>
+            <p>В процессе переноса в модульную систему...</p>
+          </div>
+        )}
       </section>
     </main>
   );
