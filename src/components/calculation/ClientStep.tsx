@@ -8,8 +8,10 @@ const statusOptions = ['Общение с клиентом', 'Ожидает з�
 
 export default function ClientStep({ initialData, onSave }: { initialData: any, onSave: (data: any) => void }) {
   const [clientData, setClientData] = useState(initialData || {});
+  
+  // Управляем открытием секций
   const [openSections, setOpenSections] = useState({
-    data: true,
+    data: true, // Пусть "Данные" будут открыты, остальное свернуто для чистоты
     media: false,
     payments: false,
     results: false
@@ -29,6 +31,7 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
       {/* ЛЕВАЯ ЧАСТЬ: АККОРДЕОНЫ */}
       <div className={styles.accordionArea}>
         
+        {/* БЛОК 1: ДАННЫЕ */}
         <div className={styles.section}>
           <div className={styles.header} onClick={() => toggleSection('data')}>
             <span>Данные клиента</span>
@@ -60,6 +63,7 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
           )}
         </div>
 
+        {/* БЛОК 2: ФОТО */}
         <div className={styles.section}>
           <div className={styles.header} onClick={() => toggleSection('media')}>
             <span>Фото и материалы</span>
@@ -73,6 +77,7 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
           )}
         </div>
 
+        {/* БЛОК 3: ПЛАТЕЖИ */}
         <div className={styles.section}>
           <div className={styles.header} onClick={() => toggleSection('payments')}>
             <span>Платежи и переводы</span>
@@ -81,13 +86,14 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
           {openSections.payments && (
             <div className={styles.content}>
               <div className={styles.row}>
-                <div className={styles.inputGroup}><label>Согласованная стоимость</label><input type="number" name="totalPrice" value={clientData.totalPrice || ''} onChange={handleChange} className={styles.neonInput} /></div>
+                <div className={styles.inputGroup}><label>Стоимость заказа</label><input type="number" name="totalPrice" value={clientData.totalPrice || ''} onChange={handleChange} className={styles.neonInput} /></div>
                 <div className={styles.inputGroup}><label>Аванс</label><input type="number" name="advance" value={clientData.advance || ''} onChange={handleChange} className={styles.neonInput} /></div>
               </div>
             </div>
           )}
         </div>
 
+        {/* БЛОК 4: ИТОГИ */}
         <div className={styles.section}>
           <div className={styles.header} onClick={() => toggleSection('results')}>
             <span>Прибыль и расход</span>
@@ -95,8 +101,8 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
           </div>
           {openSections.results && (
             <div className={styles.content}>
-              <div className={styles.statLine}>Площадь: <strong>{clientData.area || '0'} м²</strong></div>
-              <div className={styles.statLine}>Прибыль: <strong className={styles.profitText}>{clientData.profit || '0'} ₽</strong></div>
+              <div className={styles.statLine}>Площадь: <strong>0 м²</strong></div>
+              <div className={styles.statLine}>Прибыль: <strong className={styles.profitText}>0 ₽</strong></div>
             </div>
           )}
         </div>
@@ -106,8 +112,8 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
       <div className={styles.stickySidebar}>
         <div className={styles.infoCard}>
           <h3>Служебная информация</h3>
-          <p>Дата создания: <span>{clientData.createdAt || 'Авто'}</span></p>
-          <p>Дата изменения: <span>{clientData.updatedAt || '—'}</span></p>
+          <p>Дата создания: <span>Авто</span></p>
+          <p>Дата изменения: <span>Авто</span></p>
           <p>Создал: <span>Админ</span></p>
           <p>Изменил: <span>Админ</span></p>
           <hr className={styles.divider} />
@@ -121,6 +127,10 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
           <button className={styles.exitBtn}>ВЫЙТИ</button>
         </div>
       </div>
+      
+      {/* ВАЖНО: Здесь раньше был блок с 4-мя карточками. 
+          Я его полностью удалил, теперь файл заканчивается на закрывающем теге </div> контейнера.
+      */}
     </div>
   );
 }
