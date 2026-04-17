@@ -15,19 +15,21 @@ import EditModal from './EditModal';
 import { Client, Stage } from './types';
 
 const STAGES: Stage[] = [
-  { id: 'new', title: 'Новые / Замеры' },
-  { id: 'calc', title: 'Ожидают расчёт' },
-  { id: 'negotiation', title: 'Дожим' },
-  { id: 'install', title: 'Монтаж / Оплата' }
+  { id: 'negotiation', title: 'Общение с клиентом' },
+  { id: 'waiting_measure', title: 'Ожидает замер' },
+  { id: 'promised_pay', title: 'Обещал заплатить' },
+  { id: 'waiting_production', title: 'Ожидает изделия' },
+  { id: 'waiting_install', title: 'Ожидает монтаж' },
+  { id: 'special_case', title: 'Особые случаи' }
 ];
 
 export default function KanbanBoard() {
   const [clients, setClients] = useState<Client[]>([
-    { id: '1', name: 'Иванов А.П.', address: 'ул. Ленина, д. 10', totalPrice: 250000, status: 'new', phone: '+7 900 123-45-67' },
-    { id: '2', name: 'Петров С.В.', address: 'СНТ Ромашка, уч. 45', totalPrice: 85000, status: 'new' },
-    { id: '3', name: 'Сидоров К.М.', address: 'ул. Мира, 12', totalPrice: 120000, status: 'calc' },
-    { id: '4', name: 'ТехноНиколь', address: 'Промзона, корп. 2', totalPrice: 540000, status: 'install', phone: '8 800 555-35-35' },
-  ]);
+  { id: '1', name: 'Иванов А.П.', address: 'ул. Ленина, д. 10', totalPrice: 250000, status: 'negotiation', phone: '+7 900 123-45-67' },
+  { id: '2', name: 'Петров С.В.', address: 'СНТ Ромашка, уч. 45', totalPrice: 85000, status: 'waiting_measure' },
+  { id: '3', name: 'Сидоров К.М.', address: 'ул. Мира, 12', totalPrice: 120000, status: 'promised_pay' },
+  { id: '4', name: 'ТехноНиколь', address: 'Промзона, корп. 2', totalPrice: 540000, status: 'waiting_install', phone: '8 800 555-35-35' },
+]);
 
   // СОСТОЯНИЯ
   const [editingClient, setEditingClient] = useState<Client | null>(null);

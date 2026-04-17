@@ -3,11 +3,13 @@ export interface Client {
   name: string;
   address: string;
   totalPrice: number;
-  status: 'new' | 'calc' | 'negotiation' | 'install';
+  // Обновляем список допустимых статусов
+  status: 'negotiation' | 'waiting_measure' | 'promised_pay' | 'waiting_production' | 'waiting_install' | 'special_case';
   phone?: string;
 }
 
 export interface Stage {
-  id: Client['status'];
+  // И здесь тоже разрешаем новые ID для колонок
+  id: 'negotiation' | 'waiting_measure' | 'promised_pay' | 'waiting_production' | 'waiting_install' | 'special_case';
   title: string;
 }
