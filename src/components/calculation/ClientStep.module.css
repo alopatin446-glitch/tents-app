@@ -1,14 +1,15 @@
 /* Основной контейнер */
 .container {
   display: flex;
-  justify-content: flex-start; /* Строго к левому краю */
+  justify-content: flex-start; 
   align-items: flex-start;
   
-  /* Уменьшаем отступ слева до минимума, чтобы "прижать" к синему меню */
-  padding: 30px 0 30px 20px; 
-  gap: 30px; /* Расстояние между плашками и правой панелью */
-  
+  /* ПРИНУДИТЕЛЬНО прижимаем влево */
   width: 100%;
+  padding: 20px 0; /* Верх/низ оставляем, бока убираем в 0 */
+  margin-left: -20px; /* Если дыра не уходит, попробуй поставить -40px или -60px */
+  
+  gap: 30px; /* Расстояние МЕЖДУ плашками и сайдбаром */
   box-sizing: border-box;
 }
 
@@ -19,7 +20,7 @@
   width: 750px;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 20px;
 }
 
 /* Исправляем секцию, чтобы не было двойных рамок */
