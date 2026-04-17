@@ -1,25 +1,62 @@
-.quickFilters {
+.mainWrapper {
+  display: flex !important;
+  flex-direction: row !important;
+  width: 100%;
+  height: 100vh;
+  background-color: #0a0a0c;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: 20px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 10px;
+  margin-right: 20px;
 }
 
-.filterBtn {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.6);
-  padding: 12px;
+.board {
+  flex: 1;
+  display: flex !important;
+  flex-direction: row !important; /* КРИТИЧНО: Колонки в ряд */
+  gap: 20px;
+  overflow-x: auto; /* Горизонтальный скролл */
+  height: 100%;
+  align-items: flex-start;
+}
+
+/* Это должно быть в этом же файле, так как StageColumn использует эти стили */
+.column {
+  min-width: 300px;
+  width: 300px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 15px;
-  cursor: pointer;
-  font-size: 0.8rem;
-  font-weight: 700;
-  transition: all 0.2s;
-  text-align: left;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
 
-.filterBtn:hover {
-  background: rgba(123, 255, 0, 0.05);
-  border-color: rgba(123, 255, 0, 0.3);
-  color: #fff;
+.columnTitle {
+  color: #7BFF00;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(123, 255, 0, 0.1);
+  padding-bottom: 10px;
+}
+
+.cardsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
 }

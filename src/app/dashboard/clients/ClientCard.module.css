@@ -1,19 +1,16 @@
 .card {
-  background: rgba(255, 255, 255, 0.04);
+  width: 100%; /* Занимает всю ширину колонки */
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 18px;
-  cursor: grab;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
+  border-radius: 12px;
+  padding: 12px;
+  transition: 0.3s;
 }
 
 .card:hover {
   border-color: #7BFF00;
-  box-shadow: 0 0 20px rgba(123, 255, 0, 0.15);
-  transform: translateY(-3px);
-  background: rgba(255, 255, 255, 0.06);
+  transform: scale(1.02);
 }
 
 .cardHeader {
