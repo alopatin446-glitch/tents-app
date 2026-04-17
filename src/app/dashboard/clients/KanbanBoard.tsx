@@ -1,10 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { DndContext, DragEndEvent, closestCorners } from '@dnd-kit/core';
+import { 
+  DndContext, 
+  DragEndEvent, 
+  closestCorners, 
+  PointerSensor, 
+  useSensor, 
+  useSensors 
+} from '@dnd-kit/core';
 import styles from './KanbanBoard.module.css';
 import StageColumn from './StageColumn';
-import EditModal from './EditModal'; // Импортируем модалку
+import EditModal from './EditModal';
 import { Client, Stage } from './types';
 
 const STAGES: Stage[] = [
@@ -22,10 +29,17 @@ export default function KanbanBoard() {
     { id: '4', name: 'ТехноНиколь', address: 'Промзона, корп. 2', totalPrice: 540000, status: 'install', phone: '8 800 555-35-35' },
   ]);
 
-  // Состояние для редактируемого клиента
   const [editingClient, setEditingClient] = useState<Client | null>(null);
 
-  // Функция обработки завершения перетаскивания
+  // Сенсоры для разделения клика и драга
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // Если сдвиг меньше 5px — это клик, если больше — начало драга
+      },
+    })
+  );
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -41,7 +55,11 @@ export default function KanbanBoard() {
   };
 
   return (
-    <DndContext collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+    <DndContext 
+      sensors={sensors} 
+      collisionDetection={closestCorners} 
+      onDragEnd={handleDragEnd}
+    >
       <div className={styles.mainWrapper}>
         <aside className={styles.sidebar}>
           <h2 style={{fontSize: '1.1rem', fontWeight: 800, color: '#fff'}}>УПРАВЛЕНИЕ</h2>
@@ -62,12 +80,11 @@ export default function KanbanBoard() {
               id={stage.id} 
               stage={stage} 
               clients={clients.filter(c => c.status === stage.id)} 
-              onClientClick={(client) => setEditingClient(client)} // Передаем функцию открытия модалки
+              onClientClick={(client) => setEditingClient(client)}
             />
           ))}
         </div>
 
-        {/* Рендерим модалку, если клиент выбран */}
         {editingClient && (
           <EditModal 
             client={editingClient} 
