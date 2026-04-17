@@ -36,7 +36,6 @@
 
 .navButton {
   background: transparent;
-  /* Тонкая, едва заметная обводка для неактивных кнопок */
   border: 1px solid rgba(123, 255, 0, 0.2); 
   color: rgba(255, 255, 255, 0.6);
   text-align: left;
@@ -50,21 +49,21 @@
   outline: none;
 }
 
-/* СОСТОЯНИЕ: НАВЕДЕНИЕ (Hover) */
-.navButton:hover {
-  background: var(--neon-green); /* Заливка как на image_eab1ea.png */
-  color: #000 !important; /* Текст становится черным */
-  border-color: var(--neon-green);
-  box-shadow: 0 0 25px rgba(123, 255, 0, 0.5); /* Мощное свечение при наведении */
-}
-
 /* СОСТОЯНИЕ: ВЫБРАНО (Активная вкладка) */
 .navButton.active {
-  background: transparent; /* Убираем сплошную заливку */
-  color: var(--neon-green); /* Текст становится ярким */
-  border: 2px solid var(--neon-green); /* Обводка толще, как на image_eab1ad.png */
-  box-shadow: 0 0 15px rgba(123, 255, 0, 0.3); /* Легкое неоновое свечение только рамки */
+  background: transparent;
+  color: var(--neon-green); 
+  border: 2px solid var(--neon-green); 
+  box-shadow: 0 0 15px rgba(123, 255, 0, 0.3); 
   font-weight: 800;
+}
+
+/* СОСТОЯНИЕ: НАВЕДЕНИЕ (Для всех кнопок, включая активную) */
+.navButton:hover {
+  background: var(--neon-green); 
+  color: #fff !important; /* Текст теперь БЕЛЫЙ при наведении */
+  border-color: var(--neon-green);
+  box-shadow: 0 0 25px rgba(123, 255, 0, 0.5);
 }
 
 /* ОСНОВНАЯ ОБЛАСТЬ */
