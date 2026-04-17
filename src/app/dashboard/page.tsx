@@ -27,10 +27,10 @@ export default function DashboardPage() {
         <div className={styles.headerActions}>
           <div className={styles.settingsIcon}>⚙️</div>
           <div className={styles.userAvatar}>
-             {/* Заглушка аватара */}
-             <div style={{ color: '#7BFF00', fontSize: '10px', textAlign: 'center', marginTop: '10px' }}>
-               {userName ? userName[0] : 'U'}
-             </div>
+            {/* Заглушка аватара */}
+            <div style={{ color: '#7BFF00', fontSize: '10px', textAlign: 'center', marginTop: '10px' }}>
+              {userName ? userName[0] : 'U'}
+            </div>
           </div>
           <button onClick={logout} className={styles.heroButton}>ВЫЙТИ</button>
         </div>
@@ -42,20 +42,20 @@ export default function DashboardPage() {
         </h2>
 
         <div className={styles.dashboardGrid} style={{ minHeight: '500px', gap: '20px' }}>
-          
+
           {/* ЛЕВАЯ КАРТОЧКА - ИСПРАВЛЕНА И ДОСТУПНА */}
-          <div 
-            className={styles.mainActionCard} 
+          <div
+            className={styles.mainActionCard}
             onClick={handleNewCalculation}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleNewCalculation(); }}
             role="button"
             tabIndex={0}
-            style={{ 
-              cursor: 'pointer', 
-              padding: '2rem', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              justifyContent: 'center', 
+            style={{
+              cursor: 'pointer',
+              padding: '2rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
               alignItems: 'center',
               position: 'relative',
               zIndex: 10
@@ -79,11 +79,25 @@ export default function DashboardPage() {
               { label: 'ГОТОВЫЕ ЗАКАЗЫ', value: '28' },
               { label: 'СУММА ЗА МЕСЯЦ', value: '2,450,000 ₽' },
               { label: 'ПРОГРЕСС ЦЕЛИ', isGauge: true },
-              { label: 'КЛИЕНТЫ', value: '124' },
+              { label: 'КЛИЕНТЫ', value: '124', path: '/dashboard/clients' }, // <-- ДОБАВИЛИ ПУТЬ
               { label: 'СРЕДНИЙ ЧЕК', value: '87,500 ₽' },
               { label: 'В ОЖИДАНИИ', value: '5' }
             ].map((item, idx) => (
-              <div key={idx} className={styles.mainActionCard} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+              <div
+                key={idx}
+                className={styles.mainActionCard}
+                onClick={() => item.path && router.push(item.path)} // <-- ТЕПЕРЬ ОНА КЛИКАБЕЛЬНА
+                style={{
+                  padding: '1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  cursor: item.path ? 'pointer' : 'default', // Мышка меняется только на КЛИЕНТАХ
+                  transition: 'transform 0.2s ease'
+                }}
+              >
                 <p className={styles.statLabel} style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.8rem', color: '#fff', textTransform: 'uppercase', letterSpacing: '1px' }}>
                   {item.label}
                 </p>

@@ -181,3 +181,9 @@
 .mainActionLink:active {
   transform: scale(0.98);
 }
+
+.statCardLink {
+  text-decoration: none;
+  color: inherit;
+  display: block; /* Чтобы ссылка занимала всю площадь квадрата */
+}
