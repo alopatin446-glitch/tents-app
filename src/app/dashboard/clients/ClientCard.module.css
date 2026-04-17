@@ -1,33 +1,65 @@
 .card {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
-  padding: 15px;
+  padding: 18px;
   cursor: grab;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
 .card:hover {
-  border-color: var(--neon-green);
-  box-shadow: 0 0 15px rgba(123, 255, 0, 0.2);
-  transform: translateY(-2px);
+  border-color: #7BFF00;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.15);
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
 }
 
 .clientName {
-  font-weight: 700;
-  margin-bottom: 5px;
-  display: block;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  background: #7BFF00;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #7BFF00;
 }
 
 .address {
   font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 15px;
   display: block;
-  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 12px;
 }
 
 .priceBadge {
-  color: var(--neon-green);
-  font-weight: 800;
-  font-size: 0.9rem;
+  color: #7BFF00;
+  font-weight: 900;
+  font-size: 1rem;
+}
+
+.phoneShort {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
 }
