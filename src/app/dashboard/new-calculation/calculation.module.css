@@ -5,7 +5,7 @@
   color: var(--text-white);
 }
 
-/* ЛЕВАЯ КОЛОННА (SIDEBAR) */
+/* ЛЕВАЯ КОЛОННА (SIDEBAR) — ТЕПЕРЬ ОВАЛЬНАЯ */
 .sidebar {
   width: 280px;
   background: rgba(255, 255, 255, 0.02);
@@ -22,35 +22,43 @@
   text-align: center;
   padding: 10px;
   border: 1px solid var(--neon-green);
-  border-radius: 12px;
+  border-radius: 50px; /* Капсула заказа */
   box-shadow: 0 0 15px rgba(123, 255, 0, 0.2);
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .navMenu { 
   display: flex; 
   flex-direction: column; 
-  gap: 12px; 
+  gap: 18px; /* Больше воздуха между капсулами */
 }
 
 .navButton {
-  background: transparent; 
-  border: 1px solid rgba(255, 255, 255, 0.05); 
+  background: transparent;
+  border: 1px solid rgba(123, 255, 0, 0.1);
   color: rgba(255, 255, 255, 0.6);
-  text-align: left; 
-  padding: 14px 20px; 
-  border-radius: 14px;
-  cursor: pointer; 
+  text-align: left;
+  padding: 14px 30px; 
+  border-radius: 50px; /* Идеальный овал как на входе */
+  cursor: pointer;
   transition: all 0.3s ease;
   font-size: 0.9rem;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.navButton:hover {
+  background: rgba(123, 255, 0, 0.05);
+  border-color: rgba(123, 255, 0, 0.3);
+  color: #fff;
 }
 
 .navButton.active {
-  background: var(--neon-green); 
+  background: var(--neon-green);
   color: #000;
   font-weight: 800;
-  box-shadow: 0 0 20px rgba(123, 255, 0, 0.4);
+  box-shadow: 0 0 25px rgba(123, 255, 0, 0.5);
   border-color: var(--neon-green);
 }
 
@@ -69,75 +77,20 @@
   margin-bottom: 20px;
 }
 
-.sectionTitle { font-size: 1.8rem; text-transform: uppercase; margin-bottom: 2rem; color: #fff; }
-
-/* Формы и Инпуты */
-.inputGroup { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.2rem; }
-.inputGroup label { font-size: 0.75rem; color: rgba(255,255,255,0.5); text-transform: uppercase; }
-
+/* Формы и Инпуты — тоже подтягиваем под овалы */
 .neonInput, .neonSelect, .neonTextarea {
   background: rgba(0,0,0,0.3); 
   border: 1px solid rgba(255,255,255,0.1);
-  padding: 12px 18px; 
-  border-radius: 12px;
+  padding: 12px 20px; 
+  border-radius: 30px; /* Мягкие инпуты */
   color: #fff; 
   outline: none;
 }
 
-.neonInput:focus { border-color: var(--neon-green); }
-
-/* --- ВОТ ЧТО ДОЛЖНО БЫТЬ НИЖЕ (ТЕХНИЧЕСКИЕ СТИЛИ) --- */
-
-/* Чертеж и рабочая зона */
-.workspace { 
-  display: grid; 
-  grid-template-columns: 320px 1fr; 
-  gap: 3rem; 
-}
-
-.blueprintContainer {
-  background: #0a0a0a; 
-  border: 1px solid rgba(123, 255, 0, 0.1);
-  height: 450px; 
-  border-radius: 20px; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  position: relative;
-  box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
-}
-
-.windowDrawing {
-  width: var(--draw-width, 200px); 
-  height: var(--draw-height, 200px);
-  border: 4px solid #4a3427; 
-  background: rgba(135, 206, 235, 0.05);
-  position: relative; 
-  transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 0 20px rgba(0,0,0,0.5);
-}
-
-.dimW, .dimH { 
-  position: absolute; 
-  color: var(--neon-green); 
-  font-size: 0.75rem; 
-  font-family: 'Courier New', monospace;
-  background: #0a0a0a;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.dimW { bottom: -30px; left: 50%; transform: translateX(-50%); border-bottom: 1px solid var(--neon-green); }
-.dimH { right: -60px; top: 50%; transform: translateY(-50%); border-right: 1px solid var(--neon-green); }
-
-/* Заглушка для пустых разделов */
-.placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: rgba(255,255,255,0.2);
-  border: 2px dashed rgba(255,255,255,0.05);
-  border-radius: 20px;
-}
+/* ТЕХНИЧЕСКИЙ БЛОК (ЧЕРТЕЖ) — НЕ УДАЛЯТЬ */
+.workspace { display: grid; grid-template-columns: 320px 1fr; gap: 3rem; }
+.blueprintContainer { background: #0a0a0a; border: 1px solid rgba(123, 255, 0, 0.1); height: 450px; border-radius: 20px; display: flex; align-items: center; justify-content: center; position: relative; }
+.windowDrawing { width: var(--draw-width, 200px); height: var(--draw-height, 200px); border: 4px solid #4a3427; background: rgba(135, 206, 235, 0.05); position: relative; transition: 0.3s; }
+.dimW, .dimH { position: absolute; color: var(--neon-green); font-size: 0.75rem; font-family: monospace; background: #0a0a0a; padding: 2px 6px; }
+.dimW { bottom: -30px; left: 50%; transform: translateX(-50%); }
+.dimH { right: -60px; top: 50%; transform: translateY(-50%); }
