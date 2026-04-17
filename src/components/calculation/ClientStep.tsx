@@ -3,130 +3,120 @@
 import { useState } from 'react';
 import styles from './ClientStep.module.css';
 
-const sourceOptions = [
-  'VK', '2Гис', 'Макс', 'Сайт', 'Авито', 'Telegram', 'Яндекс бизнес', 
-  'Яндекс Директ', 'Повторный клиент', 'По рекомендации', 'Проезжал мимо офиса', 
-  'Проезжал мимо цеха', 'От председателя', 'Баннер в СНТ', 'Другое'
-];
-
-const statusOptions = [
-  'Общение с клиентом', 'Ожидает замер', 'Обещал заплатить', 'Ожидает Монтаж', 
-  'Ожидает изделия', 'Сделка успешна', 'Сделка провалена'
-];
+const sourceOptions = ['VK', '2Гис', 'Макс', 'Сайт', 'Авито', 'Telegram', 'Яндекс бизнес', 'Яндекс Директ', 'Повторный клиент', 'По рекомендации', 'Проезжал мимо офиса', 'Проезжал мимо цеха', 'От председателя', 'Баннер в СНТ', 'Другое'];
+const statusOptions = ['Общение с клиентом', 'Ожидает замер', 'Обещал заплатить', 'Ожидает Монтаж', 'Ожидает изделия', 'Сделка успешна', 'Сделка провалена'];
 
 export default function ClientStep({ initialData, onSave }: { initialData: any, onSave: (data: any) => void }) {
   const [clientData, setClientData] = useState(initialData || {});
-  const [isMeasurementSelf, setIsMeasurementSelf] = useState(false);
-  const [isInstallationSelf, setIsInstallationSelf] = useState(false);
+  // Состояния для раскрытия аккордеонов
+  const [openSections, setOpenSections] = useState({
+    data: true, // Первый пусть будет открыт по умолчанию
+    media: false,
+    payments: false,
+    results: false
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const toggleSection = (section: keyof typeof openSections) => {
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const handleChange = (e: any) => {
     const { name, value } = e.target;
     setClientData((prev: any) => ({ ...prev, [name]: value }));
   };
 
   return (
-    <div className={styles.clientGrid}>
-      {/* БЛОК 1: ДАННЫЕ КЛИЕНТА (На всю ширину) */}
-      <div className={`${styles.card} ${styles.fullWidth}`}>
-        <h2 className={styles.sectionTitle}>Данные клиента</h2>
-        <div className={styles.inputRows}>
-          <div className={styles.fullRow}>
-            <label>ФИО КЛИЕНТА</label>
-            <input type="text" name="fio" value={clientData.fio || ''} onChange={handleChange} className={styles.neonInput} placeholder="Иванов Иван Иванович" />
+    <div className={styles.container}>
+      {/* ЛЕВАЯ ЧАСТЬ: АККОРДЕОНЫ */}
+      <div className={styles.accordionArea}>
+        
+        {/* БЛОК 1: ДАННЫЕ */}
+        <div className={styles.section}>
+          <div className={styles.header} onClick={() => toggleSection('data')}>
+            <span>Данные клиента</span>
+            <span className={styles.arrow}>{openSections.data ? '▲' : '▼'}</span>
           </div>
-          
-          <div className={styles.twoCol}>
-            <div className={styles.inputGroup}>
-              <label>ТЕЛЕФОН</label>
-              <input type="tel" name="phone" value={clientData.phone || ''} onChange={handleChange} className={styles.neonInput} placeholder="+7..." />
-            </div>
-            <div className={styles.inputGroup}>
-              <label>ОТКУДА УЗНАЛ О НАС</label>
-              <select name="source" value={clientData.source || ''} onChange={handleChange} className={styles.neonSelect}>
-                <option value="">Выберите источник...</option>
-                {sourceOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className={styles.fullRow}>
-            <label>АДРЕС ОБЪЕКТА (КЛЮЧ ПОИСКА)</label>
-            <input type="text" name="address" value={clientData.address || ''} onChange={handleChange} className={styles.neonInput} />
-          </div>
-
-          <div className={styles.twoCol}>
-            <div className={styles.inputGroup}>
-              <label>СТАТУС ЗАКАЗА</label>
-              <select name="status" value={clientData.status || ''} onChange={handleChange} className={styles.neonSelect}>
-                <option value="">Выберите статус...</option>
-                {statusOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-            </div>
-            <div className={styles.inputGroup}>
-              <label>ДАТА ЗАМЕРА</label>
-              <div className={styles.dateWrapper}>
-                <input type="date" name="measurementDate" value={clientData.measurementDate || ''} onChange={handleChange} className={styles.neonInput} disabled={isMeasurementSelf} />
-                <label className={styles.checkboxLabel}>
-                  <input type="checkbox" checked={isMeasurementSelf} onChange={() => setIsMeasurementSelf(!isMeasurementSelf)} /> Самостоятельный
-                </label>
+          {openSections.data && (
+            <div className={styles.content}>
+              <div className={styles.inputGroup}><label>ФИО</label><input type="text" name="fio" value={clientData.fio} onChange={handleChange} className={styles.neonInput} /></div>
+              <div className={styles.row}>
+                <div className={styles.inputGroup}><label>Телефон</label><input type="tel" name="phone" className={styles.neonInput} /></div>
+                <div className={styles.inputGroup}><label>Источник</label>
+                  <select name="source" className={styles.neonSelect}>
+                    {sourceOptions.map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className={styles.inputGroup}><label>Адрес</label><input type="text" name="address" className={styles.neonInput} /></div>
+              <div className={styles.row}>
+                <div className={styles.inputGroup}><label>Статус</label>
+                  <select name="status" className={styles.neonSelect}>
+                    {statusOptions.map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className={styles.inputGroup}><label>Дата замера</label><input type="date" className={styles.neonInput} /></div>
               </div>
             </div>
-          </div>
-
-          <div className={styles.fullRow}>
-            <label>КОММЕНТАРИЙ К ЗАКАЗУ</label>
-            <textarea name="comment" value={clientData.comment || ''} onChange={handleChange} className={styles.neonTextarea} rows={3} />
-          </div>
+          )}
         </div>
-      </div>
 
-      {/* БЛОК 2: ФОТО И МАТЕРИАЛЫ */}
-      <div className={styles.card}>
-        <h2 className={styles.sectionTitle}>Фото и материалы</h2>
-        <div className={styles.inputRows}>
-          <div className={styles.inputGroup}><label>Фото объекта</label><input type="file" className={styles.neonInput} /></div>
-          <div className={styles.inputGroup}><label>Фото замера</label><input type="file" className={styles.neonInput} /></div>
-          <div className={styles.inputGroup}><label>Фото договора</label><input type="file" className={styles.neonInput} /></div>
-          <div className={styles.inputGroup}>
-            <label>ДАТА МОНТАЖА</label>
-            <div className={styles.dateWrapper}>
-              <input type="date" name="installDate" className={styles.neonInput} disabled={isInstallationSelf} />
-              <label className={styles.checkboxLabel}>
-                <input type="checkbox" checked={isInstallationSelf} onChange={() => setIsInstallationSelf(!isInstallationSelf)} /> Самостоятельный
-              </label>
+        {/* БЛОК 2: МАТЕРИАЛЫ */}
+        <div className={styles.section}>
+          <div className={styles.header} onClick={() => toggleSection('media')}>
+            <span>Фото и материалы</span>
+            <span className={styles.arrow}>{openSections.media ? '▲' : '▼'}</span>
+          </div>
+          {openSections.media && (
+            <div className={styles.content}>
+               <div className={styles.inputGroup}><label>Фото объекта</label><input type="file" className={styles.neonInput} /></div>
+               <div className={styles.inputGroup}><label>Дата монтажа</label><input type="date" className={styles.neonInput} /></div>
             </div>
+          )}
+        </div>
+
+        {/* БЛОК 3: ПЛАТЕЖИ */}
+        <div className={styles.section}>
+          <div className={styles.header} onClick={() => toggleSection('payments')}>
+            <span>Платежи и переводы</span>
+            <span className={styles.arrow}>{openSections.payments ? '▲' : '▼'}</span>
           </div>
-          <div className={styles.fullRow}><label>Комментарий инженера</label><textarea className={styles.neonTextarea} rows={2} /></div>
+          {openSections.payments && (
+            <div className={styles.content}>
+              <div className={styles.row}>
+                <div className={styles.inputGroup}><label>Стоимость</label><input type="number" className={styles.neonInput} /></div>
+                <div className={styles.inputGroup}><label>Аванс</label><input type="number" className={styles.neonInput} /></div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* БЛОК 4: ИТОГИ */}
+        <div className={styles.section}>
+          <div className={styles.header} onClick={() => toggleSection('results')}>
+            <span>Прибыль и расход</span>
+            <span className={styles.arrow}>{openSections.results ? '▲' : '▼'}</span>
+          </div>
+          {openSections.results && (
+            <div className={styles.content}>
+              <div className={styles.statLine}>Площадь: <strong>0 м²</strong></div>
+              <div className={styles.statLine}>Прибыль: <strong>0 ₽</strong></div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* БЛОК 3: ПЛАТЕЖ И ИТОГИ */}
-      <div className={styles.card}>
-        <h2 className={styles.sectionTitle}>Финансы</h2>
-        <div className={styles.inputRows}>
-          <div className={styles.twoCol}>
-            <div className={styles.inputGroup}><label>Стоимость</label><input type="number" name="agreedPrice" className={styles.neonInput} /></div>
-            <div className={styles.inputGroup}><label>Аванс</label><input type="number" name="advance" className={styles.neonInput} /></div>
-          </div>
-          <div className={styles.inputGroup}>
-            <label>Тип оплаты</label>
-            <select name="payType" className={styles.neonSelect}>
-              <option value="cash">Наличными</option>
-              <option value="terminal">Терминал</option>
-              <option value="rs">Расчетный счет</option>
-            </select>
-          </div>
-          <hr className={styles.divider} />
-          <div className={styles.stats}>
-            <div className={styles.statLine}><span>Площадь:</span> <strong>0 м²</strong></div>
-            <div className={styles.statLine}><span>Себестоимость:</span> <strong>0 ₽</strong></div>
-            <div className={`${styles.statLine} ${styles.profit}`}><span>Прибыль:</span> <strong>0 ₽</strong></div>
-          </div>
+      {/* ПРАВАЯ ЧАСТЬ: СЛУЖЕБКА (STICKY) */}
+      <div className={styles.stickySidebar}>
+        <div className={styles.infoCard}>
+          <h3>Служебная информация</h3>
+          <p>Дата создания: <span>Авто</span></p>
+          <p>Создал: <span>Админ</span></p>
+          <p>Изменил: <span>Админ</span></p>
         </div>
-      </div>
-
-      <div className={styles.fullWidth}>
-        <button className={styles.saveButton} onClick={() => onSave(clientData)}>СОХРАНИТЬ ДАННЫЕ КЛИЕНТА</button>
+        <div className={styles.actions}>
+          <button className={styles.saveBtn} onClick={() => onSave(clientData)}>СОХРАНИТЬ</button>
+          <button className={styles.exitBtn}>ВЫЙТИ</button>
+        </div>
       </div>
     </div>
   );
