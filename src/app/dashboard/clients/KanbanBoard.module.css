@@ -1,0 +1,58 @@
+.mainWrapper {
+  display: flex;
+  height: calc(100vh - 40px); /* Вписываем в экран */
+  gap: 20px;
+  padding: 20px;
+  background-color: #050505;
+  color: #fff;
+}
+
+/* ЛЕВАЯ ПАНЕЛЬ */
+.sidebar {
+  width: 280px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: 30px;
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ПРАВАЯ ПАНЕЛЬ (СКРОЛЛ КОЛОНОК) */
+.board {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 20px;
+}
+
+.column {
+  min-width: 320px;
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: 25px;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.columnTitle {
+  color: var(--neon-green);
+  text-transform: uppercase;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+  padding-left: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.cardsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow-y: auto;
+}

@@ -1,0 +1,33 @@
+.card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 15px;
+  cursor: grab;
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 15px rgba(123, 255, 0, 0.2);
+  transform: translateY(-2px);
+}
+
+.clientName {
+  font-weight: 700;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.address {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  display: block;
+  margin-bottom: 12px;
+}
+
+.priceBadge {
+  color: var(--neon-green);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
