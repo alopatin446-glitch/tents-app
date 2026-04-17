@@ -86,3 +86,26 @@
 .saveBtn:hover { transform: scale(1.02); box-shadow: 0 0 25px rgba(123, 255, 0, 0.4); }
 
 .statLine { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+.divider {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 15px 0;
+}
+
+.sidebarTotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--neon-green);
+}
+
+.sidebarTotal strong {
+  font-size: 1.1rem;
+  text-shadow: 0 0 10px rgba(123, 255, 0, 0.3);
+}
+
+.profitText {
+  color: var(--neon-green);
+}
