@@ -76,7 +76,7 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
 
                             {/* НОВОЕ ПОЛЕ: КОММЕНТАРИЙ */}
                             <div className={styles.inputGroup}>
-                                <label>Комментарий</label>
+                                <label>Комментарий менеджера</label>
                                 <textarea 
                                     name="comment" 
                                     value={clientData.comment || ''} 
@@ -98,7 +98,19 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
                     {openSections.media && (
                         <div className={styles.content}>
                             <div className={styles.inputGroup}><label>Фото объекта</label><input type="file" className={styles.neonInput} /></div>
+                            <div className={styles.inputGroup}><label>Фото замера</label><input type="file" className={styles.neonInput} /></div>
                             <div className={styles.inputGroup}><label>Дата монтажа</label><input type="date" name="installDate" value={clientData.installDate || ''} onChange={handleChange} className={styles.neonInput} /></div>
+                            <div className={styles.inputGroup}>
+                                <label>Комментарий инженера</label>
+                                <textarea 
+                                    name="comment" 
+                                    value={clientData.comment || ''} 
+                                    onChange={handleChange} 
+                                    className={styles.neonInput}
+                                    style={{ borderRadius: '25px', minHeight: '80px', paddingTop: '12px' }}
+                                />
+                            </div>
+                            <div className={styles.inputGroup}><label>Фото Договора</label><input type="file" className={styles.neonInput} /></div>
                         </div>
                     )}
                 </div>
