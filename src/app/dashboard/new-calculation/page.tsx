@@ -5,6 +5,7 @@ import styles from './calculation.module.css';
 import ClientStep from '@/components/calculation/ClientStep';
 import ItemsStep from '@/components/calculation/ItemsStep';
 import FastenersStep from '@/components/calculation/FastenersStep';
+import OrderManagement from '@/components/calculation/OrderManagement';
 
 interface ClientData {
   fio: string;
@@ -26,7 +27,6 @@ interface WindowItem {
   fastenerStep: number;
 }
 
-// Мы сохраняем структуру заказа, чтобы ничего не упало
 const initialWindow = (id: number): WindowItem => ({
   id,
   name: `Окно ${id}`,
@@ -41,7 +41,6 @@ const initialWindow = (id: number): WindowItem => ({
 export default function NewCalculation() {
   const [activeTab, setActiveTab] = useState('Клиент');
 
-  // СОСТОЯНИЕ КЛИЕНТА (Родительский мозг)
   const [clientData, setClientData] = useState<ClientData>({
     fio: '',
     phone: '',
@@ -64,11 +63,9 @@ export default function NewCalculation() {
     'Для производства',
   ];
 
-  // ТОТ САМЫЙ ВЫКЛЮЧАТЕЛЬ
   const handleSaveClient = (updatedData: ClientData) => {
     setClientData(updatedData);
     console.log('ДАННЫЕ КЛИЕНТА ЗАФИКСИРОВАНЫ. Запускаю общий алгоритм...');
-    // Здесь позже будет вызов глобальной функции расчета
   };
 
   const handleSaveItems = (updatedWindows: WindowItem[]) => {
@@ -98,34 +95,39 @@ export default function NewCalculation() {
       </aside>
 
       <section className={styles.contentArea}>
-        {activeTab === 'Клиент' && (
-          <ClientStep
-            initialData={clientData}
-            onSave={handleSaveClient}
-          />
-        )}
+        {/* ВЕРХНЯЯ ЧАСТЬ: КОНТЕНТ ВКЛАДОК */}
+        <div style={{ flex: 1, overflowY: 'auto', marginBottom: '20px' }}>
+          {activeTab === 'Клиент' && (
+            <ClientStep
+              initialData={clientData}
+              onSave={handleSaveClient}
+            />
+          )}
 
-        {activeTab === 'Изделия' && (
-          <ItemsStep
-            windows={windows}
-            onSave={handleSaveItems}
-          />
-        )}
+          {activeTab === 'Изделия' && (
+            <ItemsStep
+              windows={windows}
+              onSave={handleSaveItems}
+            />
+          )}
 
-        {activeTab === 'Крепежи' && (
-          <FastenersStep
-            onSave={handleSaveFasteners}
-          />
-        )}
+          {activeTab === 'Крепежи' && (
+            <FastenersStep
+              onSave={handleSaveFasteners}
+            />
+          )}
 
-        {activeTab !== 'Клиент' &&
-          activeTab !== 'Изделия' &&
-          activeTab !== 'Крепежи' && (
+          {/* Автоматическая заглушка для еще не созданных модулей */}
+          {!['Клиент', 'Изделия', 'Крепежи'].includes(activeTab) && (
             <div className={styles.placeholder}>
               <h2>Раздел "{activeTab}"</h2>
               <p>В процессе переноса в модульную систему...</p>
             </div>
           )}
+        </div>
+
+        {/* НИЖНЯЯ ЧАСТЬ: ПУЛЬТ УПРАВЛЕНИЯ (ВСЕГДА ВИДЕН) */}
+        <OrderManagement />
       </section>
     </main>
   );
