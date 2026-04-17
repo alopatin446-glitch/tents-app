@@ -72,12 +72,13 @@
   padding: 2rem 3rem; 
   display: flex;
   flex-direction: column;
-  overflow-y: hidden; 
+  /* УБИРАЕМ overflow-y: hidden; */
+  overflow: visible; 
 }
 
 .tabContent {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: visible;
   margin-bottom: 20px;
 }
 
