@@ -1,93 +1,124 @@
 .clientGrid {
   display: grid;
-  grid-template-columns: 1fr 350px;
-  gap: 30px;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  padding-bottom: 40px;
+}
+
+.fullWidth {
+  grid-column: span 2;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(123, 255, 0, 0.05);
+  padding: 25px;
+  border-radius: 24px;
 }
 
 .sectionTitle {
   color: var(--neon-green);
+  font-size: 1.1rem;
   text-transform: uppercase;
-  letter-spacing: 2px;
   margin-bottom: 20px;
+  letter-spacing: 1px;
 }
 
-.inputGroup {
-  margin-bottom: 20px;
+.inputRows {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.inputGroup, .fullRow {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.inputGroup label {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+.inputGroup label, .fullRow label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
   text-transform: uppercase;
 }
 
-.neonInput {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(123, 255, 0, 0.2);
-  padding: 12px;
-  border-radius: 8px;
+/* Глобальные стили инпутов подтягиваются, но тут уточняем локальные моменты */
+.neonInput, .neonSelect, .neonTextarea {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 20px;
+  border-radius: 30px;
   color: white;
-  transition: 0.3s;
+  outline: none;
+  font-size: 0.9rem;
 }
 
 .neonInput:focus {
   border-color: var(--neon-green);
-  box-shadow: 0 0 10px rgba(123, 255, 0, 0.2);
-  outline: none;
 }
 
-.photoGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.dateWrapper {
+  display: flex;
+  align-items: center;
   gap: 15px;
-  margin-top: 20px;
 }
 
-.photoBox {
-  border: 2px dashed rgba(123, 255, 0, 0.3);
-  padding: 30px;
-  text-align: center;
-  border-radius: 12px;
+.checkboxLabel {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
   cursor: pointer;
-  transition: 0.3s;
 }
 
-.photoBox:hover {
-  background: rgba(123, 255, 0, 0.05);
-  border-color: var(--neon-green);
+.divider {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 10px 0;
+}
+
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.statLine {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+
+.profit {
+  color: var(--neon-green);
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-top: 5px;
 }
 
 .saveButton {
-  margin-top: 30px;
+  width: 100%;
   background: var(--neon-green);
   color: black;
-  border: none;
-  padding: 15px 30px;
-  font-weight: 800;
+  padding: 18px;
   border-radius: 50px;
+  font-weight: 800;
+  text-transform: uppercase;
   cursor: pointer;
-  box-shadow: 0 0 20px rgba(123, 255, 0, 0.4);
+  border: none;
   transition: 0.3s;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.3);
 }
 
 .saveButton:hover {
-  transform: scale(1.02);
-  box-shadow: 0 0 30px var(--neon-green);
-}
-
-.infoCard {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 20px;
-  border-radius: 15px;
-  margin-bottom: 20px;
-}
-
-.infoCard h3 {
-  font-size: 0.9rem;
-  margin-bottom: 15px;
-  color: var(--neon-green);
+  box-shadow: 0 0 30px rgba(123, 255, 0, 0.5);
+  transform: translateY(-2px);
 }
