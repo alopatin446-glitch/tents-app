@@ -13,6 +13,7 @@ import styles from './KanbanBoard.module.css';
 import StageColumn from './StageColumn';
 import EditModal from './EditModal';
 import { Client, Stage } from './types';
+import { useClients } from './ClientContext'; // Импортируем наш контекст
 
 const STAGES: Stage[] = [
   { id: 'negotiation', title: 'Общение с клиентом' },
@@ -24,14 +25,10 @@ const STAGES: Stage[] = [
 ];
 
 export default function KanbanBoard() {
-  const [clients, setClients] = useState<Client[]>([
-  { id: '1', name: 'Иванов А.П.', address: 'ул. Ленина, д. 10', totalPrice: 250000, status: 'negotiation', phone: '+7 900 123-45-67' },
-  { id: '2', name: 'Петров С.В.', address: 'СНТ Ромашка, уч. 45', totalPrice: 85000, status: 'waiting_measure' },
-  { id: '3', name: 'Сидоров К.М.', address: 'ул. Мира, 12', totalPrice: 120000, status: 'promised_pay' },
-  { id: '4', name: 'ТехноНиколь', address: 'Промзона, корп. 2', totalPrice: 540000, status: 'waiting_install', phone: '8 800 555-35-35' },
-]);
+  // Подключаемся к глобальному хранилищу
+  const { clients, updateClient, deleteClient } = useClients();
 
-  // СОСТОЯНИЯ
+  // Состояния для интерфейса
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -46,25 +43,24 @@ export default function KanbanBoard() {
     );
   };
 
-  // ЛОГИКА УДАЛЕНИЯ ВЫБРАННЫХ
+  // ЛОГИКА УДАЛЕНИЯ ВЫБРАННЫХ через контекст
   const deleteSelected = () => {
     if (confirm(`Удалить выбранных клиентов (${selectedIds.length} шт.)?`)) {
-      setClients(prev => prev.filter(c => !selectedIds.includes(c.id)));
+      selectedIds.forEach(id => deleteClient(id));
       setSelectedIds([]);
     }
   };
 
+  // ЛОГИКА ПЕРЕТАСКИВАНИЯ через контекст
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
+
     const clientId = active.id as string;
     const newStatus = over.id as Client['status'];
 
-    setClients((prev) =>
-      prev.map((client) =>
-        client.id === clientId ? { ...client, status: newStatus } : client
-      )
-    );
+    // Обновляем статус в глобальном хранилище
+    updateClient(clientId, { status: newStatus });
   };
 
   return (
@@ -79,7 +75,7 @@ export default function KanbanBoard() {
             <button className={styles.filterBtn}>💸 ДОЛЖНИКИ</button>
           </div>
 
-          {/* ПАНЕЛЬ УДАЛЕНИЯ (появляется только если выбрано что-то) */}
+          {/* ПАНЕЛЬ УДАЛЕНИЯ */}
           {selectedIds.length > 0 && (
             <div className={styles.actionPanel}>
               <div style={{color: '#7BFF00', fontSize: '0.75rem', fontWeight: 800}}>ВЫБРАНО: {selectedIds.length}</div>
@@ -103,7 +99,7 @@ export default function KanbanBoard() {
               selectedIds={selectedIds}
               onClientSelect={toggleSelect}
               onClientEdit={(client) => setEditingClient(client)}
-              onClientOpenFull={(client) => alert(`Переход в полную карту: ${client.name}`)}
+              onClientOpenFull={(client) => alert(`Переход в полную карту (портал): ${client.name}`)}
             />
           ))}
         </div>

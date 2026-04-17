@@ -5,7 +5,6 @@
   height: 100vh;
   background-color: #0f172a;
   overflow: hidden;
-  /* Ключевое изменение здесь: */
   padding: 20px 0 0 0; 
   box-sizing: border-box;
 }
@@ -18,7 +17,6 @@
   flex-direction: column;
   gap: 20px;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
-  /* Скруглим верхний правый угол сайдбара, чтобы он не казался обрубленным */
   border-radius: 15px 15px 0 0; 
   height: 100%;
 }
@@ -31,31 +29,30 @@
   overflow-x: hidden;
   height: 100%;
   align-items: flex-start;
-  /* Убираем лишние отступы здесь, оставляем только боковые */
   padding: 0 15px 20px 10px; 
 }
 
 /* КОЛОНКА */
 .column {
-  flex: 1; /* Ключевое свойство: колонки будут делить место поровну */
-  min-width: 150px; /* Минимальный порог, чтобы совсем не схлопнулись */
+  flex: 1;
+  min-width: 150px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
-  padding: 10px; /* Немного ужали внутренние отступы */
+  padding: 10px;
   display: flex;
   flex-direction: column;
   max-height: 90vh;
-  transition: all 0.2s ease; /* Для плавной адаптации */
+  transition: all 0.2s ease;
 }
 
 /* ЗАГОЛОВОК КОЛОНКИ */
 .columnTitle {
-  font-size: 0.75rem; /* Чуть меньше шрифт */
+  font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
   margin-bottom: 12px;
-  min-height: 40px; /* Фиксируем высоту заголовка, чтобы колонки были ровными */
+  min-height: 40px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -80,8 +77,8 @@
 
 /* КНОПКИ ФИЛЬТРОВ */
 .filterBtn {
-  padding: 8px; /* Сделали компактнее */
-  font-size: 0.7rem; /* Чуть меньше текст */
+  padding: 8px;
+  font-size: 0.7rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #94a3b8;
@@ -126,6 +123,52 @@
 .deleteBtn:hover {
   background: #cc0000;
   transform: scale(1.02);
+}
+
+/* СТИЛИ МОДАЛЬНЫХ ОКОН (Создание и редактирование) */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.editModal {
+  background: #1e293b;
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  padding: 30px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.editModal h3 {
+  color: #fff;
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputGroup label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #7BFF00;
+  text-transform: uppercase;
 }
 
 /* Если у тебя есть класс для инпута поиска в этом файле */

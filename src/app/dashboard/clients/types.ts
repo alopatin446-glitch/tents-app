@@ -1,15 +1,25 @@
-export interface Client {
+export interface Product {
   id: string;
   name: string;
+  quantity: number;
+  price: number;
+}
+
+export interface Client {
+  id: string;
+  companyId: string; // Задел на будущее (многопользовательский режим)
+  name: string;
+  phone: string;
   address: string;
   totalPrice: number;
-  // Обновляем список допустимых статусов
   status: 'negotiation' | 'waiting_measure' | 'promised_pay' | 'waiting_production' | 'waiting_install' | 'special_case';
-  phone?: string;
+  createdAt: string;
+  products: Product[]; // Массив изделий из твоего 1-го скрина
+  comment?: string;
+  // Сюда потом добавим ссылки на фото договоров и замеров
 }
 
 export interface Stage {
-  // И здесь тоже разрешаем новые ID для колонок
-  id: 'negotiation' | 'waiting_measure' | 'promised_pay' | 'waiting_production' | 'waiting_install' | 'special_case';
+  id: Client['status'];
   title: string;
 }
