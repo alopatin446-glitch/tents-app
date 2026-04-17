@@ -6,7 +6,14 @@ import styles from './KanbanBoard.module.css';
 import ClientCard from './ClientCard';
 import { Client, Stage } from './types';
 
-export default function StageColumn({ stage, clients, id }: { stage: Stage, clients: Client[], id: string }) {
+interface StageColumnProps {
+  stage: Stage;
+  clients: Client[];
+  id: string;
+  onClientClick: (client: Client) => void; // Добавили описание функции
+}
+
+export default function StageColumn({ stage, clients, id, onClientClick }: StageColumnProps) {
   const { setNodeRef } = useDroppable({ id });
   const totalSum = clients.reduce((acc, client) => acc + client.totalPrice, 0);
 
@@ -20,7 +27,11 @@ export default function StageColumn({ stage, clients, id }: { stage: Stage, clie
       </div>
       <div className={styles.cardsContainer}>
         {clients.map(client => (
-          <ClientCard key={client.id} client={client} />
+          <ClientCard 
+            key={client.id} 
+            client={client} 
+            onClick={() => onClientClick(client)} // Передаем клик в карточку
+          />
         ))}
       </div>
     </div>

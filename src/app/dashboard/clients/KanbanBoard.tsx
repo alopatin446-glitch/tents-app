@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { DndContext, DragEndEvent, closestCorners } from '@dnd-kit/core';
 import styles from './KanbanBoard.module.css';
 import StageColumn from './StageColumn';
+import EditModal from './EditModal'; // Импортируем модалку
 import { Client, Stage } from './types';
 
 const STAGES: Stage[] = [
@@ -20,6 +21,9 @@ export default function KanbanBoard() {
     { id: '3', name: 'Сидоров К.М.', address: 'ул. Мира, 12', totalPrice: 120000, status: 'calc' },
     { id: '4', name: 'ТехноНиколь', address: 'Промзона, корп. 2', totalPrice: 540000, status: 'install', phone: '8 800 555-35-35' },
   ]);
+
+  // Состояние для редактируемого клиента
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   // Функция обработки завершения перетаскивания
   const handleDragEnd = (event: DragEndEvent) => {
@@ -55,12 +59,21 @@ export default function KanbanBoard() {
           {STAGES.map(stage => (
             <StageColumn 
               key={stage.id} 
-              id={stage.id} // ID колонки для dnd-kit
+              id={stage.id} 
               stage={stage} 
               clients={clients.filter(c => c.status === stage.id)} 
+              onClientClick={(client) => setEditingClient(client)} // Передаем функцию открытия модалки
             />
           ))}
         </div>
+
+        {/* Рендерим модалку, если клиент выбран */}
+        {editingClient && (
+          <EditModal 
+            client={editingClient} 
+            onClose={() => setEditingClient(null)} 
+          />
+        )}
       </div>
     </DndContext>
   );
