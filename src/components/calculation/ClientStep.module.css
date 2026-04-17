@@ -1,13 +1,12 @@
 /* Основной контейнер */
 .container {
   display: flex;
-  justify-content: flex-start; /* Прижимаем к левой навигации */
+  justify-content: flex-start; /* Строго к левому краю */
   align-items: flex-start;
   
-  /* Уменьшаем падинг слева, чтобы "приклеить" плашки к меню, 
-     но оставляем gap, чтобы справа до сайдбара было столько же */
-  padding: 30px 0 30px 30px; 
-  gap: 30px; 
+  /* Уменьшаем отступ слева до минимума, чтобы "прижать" к синему меню */
+  padding: 30px 0 30px 20px; 
+  gap: 30px; /* Расстояние между плашками и правой панелью */
   
   width: 100%;
   box-sizing: border-box;
@@ -26,25 +25,24 @@
 /* Исправляем секцию, чтобы не было двойных рамок */
 .section {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.1); /* Сделаем рамку тише */
-  border-radius: 15px; /* Скругление как у полей ввода */
+  border: 1px solid rgba(123, 255, 0, 0.1); 
+  border-radius: 40px; /* Тот самый овал */
   overflow: hidden;
   transition: 0.3s;
-  margin-bottom: 5px;
+  /* margin-bottom: 20px; <— Или gap в accordionArea, или это. Оставим gap. */
 }
 
-/* Сами плашки делаем аккуратными */
+/* Шапка аккордеона */
 .header {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px 20px;      /* Чуть уменьшили падинги для компактности */
+  border-radius: 40px; /* Тоже закругляем, чтобы соответствовало секции */
+  padding: 18px 30px;  /* Увеличили внутренние отступы для "воздушности" */
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 .header:hover { 
@@ -72,15 +70,13 @@
   width: 100%;            /* Поля растягиваются на всю ширину плашки */
 }
 
-/* ПРАВАЯ ЧАСТЬ */
+/* ПРАВАЯ ЧАСТЬ (Служебная инфа) */
 .stickySidebar {
   flex: 0 0 280px;
   width: 280px;
   position: sticky;
   top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px; /* Чтобы кнопки не слипались с карточкой */
+  /* Сайдбар теперь будет стоять ровно в 30px от плашек */
 }
 
 .infoCard {
