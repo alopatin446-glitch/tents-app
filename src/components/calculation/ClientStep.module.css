@@ -190,3 +190,11 @@
   text-transform: uppercase;    /* Все буквы заглавные, как на референсе */
   letter-spacing: 0.05em;
 }
+
+/* Убираем стандартный белый фон кнопки внутри инпута с файлом */
+.neonInput::file-selector-button {
+    background: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+}
