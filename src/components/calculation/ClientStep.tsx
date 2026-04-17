@@ -48,17 +48,16 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
                                     <input type="tel" name="phone" value={clientData.phone || ''} onChange={handleChange} className={styles.neonInput} />
                                 </div>
                                 <div className={styles.inputGroup}>
+                                <label>Адрес (Ключ поиска)</label>
+                                <input type="text" name="address" value={clientData.address || ''} onChange={handleChange} className={styles.neonInput} />
+                            </div>
+                                <div className={styles.inputGroup}>
                                     <label>Откуда узнали</label>
                                     <select name="source" value={clientData.source || ''} onChange={handleChange} className={styles.neonSelect}>
                                         <option value="">Выберите источник...</option>
                                         {sourceOptions.map(o => <option key={o} value={o}>{o}</option>)}
                                     </select>
                                 </div>
-                            </div>
-
-                            <div className={styles.inputGroup}>
-                                <label>Адрес (Ключ поиска)</label>
-                                <input type="text" name="address" value={clientData.address || ''} onChange={handleChange} className={styles.neonInput} />
                             </div>
 
                             <div className={styles.row}>
