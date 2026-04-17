@@ -12,8 +12,9 @@ import {
 import styles from './KanbanBoard.module.css';
 import StageColumn from './StageColumn';
 import EditModal from './EditModal';
+import CreateClientModal from './CreateClientModal'; // НЕ ЗАБУДЬ ИМПОРТ
 import { Client, Stage } from './types';
-import { useClients } from './ClientContext'; // Импортируем наш контекст
+import { useClients } from './ClientContext';
 
 const STAGES: Stage[] = [
   { id: 'negotiation', title: 'Общение с клиентом' },
@@ -25,25 +26,23 @@ const STAGES: Stage[] = [
 ];
 
 export default function KanbanBoard() {
-  // Подключаемся к глобальному хранилищу
   const { clients, updateClient, deleteClient } = useClients();
-
-  // Состояния для интерфейса
+  
+  // Состояния для модалок
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [isAddingNew, setIsAddingNew] = useState(false); // ДЛЯ НОВОГО КЛИЕНТА
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  // ЛОГИКА ВЫБОРА (ЛКМ)
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => 
       prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
     );
   };
 
-  // ЛОГИКА УДАЛЕНИЯ ВЫБРАННЫХ через контекст
   const deleteSelected = () => {
     if (confirm(`Удалить выбранных клиентов (${selectedIds.length} шт.)?`)) {
       selectedIds.forEach(id => deleteClient(id));
@@ -51,15 +50,11 @@ export default function KanbanBoard() {
     }
   };
 
-  // ЛОГИКА ПЕРЕТАСКИВАНИЯ через контекст
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
-
     const clientId = active.id as string;
     const newStatus = over.id as Client['status'];
-
-    // Обновляем статус в глобальном хранилище
     updateClient(clientId, { status: newStatus });
   };
 
@@ -75,17 +70,23 @@ export default function KanbanBoard() {
             <button className={styles.filterBtn}>💸 ДОЛЖНИКИ</button>
           </div>
 
-          {/* ПАНЕЛЬ УДАЛЕНИЯ */}
           {selectedIds.length > 0 && (
             <div className={styles.actionPanel}>
               <div style={{color: '#7BFF00', fontSize: '0.75rem', fontWeight: 800}}>ВЫБРАНО: {selectedIds.length}</div>
               <button onClick={deleteSelected} className={styles.deleteBtn}>УДАЛИТЬ КАРТОЧКИ</button>
-              <button onClick={() => setSelectedIds([])} className={styles.filterBtn} style={{fontSize: '0.7rem', padding: '8px'}}>ОТМЕНА</button>
+              <button onClick={() => setSelectedIds([])} className={styles.filterBtn}>ОТМЕНА</button>
             </div>
           )}
 
           <div style={{marginTop: 'auto'}}>
-            <button className="navButton active" style={{width: '100%'}}>+ КЛИЕНТ</button>
+            {/* ТУТ ВКЛЮЧАЕМ КНОПКУ */}
+            <button 
+              className="navButton active" 
+              style={{width: '100%'}}
+              onClick={() => setIsAddingNew(true)}
+            >
+              + КЛИЕНТ
+            </button>
           </div>
         </aside>
 
@@ -99,16 +100,22 @@ export default function KanbanBoard() {
               selectedIds={selectedIds}
               onClientSelect={toggleSelect}
               onClientEdit={(client) => setEditingClient(client)}
-              onClientOpenFull={(client) => alert(`Переход в полную карту (портал): ${client.name}`)}
+              onClientOpenFull={(client) => alert(`КЛИЕНТ: ${client.name}`)}
             />
           ))}
         </div>
 
+        {/* МОДАЛКА РЕДАКТИРОВАНИЯ */}
         {editingClient && (
           <EditModal 
             client={editingClient} 
             onClose={() => setEditingClient(null)} 
           />
+        )}
+
+        {/* МОДАЛКА СОЗДАНИЯ (ТОТ САМЫЙ ТЕЛЕПОРТ) */}
+        {isAddingNew && (
+          <CreateClientModal onClose={() => setIsAddingNew(false)} />
         )}
       </div>
     </DndContext>
