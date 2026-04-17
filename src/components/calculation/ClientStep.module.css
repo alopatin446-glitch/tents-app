@@ -156,21 +156,29 @@
 
 /* Поля ввода и селекты внутри аккордеонов */
 .neonInput, .neonSelect {
-  width: 100%;                  /* Растягиваем на всю ширину плашки */
-  background: rgba(255, 255, 255, 0.03); /* Темный фон с легким прозрачностью */
-  border: 1px solid rgba(255, 255, 255, 0.1); /* Тонкая рамка */
-  border-radius: 8px;           /* Скругление углов */
-  padding: 12px 15px;           /* Внутренние отступы, чтобы текст не прилипал */
-  color: white;                 /* Белый текст */
-  font-size: 0.9rem;
-  transition: border-color 0.2s; /* Плавная смена цвета рамки */
-  box-sizing: border-box;       /* Чтобы падинги не раздували ширину */
+    width: 100%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 40px; /* ДЕЛАЕМ ОВАЛЬНЫМИ */
+    padding: 12px 25px;  /* Увеличили боковой отступ для текста в овале */
+    color: white;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    outline: none;
+    box-sizing: border-box;
 }
 
 /* Эффект при клике в поле */
 .neonInput:focus, .neonSelect:focus {
-  border-color: #7bff00;        /* Твой неоновый зеленый */
-  outline: none;                /* Убираем стандартную синюю рамку браузера */
+    border-color: #7bff00;
+    background: rgba(123, 255, 0, 0.02);
+}
+
+/* Стилизация выпадающего списка (чтобы не был стандартным белым) */
+.neonSelect option {
+    background-color: #121212; /* Цвет фона выпадашки под твой дизайн */
+    color: white;
+    padding: 10px;
 }
 
 /* Оформление меток (label) над полями */
