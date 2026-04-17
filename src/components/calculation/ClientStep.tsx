@@ -11,7 +11,7 @@ export default function ClientStep({ initialData, onSave }: { initialData: any, 
   
   // Управляем открытием секций
   const [openSections, setOpenSections] = useState({
-    data: true, // Пусть "Данные" будут открыты, остальное свернуто для чистоты
+    data: false, // "Данные" будут закрыты
     media: false,
     payments: false,
     results: false
