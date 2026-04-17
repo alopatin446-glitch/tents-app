@@ -5,34 +5,33 @@
   height: 100vh;
   background-color: #0f172a;
   overflow: hidden;
-  /* Убираем отсюда padding-top, он нам тут мешает */
-  padding-top: 0; 
+  /* Вот этот отступ опустит ВЕСЬ контент сразу */
+  padding-top: 20px; 
+  box-sizing: border-box;
 }
 
 /* ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ */
 .sidebar {
   background-color: rgba(30, 41, 59, 0.5);
-  /* Добавляем отступ ВНУТРЬ сайдбара, чтобы текст опустился */
-  padding: 20px 10px 15px 10px; 
+  padding: 10px; /* Внутренние отступы элементов внутри меню */
   display: flex;
   flex-direction: column;
   gap: 20px;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
-  height: 100vh;
+  /* Убираем жесткую высоту 100vh, пусть занимает всё место в сетке */
+  height: 100%; 
 }
 
 /* ОБЛАСТЬ ДОСКИ (СКРОЛЛ КОЛОНОК) */
 .board {
-  flex: 1;
   display: flex !important;
   flex-direction: row !important;
-  /* Ставим зазор между сайдбаром и доской, и между колонками — ОДИНАКОВЫЙ */
   gap: 10px; 
   overflow-x: hidden;
-  height: 100vh;
+  height: 100%;
   align-items: flex-start;
-  /* Добавляем отступ сверху только для доски, чтобы выровнять с сайдбаром */
-  padding: 20px 10px 20px 10px; 
+  /* Убираем верхний паддинг отсюда, так как он есть в mainWrapper */
+  padding: 0 15px 20px 10px; 
 }
 
 /* КОЛОНКА */
