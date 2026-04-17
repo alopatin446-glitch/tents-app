@@ -1,23 +1,23 @@
 /* ГЛАВНЫЙ КОНТЕЙНЕР */
 .mainWrapper {
-  display: flex;
+  display: grid;
+  grid-template-columns: 200px 1fr; 
   height: 100vh;
   background-color: #0f172a;
   overflow: hidden;
-  /* Устанавливаем жесткую сетку: сайдбар 200px, всё остальное доске */
-  display: grid;
-  grid-template-columns: 200px 1fr; 
+  /* Добавляем общий отступ сверху для всего содержимого */
+  padding-top: 20px; 
 }
 
 /* ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ */
 .sidebar {
   background-color: rgba(30, 41, 59, 0.5);
-  padding: 15px 10px; /* Немного ужали боковые отступы */
+  padding: 0 10px 15px 10px; /* Убрали верхний padding, так как он теперь в mainWrapper */
   display: flex;
   flex-direction: column;
   gap: 20px;
   border-right: 1px solid rgba(255, 255, 255, 0.05);
-  height: 100%;
+  height: calc(100vh - 20px); /* Вычитаем отступ сверху, чтобы не было лишнего скролла */
 }
 
 /* ОБЛАСТЬ ДОСКИ (СКРОЛЛ КОЛОНОК) */
@@ -25,12 +25,11 @@
   flex: 1;
   display: flex !important;
   flex-direction: row !important;
-  gap: 10px; /* Уменьшаем зазор между колонками */
-  overflow-x: hidden; /* Пока выключаем горизонтальный скролл */
-  height: 100%;
+  gap: 10px;
+  overflow-x: hidden;
+  height: calc(100vh - 20px); /* Вычитаем отступ сверху */
   align-items: flex-start;
-  padding: 10px;
-  width: 100%; /* Доска занимает всю доступную ширину */
+  padding: 0 15px 20px 15px; /* Боковые и нижний отступы */
 }
 
 /* КОЛОНКА */
