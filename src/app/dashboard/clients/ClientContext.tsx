@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { Client } from './types';
 
 interface ClientContextType {
@@ -12,19 +12,18 @@ interface ClientContextType {
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
-export function ClientProvider({ children }: { children: React.ReactNode }) {
-  const [clients, setClients] = useState<Client[]>([]);
+// Добавляем initialClients в пропсы
+export function ClientProvider({ 
+  children, 
+  initialClients = [] 
+}: { 
+  children: React.ReactNode, 
+  initialClients?: Client[] 
+}) {
+  // Инициализируем стейт данными, которые пришли из базы через page.tsx
+  const [clients, setClients] = useState<Client[]>(initialClients);
 
-  // Инициализация: Загружаем данные из "памяти ПК" при старте
-  useEffect(() => {
-    const saved = localStorage.getItem('crm_clients');
-    if (saved) setClients(JSON.parse(saved));
-  }, []);
-
-  // Сохранение: Каждый раз, когда список меняется, записываем его
-  useEffect(() => {
-    localStorage.setItem('crm_clients', JSON.stringify(clients));
-  }, [clients]);
+  // УДАЛИЛИ блоки useEffect с localStorage, так как теперь данные живут в PostgreSQL
 
   const addClient = (client: Client) => {
     setClients(prev => [...prev, client]);
