@@ -7,12 +7,14 @@ const prisma = new PrismaClient()
 
 export async function createClientDeal(data: any) {
   try {
+    console.log("Попытка сохранения данных:", data);
+
     const newClient = await prisma.client.create({
       data: {
         name: data.name,
         phone: data.phone,
         address: data.address,
-        totalPrice: Number(data.totalPrice) || 0, // Приводим к числу на всякий случай
+        totalPrice: Number(data.totalPrice) || 0,
         status: data.status,
         surveyDate: new Date(data.surveyDate),
         source: data.source || 'Не указан',
@@ -20,10 +22,13 @@ export async function createClientDeal(data: any) {
       }
     })
 
+    console.log("Клиент успешно создан, ID:", newClient.id);
+    
     revalidatePath('/dashboard/clients')
     return { success: true, id: newClient.id }
   } catch (error) {
-    console.error("Ошибка при сохранении в базу:", error)
+    // Выводим детальную ошибку в логи сервера
+    console.error("КРИТИЧЕСКАЯ ОШИБКА PRISMA:", error)
     return { success: false }
   }
 }
