@@ -1,21 +1,37 @@
+// 1. Указываем, что будем использовать Prisma Client в JS/TS
 generator client {
   provider = "prisma-client-js"
 }
 
+// 2. Блок подключения (то, что просил терминал)
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// 3. Структура таблицы клиента
 model Client {
-  id           String   @id @default(cuid())
-  name         String
-  phone        String
-  address      String
-  source       String
-  status       String
-  surveyDate   DateTime
-  managerComment String?
-  totalPrice   Float    @default(0)
-  createdAt    DateTime @default(now())
+  id              String    @id @default(cuid())
+  fio             String    
+  phone           String
+  address         String?
+  source          String?
+  status          String    @default("negotiation")
+  
+  // Финансы
+  totalPrice      Float     @default(0)
+  advance         Float     @default(0)
+  balance         Float     @default(0)
+  paymentType     String?
+  
+  // Даты
+  measurementDate DateTime? 
+  installDate     DateTime? 
+  
+  // Комментарии
+  managerComment  String?
+  engineerComment String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }

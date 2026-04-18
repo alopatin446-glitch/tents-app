@@ -1,46 +1,39 @@
-'use server'
+'use server';
 
-import { PrismaClient } from '@prisma/client'
-import { revalidatePath } from 'next/cache'
+import { PrismaClient } from '@prisma/client';
+import { revalidatePath } from 'next/cache';
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 export async function createClientDeal(data: any) {
   try {
-    console.log("Входящие данные формы:", data);
-
-    // Безопасная обработка даты
-    // Если дата пустая или некорректная, ставим текущий момент
-    const rawDate = data.surveyDate;
-    const parsedDate = new Date(rawDate);
-    const finalDate = (rawDate && !isNaN(parsedDate.getTime())) 
-      ? parsedDate 
-      : new Date();
-
     const newClient = await prisma.client.create({
       data: {
-        name: data.name || 'Без имени',
-        phone: data.phone || 'Нет телефона',
-        address: data.address || 'Адрес не указан',
-        totalPrice: Number(data.totalPrice) || 0,
-        status: data.status || 'new',
-        surveyDate: finalDate, // Теперь здесь всегда валидный объект Date
-        source: data.source || 'Не указан',
-        managerComment: data.managerComment || '',
-      }
-    })
+        fio: data.fio || 'Без имени',
+        phone: data.phone || '',
+        address: data.address || '',
+        source: data.source || '',
+        status: data.status || 'negotiation',
+        
+        // Преобразуем строки в числа для базы
+        totalPrice: parseFloat(data.totalPrice) || 0,
+        advance: parseFloat(data.advance) || 0,
+        balance: parseFloat(data.balance) || 0,
+        paymentType: data.paymentType || '',
 
-    console.log("Успех! Клиент в базе, ID:", newClient.id);
-    
-    revalidatePath('/dashboard/clients')
-    return { success: true, id: newClient.id }
+        // Преобразуем строки дат в объекты Date для Prisma
+        measurementDate: data.measurementDate ? new Date(data.measurementDate) : null,
+        installDate: data.installDate ? new Date(data.installDate) : null,
+
+        managerComment: data.managerComment || '',
+        engineerComment: data.engineerComment || '',
+      },
+    });
+
+    revalidatePath('/dashboard/clients'); // Обновим кэш страницы, чтобы клиент сразу появился
+    return { success: true, id: newClient.id };
   } catch (error: any) {
-    // Выводим максимум информации в логи Vercel
-    console.error("КРИТИЧЕСКАЯ ОШИБКА PRISMA:", {
-      message: error.message,
-      code: error.code,
-      meta: error.meta
-    })
-    return { success: false, error: error.message }
+    console.error('Ошибка при создании клиента:', error);
+    return { success: false, error: error.message };
   }
 }
