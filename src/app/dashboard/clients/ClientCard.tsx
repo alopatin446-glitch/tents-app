@@ -32,16 +32,16 @@ export default function ClientCard({ client, isSelected, onSelect, onEdit, onOpe
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
+    <div
+      ref={setNodeRef}
+      style={style}
       // Динамически добавляем класс .selected, если карточка выбрана
       className={`${styles.card} ${isSelected ? styles.selected : ''}`}
       {...attributes}
       {...listeners}
       onClick={(e) => {
         // Предотвращаем конфликт, если вдруг дочерний элемент тоже имеет onClick
-        e.stopPropagation(); 
+        e.stopPropagation();
         onSelect();
       }}
       onDoubleClick={onOpenFull}
@@ -49,7 +49,7 @@ export default function ClientCard({ client, isSelected, onSelect, onEdit, onOpe
     >
       {/* Рисуем галочку, если карточка в режиме выделения */}
       {isSelected && <div className={styles.checkMark}>✓</div>}
-      
+
       <div className={styles.cardHeader}>
         <span className={styles.clientName}>{client.fio || 'Без имени'}</span>
         <div className={styles.statusDot}></div>

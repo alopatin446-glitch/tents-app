@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { createClientDeal } from '@/app/lib/actions'; 
+import { useSearchParams, useRouter } from 'next/navigation'; 
+import { createClientDeal, updateClientDeal, getClientById } from '@/app/lib/actions';
 import styles from './calculation.module.css';
 import ClientStep from '@/components/calculation/ClientStep';
 import ItemsStep from '@/components/calculation/ItemsStep';
@@ -39,10 +39,10 @@ const initialWindow = (id: number): WindowItem => ({
   fastenerStep: 40,
 });
 
-// Основной контент страницы вынесен в отдельный компонент для работы с useSearchParams
 function CalculationContent() {
   const searchParams = useSearchParams();
-  const clientId = searchParams.get('id'); // Получаем ?id=... из ссылки
+  const router = useRouter(); 
+  const clientId = searchParams.get('id');
 
   const [activeTab, setActiveTab] = useState('Клиент');
   const [clientData, setClientData] = useState<ClientData>({
@@ -56,57 +56,52 @@ function CalculationContent() {
 
   const [windows, setWindows] = useState<WindowItem[]>([initialWindow(1)]);
 
-  // ЭФФЕКТ: Если в ссылке есть ID, страница переходит в режим редактирования
   useEffect(() => {
-    if (clientId) {
-      console.log('Режим редактирования клиента:', clientId);
-      // В будущем здесь будет вызов fetchClientById(clientId)
-      // Чтобы автоматически заполнить поля fio, phone и т.д.
+    async function fetchClient() {
+      if (clientId) {
+        const result = await getClientById(clientId);
+        if (result.success && result.data) {
+          setClientData({
+            fio: result.data.fio || '',
+            phone: result.data.phone || '',
+            address: result.data.address || '',
+            source: result.data.source || '',
+            comment: result.data.managerComment || '',
+            status: result.data.status || 'special_case',
+          });
+        }
+      }
     }
+    fetchClient();
   }, [clientId]);
 
   const menuItems = [
-    'Клиент',
-    'Изделия',
-    'Крепежи',
-    'Дополнения',
-    'Каркас',
-    'Расчёт',
-    'Цены',
-    'Для производства',
+    'Клиент', 'Изделия', 'Крепежи', 'Дополнения',
+    'Каркас', 'Расчёт', 'Цены', 'Для производства'
   ];
 
   const handleSaveClient = async (updatedData: any) => {
     setClientData(updatedData);
-    
     try {
       if (clientId) {
-        console.log('ОБНОВЛЕНИЕ клиента в БД (ID):', clientId, updatedData);
-        // Здесь будет вызов updateClientDeal(clientId, updatedData)
-        alert('Данные обновлены (режим редактирования)');
+        const result = await updateClientDeal(clientId, updatedData);
+        if (result.success) alert('Данные сохранены!');
       } else {
-        console.log('СОЗДАНИЕ нового клиента в БД...', updatedData);
         const result = await createClientDeal(updatedData);
-        if (result.success) {
-          alert('Клиент успешно создан в базе!');
-        } else {
-          alert('Ошибка при сохранении: ' + result.error);
-        }
+        if (result.success) alert('Клиент создан!');
       }
-    } catch (error) {
-      console.error(error);
-      alert('Произошла критическая ошибка');
+    } catch (e) {
+      alert('Ошибка базы');
     }
   };
 
-  const handleSaveItems = (updatedWindows: WindowItem[]) => {
-    setWindows(updatedWindows);
-    console.log('ИЗДЕЛИЯ ЗАФИКСИРОВАНЫ');
+  // ИЗМЕНЕНО: Теперь ведет в главное меню CRM
+  const handleExit = () => {
+    router.push('/dashboard'); 
   };
 
-  const handleSaveFasteners = () => {
-    console.log('КРЕПЕЖИ ЗАФИКСИРОВАНЫ');
-  };
+  const handleSaveItems = (updatedWindows: WindowItem[]) => setWindows(updatedWindows);
+  const handleSaveFasteners = () => console.log('SAVE');
 
   return (
     <main className={styles.mainContainer}>
@@ -114,6 +109,7 @@ function CalculationContent() {
         <div className={styles.orderBadge}>
           {clientId ? `РЕДАКТИРОВАНИЕ ID: ${clientId.slice(-4)}` : 'ЗАКАЗ: НОВЫЙ'}
         </div>
+
         <nav className={styles.navMenu}>
           {menuItems.map((item) => (
             <button
@@ -129,30 +125,27 @@ function CalculationContent() {
 
       <section className={styles.contentArea}>
         {activeTab === 'Клиент' && (
-          <ClientStep
-            initialData={clientData}
-            onSave={handleSaveClient}
-            onClose={() => window.history.back()}
-          />
+          clientId && !clientData.fio ? (
+            <div style={{ padding: '40px', color: '#00f3ff', textAlign: 'center' }}>
+              <h2>ЗАГРУЗКА ДАННЫХ ИЗ БАЗЫ...</h2>
+            </div>
+          ) : (
+            <ClientStep
+              key={clientId || 'new'}
+              initialData={clientData}
+              onSave={handleSaveClient}
+              onClose={handleExit} 
+            />
+          )
         )}
 
-        {activeTab === 'Изделия' && (
-          <ItemsStep
-            windows={windows}
-            onSave={handleSaveItems}
-          />
-        )}
-
-        {activeTab === 'Крепежи' && (
-          <FastenersStep
-            onSave={handleSaveFasteners}
-          />
-        )}
+        {activeTab === 'Изделия' && <ItemsStep windows={windows} onSave={handleSaveItems} />}
+        {activeTab === 'Крепежи' && <FastenersStep onSave={handleSaveFasteners} />}
 
         {!['Клиент', 'Изделия', 'Крепежи'].includes(activeTab) && (
           <div className={styles.placeholder}>
             <h2>Раздел "{activeTab}"</h2>
-            <p>В процессе переноса в модульную систему...</p>
+            <p>В процессе разработки...</p>
           </div>
         )}
       </section>
@@ -160,7 +153,6 @@ function CalculationContent() {
   );
 }
 
-// Обертка для корректной работы Next.js с поисковыми параметрами
 export default function NewCalculation() {
   return (
     <Suspense fallback={<div>Загрузка...</div>}>

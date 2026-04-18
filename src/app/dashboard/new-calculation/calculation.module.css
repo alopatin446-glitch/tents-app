@@ -99,3 +99,26 @@
 .dimW, .dimH { position: absolute; color: var(--neon-green); font-size: 0.75rem; font-family: monospace; background: #0a0a0a; padding: 2px 6px; }
 .dimW { bottom: -30px; left: 50%; transform: translateX(-50%); }
 .dimH { right: -60px; top: 50%; transform: translateY(-50%); }
+
+/* Добавь в src/app/dashboard/new-calculation/calculation.module.css */
+
+.exitButton {
+  margin-top: auto; /* Прижмет кнопку к низу сайдбара */
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 800;
+  transition: 0.3s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.exitButton:hover {
+  background: rgba(255, 68, 68, 0.1); /* Слегка красный при наведении */
+  border-color: rgba(255, 68, 68, 0.3);
+  color: #ff4444;
+}
