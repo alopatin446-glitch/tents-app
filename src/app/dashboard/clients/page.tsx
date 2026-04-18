@@ -2,6 +2,8 @@ import { PrismaClient } from '@prisma/client';
 import { ClientProvider } from './ClientContext';
 import KanbanBoard from './KanbanBoard';
 
+export const dynamic = 'force-dynamic'
+
 const prisma = new PrismaClient();
 
 export default async function ClientsPage() {
