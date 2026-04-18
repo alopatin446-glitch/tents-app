@@ -1,5 +1,6 @@
 'use client';
 
+import { createClientDeal } from '@/app/lib/actions'; // <--- Добавь это
 import { useState } from 'react';
 import styles from './calculation.module.css';
 import ClientStep from '@/components/calculation/ClientStep';
@@ -46,7 +47,7 @@ export default function NewCalculation() {
     address: '',
     source: '',
     comment: '',
-    status: 'Новый',
+    status: 'special_case',
   });
 
   const [windows, setWindows] = useState<WindowItem[]>([initialWindow(1)]);
@@ -62,9 +63,21 @@ export default function NewCalculation() {
     'Для производства',
   ];
 
-  const handleSaveClient = (updatedData: ClientData) => {
+  const handleSaveClient = async (updatedData: any) => {
     setClientData(updatedData);
-    console.log('ДАННЫЕ КЛИЕНТА ЗАФИКСИРОВАНЫ');
+    console.log('Попытка сохранения в БД...', updatedData);
+    
+    try {
+      const result = await createClientDeal(updatedData);
+      if (result.success) {
+        alert('Клиент успешно создан в базе!');
+      } else {
+        alert('Ошибка при сохранении: ' + result.error);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Произошла критическая ошибка');
+    }
   };
 
   const handleSaveItems = (updatedWindows: WindowItem[]) => {

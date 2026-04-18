@@ -8,7 +8,7 @@ export interface Product {
 export interface Client {
   id: string;
   companyId: string; // Задел на будущее (многопользовательский режим)
-  name: string;
+  fio: string;
   phone: string;
   address: string;
   totalPrice: number;

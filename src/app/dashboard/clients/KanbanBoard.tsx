@@ -100,7 +100,7 @@ export default function KanbanBoard() {
               selectedIds={selectedIds}
               onClientSelect={toggleSelect}
               onClientEdit={(client) => setEditingClient(client)}
-              onClientOpenFull={(client) => alert(`КЛИЕНТ: ${client.name}`)}
+              onClientOpenFull={(client) => alert(`КЛИЕНТ: ${client.fio}`)}
             />
           ))}
         </div>

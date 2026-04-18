@@ -51,7 +51,7 @@ export default function ClientCard({ client, isSelected, onSelect, onEdit, onOpe
       {isSelected && <div className={styles.checkMark}>✓</div>}
       
       <div className={styles.cardHeader}>
-        <span className={styles.clientName}>{client.name}</span>
+        <span className={styles.clientName}>{client.fio || 'Без имени'}</span>
         <div className={styles.statusDot}></div>
       </div>
       <span className={styles.address}>{client.address}</span>
