@@ -1,39 +1,37 @@
 'use client';
 
 import React from 'react';
-import styles from './Modal.module.css';
-import { Client } from './types';
+import styles from './KanbanBoard.module.css'; // Используем стили канбана для единообразия
+import ClientStep from '@/components/calculation/ClientStep';
+import { createClientDeal } from '@/app/lib/actions'; // Позже заменим на update, пока для теста сборки
 
 interface EditModalProps {
-  client: Client;
+  client: any;
   onClose: () => void;
 }
 
 export default function EditModal({ client, onClose }: EditModalProps) {
+  
+  const handleUpdate = async (updatedData: any) => {
+    // Здесь позже будет вызов updateClientDeal, пока просто логируем и закрываем
+    console.log('Данные для обновления:', updatedData);
+    alert('Функция обновления будет подключена следующим шагом!');
+    onClose();
+  };
+
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <button className={styles.closeBtn} onClick={onClose}>×</button>
-        <h2 className={styles.title}>Редактировать клиента</h2>
-        
-        <div className={styles.formGroup}>
-          <label className={styles.label}>Имя / Компания</label>
-          <input className={styles.input} defaultValue={client.name} />
+    <div className={styles.modalOverlay}>
+      <div className={styles.editModal} style={{ width: '1000px', maxWidth: '95vw', height: '90vh', overflowY: 'auto', padding: '0', background: '#0a0a0a' }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid rgba(0,243,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ color: '#00f3ff', margin: 0, fontSize: '1.2rem' }}>РЕДАКТИРОВАНИЕ: {client.fio || client.name}</h2>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.5rem' }}>×</button>
         </div>
 
-        <div className={styles.formGroup}>
-          <label className={styles.label}>Адрес объекта</label>
-          <input className={styles.input} defaultValue={client.address} />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label className={styles.label}>Сумма сделки (₽)</label>
-          <input className={styles.input} type="number" defaultValue={client.totalPrice} />
-        </div>
-
-        <button className={styles.saveBtn} onClick={onClose}>
-          СОХРАНИТЬ ИЗМЕНЕНИЯ
-        </button>
+        <ClientStep 
+          initialData={client} 
+          onSave={handleUpdate} 
+          onClose={onClose} 
+        />
       </div>
     </div>
   );
