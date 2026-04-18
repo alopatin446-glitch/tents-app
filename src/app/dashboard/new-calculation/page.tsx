@@ -98,6 +98,7 @@ export default function NewCalculation() {
           <ClientStep
             initialData={clientData}
             onSave={handleSaveClient}
+            onClose={() => window.history.back()} // Если нажать "Выйти", он просто вернется на прошлую страницу
           />
         )}
 
