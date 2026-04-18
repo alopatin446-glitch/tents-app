@@ -16,7 +16,7 @@ const statusOptions = [
 ];
 
 export default function ClientStep({ initialData, onSave, onClose }: { initialData: any, onSave: (data: any) => void, onClose: () => void }) {
-    const [clientData, setClientData] = useState(initialData || {});
+    const [clientData, setClientData] = useState(initialData);
 
     const [openSections, setOpenSections] = useState({
         data: false,
