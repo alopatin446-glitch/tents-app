@@ -1,7 +1,8 @@
 'use client';
 
-import { createClientDeal } from '@/app/lib/actions'; // <--- Добавь это
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { createClientDeal } from '@/app/lib/actions'; 
 import styles from './calculation.module.css';
 import ClientStep from '@/components/calculation/ClientStep';
 import ItemsStep from '@/components/calculation/ItemsStep';
@@ -38,9 +39,12 @@ const initialWindow = (id: number): WindowItem => ({
   fastenerStep: 40,
 });
 
-export default function NewCalculation() {
-  const [activeTab, setActiveTab] = useState('Клиент');
+// Основной контент страницы вынесен в отдельный компонент для работы с useSearchParams
+function CalculationContent() {
+  const searchParams = useSearchParams();
+  const clientId = searchParams.get('id'); // Получаем ?id=... из ссылки
 
+  const [activeTab, setActiveTab] = useState('Клиент');
   const [clientData, setClientData] = useState<ClientData>({
     fio: '',
     phone: '',
@@ -51,6 +55,15 @@ export default function NewCalculation() {
   });
 
   const [windows, setWindows] = useState<WindowItem[]>([initialWindow(1)]);
+
+  // ЭФФЕКТ: Если в ссылке есть ID, страница переходит в режим редактирования
+  useEffect(() => {
+    if (clientId) {
+      console.log('Режим редактирования клиента:', clientId);
+      // В будущем здесь будет вызов fetchClientById(clientId)
+      // Чтобы автоматически заполнить поля fio, phone и т.д.
+    }
+  }, [clientId]);
 
   const menuItems = [
     'Клиент',
@@ -65,14 +78,20 @@ export default function NewCalculation() {
 
   const handleSaveClient = async (updatedData: any) => {
     setClientData(updatedData);
-    console.log('Попытка сохранения в БД...', updatedData);
     
     try {
-      const result = await createClientDeal(updatedData);
-      if (result.success) {
-        alert('Клиент успешно создан в базе!');
+      if (clientId) {
+        console.log('ОБНОВЛЕНИЕ клиента в БД (ID):', clientId, updatedData);
+        // Здесь будет вызов updateClientDeal(clientId, updatedData)
+        alert('Данные обновлены (режим редактирования)');
       } else {
-        alert('Ошибка при сохранении: ' + result.error);
+        console.log('СОЗДАНИЕ нового клиента в БД...', updatedData);
+        const result = await createClientDeal(updatedData);
+        if (result.success) {
+          alert('Клиент успешно создан в базе!');
+        } else {
+          alert('Ошибка при сохранении: ' + result.error);
+        }
       }
     } catch (error) {
       console.error(error);
@@ -92,7 +111,9 @@ export default function NewCalculation() {
   return (
     <main className={styles.mainContainer}>
       <aside className={styles.sidebar}>
-        <div className={styles.orderBadge}>ЗАКАЗ: НОВЫЙ</div>
+        <div className={styles.orderBadge}>
+          {clientId ? `РЕДАКТИРОВАНИЕ ID: ${clientId.slice(-4)}` : 'ЗАКАЗ: НОВЫЙ'}
+        </div>
         <nav className={styles.navMenu}>
           {menuItems.map((item) => (
             <button
@@ -111,7 +132,7 @@ export default function NewCalculation() {
           <ClientStep
             initialData={clientData}
             onSave={handleSaveClient}
-            onClose={() => window.history.back()} // Если нажать "Выйти", он просто вернется на прошлую страницу
+            onClose={() => window.history.back()}
           />
         )}
 
@@ -136,5 +157,14 @@ export default function NewCalculation() {
         )}
       </section>
     </main>
+  );
+}
+
+// Обертка для корректной работы Next.js с поисковыми параметрами
+export default function NewCalculation() {
+  return (
+    <Suspense fallback={<div>Загрузка...</div>}>
+      <CalculationContent />
+    </Suspense>
   );
 }

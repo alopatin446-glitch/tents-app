@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation'; // Добавили роутер
 import { 
   DndContext, 
   DragEndEvent, 
@@ -12,7 +13,7 @@ import {
 import styles from './KanbanBoard.module.css';
 import StageColumn from './StageColumn';
 import EditModal from './EditModal';
-import CreateClientModal from './CreateClientModal'; // НЕ ЗАБУДЬ ИМПОРТ
+import CreateClientModal from './CreateClientModal';
 import { Client, Stage } from './types';
 import { useClients } from './ClientContext';
 
@@ -27,10 +28,11 @@ const STAGES: Stage[] = [
 
 export default function KanbanBoard() {
   const { clients, updateClient, deleteClient } = useClients();
+  const router = useRouter(); // Инициализация навигации
   
   // Состояния для модалок
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [isAddingNew, setIsAddingNew] = useState(false); // ДЛЯ НОВОГО КЛИЕНТА
+  const [isAddingNew, setIsAddingNew] = useState(false); 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const sensors = useSensors(
@@ -79,7 +81,6 @@ export default function KanbanBoard() {
           )}
 
           <div style={{marginTop: 'auto'}}>
-            {/* ТУТ ВКЛЮЧАЕМ КНОПКУ */}
             <button 
               className="navButton active" 
               style={{width: '100%'}}
@@ -100,7 +101,8 @@ export default function KanbanBoard() {
               selectedIds={selectedIds}
               onClientSelect={toggleSelect}
               onClientEdit={(client) => setEditingClient(client)}
-              onClientOpenFull={(client) => alert(`КЛИЕНТ: ${client.fio}`)}
+              // ВОТ ЗДЕСЬ МАГИЯ: заменяем alert на переход с ID
+              onClientOpenFull={(client) => router.push(`/dashboard/new-calculation?id=${client.id}`)}
             />
           ))}
         </div>
@@ -113,7 +115,7 @@ export default function KanbanBoard() {
           />
         )}
 
-        {/* МОДАЛКА СОЗДАНИЯ (ТОТ САМЫЙ ТЕЛЕПОРТ) */}
+        {/* МОДАЛКА СОЗДАНИЯ */}
         {isAddingNew && (
           <CreateClientModal onClose={() => setIsAddingNew(false)} />
         )}
