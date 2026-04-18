@@ -4,7 +4,16 @@ import { useState } from 'react';
 import styles from './ClientStep.module.css';
 
 const sourceOptions = ['VK', '2Гис', 'Макс', 'Сайт', 'Авито', 'Telegram', 'Яндекс бизнес', 'Яндекс Директ', 'Повторный клиент', 'По рекомендации', 'Проезжал мимо офиса', 'Проезжал мимо цеха', 'От председателя', 'Баннер в СНТ', 'Другое'];
-const statusOptions = ['Общение с клиентом', 'Ожидает замер', 'Обещал заплатить', 'Ожидает Монтаж', 'Ожидает изделия', 'Сделка успешна', 'Сделка провалена'];
+const statusOptions = [
+    { id: 'negotiation', label: 'Общение с клиентом' },
+    { id: 'waiting_measure', label: 'Ожидает замер' },
+    { id: 'promised_pay', label: 'Обещал заплатить' },
+    { id: 'waiting_production', label: 'Ожидает изделия' },
+    { id: 'waiting_install', label: 'Ожидает монтаж' },
+    { id: 'special_case', label: 'Особый случай' },
+    { id: 'success', label: 'Сделка успешна' },
+    { id: 'failed', label: 'Сделка провалена' },
+];
 
 export default function ClientStep({ initialData, onSave, onClose }: { initialData: any, onSave: (data: any) => void, onClose: () => void }) {
     const [clientData, setClientData] = useState(initialData || {});
@@ -65,7 +74,9 @@ export default function ClientStep({ initialData, onSave, onClose }: { initialDa
                                     <label>Статус</label>
                                     <select name="status" value={clientData.status || ''} onChange={handleChange} className={styles.neonSelect}>
                                         <option value="">Выберите статус...</option>
-                                        {statusOptions.map(o => <option key={o} value={o}>{o}</option>)}
+                                        {statusOptions.map(o => (
+                                            <option key={o.id} value={o.id}>{o.label}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className={styles.inputGroup}>

@@ -2,28 +2,29 @@
 
 import React from 'react';
 import { createClientDeal } from '@/app/lib/actions';
-import ClientStep from '@/components/calculation/ClientStep'; // ПРОВЕРЬ ЭТОТ ПУТЬ
+import ClientStep from '@/components/calculation/ClientStep';
 import styles from './KanbanBoard.module.css';
 
 export default function CreateClientModal({ onClose }: { onClose: () => void }) {
   
   const handleFinalSave = async (formData: any) => {
-    // Проверка обязательного поля
-    if (!formData.fio) return alert('Введите ФИО клиента');
-    
     try {
+      // Логируем для тебя, чтобы видеть в консоли браузера, что улетает
+      console.log('Отправка данных клиента:', formData);
+
       const result = await createClientDeal(formData);
       
       if (result.success) {
-        alert('Сделка успешно сохранена в Neon PostgreSQL!');
+        alert('Успешно сохранено!');
         onClose();
-        window.location.reload(); // Обновляем страницу, чтобы увидеть карточку
+        window.location.reload(); 
       } else {
-        alert('Ошибка при сохранении: ' + result.error);
+        // Если actions.ts сказал "пусто", выскочит это сообщение
+        alert(result.error);
       }
     } catch (err) {
-      console.error(err);
-      alert('Произошла критическая ошибка при отправке');
+      console.error('Ошибка в CreateClientModal:', err);
+      alert('Ошибка при сохранении карточки');
     }
   };
 
