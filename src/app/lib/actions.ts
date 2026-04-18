@@ -14,7 +14,7 @@ export async function createClientDeal(data: any) {
         address: data.address || '',
         source: data.source || '',
         status: data.status || 'negotiation',
-        
+
         // Преобразуем строки в числа для базы
         totalPrice: parseFloat(data.totalPrice) || 0,
         advance: parseFloat(data.advance) || 0,
@@ -33,7 +33,8 @@ export async function createClientDeal(data: any) {
     revalidatePath('/dashboard/clients'); // Обновим кэш страницы, чтобы клиент сразу появился
     return { success: true, id: newClient.id };
   } catch (error: any) {
-    console.error('Ошибка при создании клиента:', error);
-    return { success: false, error: error.message };
+    // ВАЖНО: Это выведет реальную причину в ТЕРМИНАЛ (внизу в VS Code)
+    console.error('ПОЛНАЯ ОШИБКА ПРИЗМЫ:', JSON.stringify(error, null, 2));
+    return { success: false, error: error.message || 'Неизвестная ошибка базы' };
   }
 }
