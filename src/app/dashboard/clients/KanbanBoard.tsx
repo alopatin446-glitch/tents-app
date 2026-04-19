@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation'; // Добавили роутер
-import { 
-  DndContext, 
-  DragEndEvent, 
-  closestCorners, 
-  PointerSensor, 
-  useSensor, 
-  useSensors 
+import {
+  DndContext,
+  DragEndEvent,
+  closestCorners,
+  PointerSensor,
+  useSensor,
+  useSensors
 } from '@dnd-kit/core';
 import styles from './KanbanBoard.module.css';
 import StageColumn from './StageColumn';
@@ -29,10 +29,10 @@ const STAGES: Stage[] = [
 export default function KanbanBoard() {
   const { clients, updateClient, deleteClient } = useClients();
   const router = useRouter(); // Инициализация навигации
-  
+
   // Состояния для модалок
   const [editingClient, setEditingClient] = useState<Client | null>(null);
-  const [isAddingNew, setIsAddingNew] = useState(false); 
+  const [isAddingNew, setIsAddingNew] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const sensors = useSensors(
@@ -40,7 +40,7 @@ export default function KanbanBoard() {
   );
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => 
+    setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
     );
   };
@@ -64,9 +64,23 @@ export default function KanbanBoard() {
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
       <div className={styles.mainWrapper}>
         <aside className={styles.sidebar}>
-          <h2 style={{fontSize: '1.1rem', fontWeight: 800, color: '#fff'}}>УПРАВЛЕНИЕ</h2>
-          <input type="text" placeholder="Поиск..." className="neonInput" style={{width: '100%'}} />
-          
+          {/* НОВАЯ КНОПКА НАЗАД */}
+          <button
+            onClick={() => router.push('/dashboard')}
+            className={styles.filterBtn}
+            style={{
+              marginBottom: '20px',
+              width: '100%',
+              background: 'rgba(255,255,255,0.05)',
+              borderColor: 'rgba(255,255,255,0.1)'
+            }}
+          >
+            ← ГЛАВНОЕ МЕНЮ
+          </button>
+
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>УПРАВЛЕНИЕ</h2>
+          <input type="text" placeholder="Поиск..." className="neonInput" style={{ width: '100%' }} />
+
           <div className={styles.quickFilters}>
             <button className={styles.filterBtn}>🔥 ГОРЯЩИЕ</button>
             <button className={styles.filterBtn}>💸 ДОЛЖНИКИ</button>
@@ -74,16 +88,16 @@ export default function KanbanBoard() {
 
           {selectedIds.length > 0 && (
             <div className={styles.actionPanel}>
-              <div style={{color: '#7BFF00', fontSize: '0.75rem', fontWeight: 800}}>ВЫБРАНО: {selectedIds.length}</div>
+              <div style={{ color: '#7BFF00', fontSize: '0.75rem', fontWeight: 800 }}>ВЫБРАНО: {selectedIds.length}</div>
               <button onClick={deleteSelected} className={styles.deleteBtn}>УДАЛИТЬ КАРТОЧКИ</button>
               <button onClick={() => setSelectedIds([])} className={styles.filterBtn}>ОТМЕНА</button>
             </div>
           )}
 
-          <div style={{marginTop: 'auto'}}>
-            <button 
-              className="navButton active" 
-              style={{width: '100%'}}
+          <div style={{ marginTop: 'auto' }}>
+            <button
+              className="navButton active"
+              style={{ width: '100%' }}
               onClick={() => setIsAddingNew(true)}
             >
               + КЛИЕНТ
@@ -93,10 +107,10 @@ export default function KanbanBoard() {
 
         <div className={styles.board}>
           {STAGES.map(stage => (
-            <StageColumn 
-              key={stage.id} 
-              id={stage.id} 
-              stage={stage} 
+            <StageColumn
+              key={stage.id}
+              id={stage.id}
+              stage={stage}
               clients={clients.filter(c => c.status === stage.id)}
               selectedIds={selectedIds}
               onClientSelect={toggleSelect}
@@ -109,9 +123,9 @@ export default function KanbanBoard() {
 
         {/* МОДАЛКА РЕДАКТИРОВАНИЯ */}
         {editingClient && (
-          <EditModal 
-            client={editingClient} 
-            onClose={() => setEditingClient(null)} 
+          <EditModal
+            client={editingClient}
+            onClose={() => setEditingClient(null)}
           />
         )}
 
