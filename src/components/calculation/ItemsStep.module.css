@@ -1,128 +1,190 @@
 .itemsGrid {
   display: grid;
-  grid-template-columns: 1fr 350px;
+  /* Твоя проверенная сетка */
+  grid-template-columns: 320px 1fr; 
   gap: 30px;
-}
-
-.leftColumn {
-  display: flex;
-  flex-direction: column;
-}
-
-.rightColumn {
-  display: flex;
-  flex-direction: column;
-}
-
-.sectionTitle {
-  color: var(--neon-green);
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-bottom: 20px;
-}
-
-.itemsList {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.itemCard {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(123, 255, 0, 0.15);
-  border-radius: 16px;
+  align-items: start;
   padding: 20px;
 }
 
-.itemHeader {
+/* ТО САМОЕ ПОЛЕ С ЗЕЛЕНОЙ ЛИНИЕЙ (Левая панель целиком) */
+.inputPanelWrapper {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(123, 255, 0, 0.2); /* Тонкая зеленая линия */
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: 85vh;
+  overflow-y: auto; /* Скролл только внутри этой панели */
+}
+
+/* ПРАВАЯ КОЛОНКА (Твой оригинал, не трогаем) */
+.rightColumn {
+  flex: 1; 
+  height: 85vh;
+  /* ТА САМАЯ НЕОНОВАЯ ЛИНИЯ */
+  border: 1px solid rgba(123, 255, 0, 0.2); /* Тонкая зеленая линия */
+  display: flex;
+  flex-direction: column;
+  background: #242D3E;
+  border-radius: 20px;
+  padding: 40px;
+}
+
+.drawingWrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ЗАГОЛОВОК И КНОПКА "ДОБАВИТЬ" */
+.headerRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 5px;
+}
+
+.sectionTitle {
+  color: #7BFF00; /* Твой неоновый зеленый */
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.addButton {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+/* СПИСОК КАРТОЧЕК */
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.itemCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 15px;
 }
 
 .itemTitle {
-  margin: 0;
+  margin: 0 0 15px 0;
   color: white;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 0.9rem;
 }
 
-.itemBadge {
-  color: var(--neon-green);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-}
-
-.formGrid {
+/* ПОЛЯ ВВОДА */
+.geometryGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(2, 1fr); /* Ровно пополам */
+  grid-template-rows: repeat(2, auto);    /* Два ряда по высоте контента */
+  gap: 15px 12px;                        /* Отступ между рядами 15px, между колонками 12px */
+  margin-bottom: 20px;
 }
 
 .inputGroup {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
 .inputGroup label {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding-left: 2px; /* Чтобы текст не прилипал к краю */
+}
+
+.inputGroup input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(123, 255, 0, 0.15);
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.inputGroup input:focus {
+  border-color: #7BFF00;
+  background: rgba(15, 23, 42, 1);
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.1);
+}
+
+.formSection h4 {
+  font-size: 0.75rem;
+  color: #7BFF00;
+  margin: 0 0 8px 0;
   text-transform: uppercase;
 }
 
-.neonInput {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(123, 255, 0, 0.2);
-  padding: 12px;
-  border-radius: 8px;
-  color: white;
-  transition: 0.3s;
+/* ТРАПЕЦИЯ */
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 
-.neonInput:focus {
-  border-color: var(--neon-green);
-  box-shadow: 0 0 10px rgba(123, 255, 0, 0.2);
-  outline: none;
+.trapezoidFields {
+  margin-top: 15px;
+  background: rgb(255, 255, 255, .8);
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .saveButton {
-  margin-top: 30px;
-  align-self: flex-start;
-  background: var(--neon-green);
-  color: black;
-  border: none;
-  padding: 15px 30px;
-  font-weight: 800;
-  border-radius: 50px;
-  cursor: pointer;
-  box-shadow: 0 0 20px rgba(123, 255, 0, 0.4);
-  transition: 0.3s;
+    /* --- СОСТОЯНИЕ ПО УМОЛЧАНИЮ (Как у кнопок слева) --- */
+    background-color: transparent !important; /* Убираем постоянную заливку */
+    color: rgba(255, 255, 255, 0.7) !important; /* Белый/серый текст */
+    border: 1px solid rgba(123, 255, 0, 0.3) !important; /* Тонкая зеленая рамка */
+    
+    /* Скругляем углы как на скрине */
+    border-radius: 30px !important;
+    padding: 12px 30px !important;
+    font-weight: bold;
+    font-size: 14px;
+    text-transform: uppercase;
+    
+    /* Плавный переход для ховера */
+    transition: all 0.3s ease-in-out !important;
+    
+    /* Убираем свечение, которое есть сейчас */
+    box-shadow: none !important;
+    
+    /* Для MUI Button: фиксируем курсор */
+    cursor: pointer;
 }
 
+/* --- СОСТОЯНИЕ ПРИ НАВЕДЕНИИ (Hover) --- */
 .saveButton:hover {
-  transform: scale(1.02);
-  box-shadow: 0 0 30px var(--neon-green);
-}
-
-.infoCard {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 20px;
-  border-radius: 15px;
-  margin-bottom: 20px;
-}
-
-.infoCard h3 {
-  font-size: 0.9rem;
-  margin-bottom: 15px;
-  color: var(--neon-green);
-}
-
-.infoCard p {
-  margin: 0;
-  color: white;
-  line-height: 1.5;
+    /* Точно такое же поведение, как у кнопок левой панели */
+    background-color: #7BFF00 !important; /* Ярко-зеленая заливка */
+    color: #111827 !important; /* Темный текст на зеленом фоне */
+    
+    /* То самое свечение (box-shadow) */
+    box-shadow: 0 0 20px rgba(123, 255, 0, 0.8) !important; 
 }

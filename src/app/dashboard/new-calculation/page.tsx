@@ -8,6 +8,25 @@ import ClientStep from '@/components/calculation/ClientStep';
 import ItemsStep from '@/components/calculation/ItemsStep';
 import FastenersStep from '@/components/calculation/FastenersStep';
 
+interface WindowItem {
+  id: number;
+  name: string;
+  widthTop: number;
+  heightRight: number;
+  widthBottom: number;
+  heightLeft: number;
+  kantTop: number;
+  kantRight: number;
+  kantBottom: number;
+  kantLeft: number;
+  kantColor: string;
+  material: string;
+  isTrapezoid: boolean;
+  diagonalLeft: number;  // Было просто diagonal, теперь так
+  diagonalRight: number; // И так
+  crossbar: number;
+}
+
 interface ClientData {
   fio: string;
   phone: string;
@@ -20,23 +39,39 @@ interface ClientData {
 interface WindowItem {
   id: number;
   name: string;
-  width: number;
-  height: number;
-  material: string;
+  widthTop: number;
+  heightRight: number;
+  widthBottom: number;
+  heightLeft: number;
+  kantTop: number;
+  kantRight: number;
+  kantBottom: number;
+  kantLeft: number;
   kantColor: string;
-  fastenerType: string;
-  fastenerStep: number;
+  material: string;
+  isTrapezoid: boolean;
+  diagonalLeft: number;  // Добавили
+  diagonalRight: number; // Добавили
+  crossbar: number;
 }
 
 const initialWindow = (id: number): WindowItem => ({
   id,
   name: `Окно ${id}`,
-  width: 200,
-  height: 200,
-  material: 'ПВХ 700 мкм (Прозрачная)',
+  widthTop: 200,
+  heightRight: 200,
+  widthBottom: 200,
+  heightLeft: 200,
+  kantTop: 5,
+  kantRight: 5,
+  kantBottom: 5,
+  kantLeft: 5,
   kantColor: 'Коричневый',
-  fastenerType: 'Поворотная скоба',
-  fastenerStep: 40,
+  material: 'ПВХ 700 мкм (Прозрачная)',
+  isTrapezoid: false,
+  diagonalLeft: 0,
+  diagonalRight: 0,
+  crossbar: 0,
 });
 
 function CalculationContent() {
