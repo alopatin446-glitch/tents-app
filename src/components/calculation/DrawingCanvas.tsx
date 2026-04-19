@@ -15,7 +15,6 @@ export default function DrawingCanvas({ item }: DrawingCanvasProps) {
     const drawW = vbW - padding * 2;
     const drawH = vbH - padding * 2;
 
-    // 1. Считаем максимальные габариты для масштаба
     const maxKant = Math.max(item.kantTop, item.kantRight, item.kantBottom, item.kantLeft, 5);
     const maxItemW = Math.max(item.widthTop, item.widthBottom, 1);
     const maxItemH = Math.max(item.heightLeft, item.heightRight, 1);
@@ -28,79 +27,61 @@ export default function DrawingCanvas({ item }: DrawingCanvasProps) {
     const startX = (vbW - maxItemW * scale) / 2;
     const startY = (vbH - maxItemH * scale) / 2;
 
-    // --- КООРДИНАТЫ ВНУТРЕННЕГО ПРОЕМА (ТОЧКИ a, b, c, d) ---
     const x1 = startX; 
-    const y1 = startY; // a
+    const y1 = startY;
     const x2 = x1 + item.widthTop * scale; 
-    const y2 = y1 + (item.heightLeft - item.heightRight) * scale; // b (учитываем разницу высот для трапеции)
-    
-    // Фиксируем низ по самой длинной стороне, чтобы не "плыло"
+    const y2 = y1 + (item.heightLeft - item.heightRight) * scale;
     const x4 = startX; 
-    const y4 = startY + item.heightLeft * scale; // d
+    const y4 = startY + item.heightLeft * scale;
     const x3 = x4 + item.widthBottom * scale; 
-    const y3 = y4; // c (горизонтальное основание)
+    const y3 = y4;
 
-    // --- КООРДИНАТЫ ВНЕШНЕГО КРАЯ (С УЧЕТОМ КАНТА) ---
     const outX1 = x1 - item.kantLeft * scale;
     const outY1 = y1 - item.kantTop * scale;
-
     const outX2 = x2 + item.kantRight * scale;
     const outY2 = y2 - item.kantTop * scale;
-
     const outX3 = x3 + item.kantRight * scale;
     const outY3 = y3 + item.kantBottom * scale;
-
     const outX4 = x4 - item.kantLeft * scale;
     const outY4 = y4 + item.kantBottom * scale;
 
-    // Строим пути
     const innerPath = `M ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} L ${x4} ${y4} Z`;
     const outerPath = `M ${outX1} ${outY1} L ${outX2} ${outY2} L ${outX3} ${outY3} L ${outX4} ${outY4} Z`;
     
-    const strokeColor = item.kantColor === 'Коричневый' ? '#54301a' : '#00F3FF';
+    const colorMap: { [key: string]: string } = {
+        'Белый': '#FFFFFF',
+        'Светло-серый': '#D1D5DB',
+        'Серый': '#6B7280',
+        'Графит': '#374151',
+        'Черный': '#000000',
+        'Коричневый': '#54301a',
+        'Бежевый': '#F5F5DC',
+        'Синий': '#1E3A8A'
+    };
 
+    const strokeColor = colorMap[item.kantColor] || '#54301a';
     const isALower = y1 > y2;
     const parallelY = isALower ? y1 : y2;
 
     return (
-        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#242D3E', borderRadius: '20px' }}>
-            <svg viewBox={`0 0 ${vbW} ${vbH}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '90%' }}>
-                
-                {/* 1. РИСУЕМ ВНЕШНИЙ КАНТ (Заливка цветом канта) */}
-                <path 
-                    d={outerPath} 
-                    fill={strokeColor} 
-                    style={{ transition: 'all 0.3s ease' }} 
-                />
-
-                {/* 2. РИСУЕМ ВНУТРЕННЕЕ СТЕКЛО (Перекрываем кант) */}
-                <path 
-                    d={innerPath} 
-                    fill="#242D3E" // Цвет фона или легкий голубой
-                    stroke="#0f172a" // Тонкая линия разделения
-                    strokeWidth="1"
-                    style={{ transition: 'all 0.3s ease' }} 
-                />
-
-                {/* ПАРАЛЛЕЛЬ */}
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox={`0 0 ${vbW} ${vbH}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', maxHeight: '100%' }}>
+                <path d={outerPath} fill={strokeColor} style={{ transition: 'fill 0.4s ease' }} />
+                <path d={innerPath} fill="#aac7ee" stroke="rgba(0,0,0,0.2)" strokeWidth="1" style={{ transition: 'all 0.3s ease' }} />
                 {item.isTrapezoid && item.crossbar > 0 && (
                     <g>
                         <line x1={x1} y1={parallelY} x2={x3} y2={parallelY} stroke="#7BFF00" strokeWidth="2" strokeDasharray="6,4" />
-                        <rect x={(x1 + x3) / 2 - 25} y={parallelY + 6} width="50" height="24" rx="4" fill="#111827" stroke="rgba(123, 255, 0, 0.4)" strokeWidth="1" />
+                        <rect x={(x1 + x3) / 2 - 25} y={parallelY + 6} width="50" height="24" rx="4" fill="#a1a1a1" stroke="rgba(123, 255, 0, 0.4)" strokeWidth="1" />
                         <text x={(x1 + x3) / 2} y={parallelY + 23} fill="#7BFF00" fontSize="14" fontWeight="900" textAnchor="middle">{item.crossbar}</text>
                     </g>
                 )}
-
-                {/* Буквы углов (на углах внутреннего проема) */}
-                <g fontSize="24" fontWeight="bold" fill="#fff">
+                <g fontSize="24" fontWeight="bold" fill="#fff" style={{ pointerEvents: 'none' }}>
                     <text x={x1 - 30} y={y1 - 10}>a</text>
                     <text x={x2 + 10} y={y2 - 10}>b</text>
                     <text x={x3 + 10} y={y3 + 30}>c</text>
                     <text x={x4 - 30} y={y4 + 30}>d</text>
                 </g>
-
-                {/* Размеры */}
-                <g fontSize="16" fontWeight="600" fill="rgba(255,255,255,0.8)" textAnchor="middle">
+                <g fontSize="16" fontWeight="600" fill="rgba(255,255,255,0.8)" textAnchor="middle" style={{ pointerEvents: 'none' }}>
                     <text x={(x1 + x2) / 2} y={Math.min(y1, y2) - 20}>{item.widthTop}</text>
                     <text x={(x3 + x4) / 2} y={y4 + 30}>{item.widthBottom}</text>
                     <text x={x1 - 45} y={(y1 + y4) / 2} transform={`rotate(-90, ${x1 - 45}, ${(y1 + y4) / 2})`}>{item.heightLeft}</text>

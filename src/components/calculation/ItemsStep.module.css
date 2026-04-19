@@ -1,99 +1,133 @@
 .itemsGrid {
   display: grid;
-  /* Твоя проверенная сетка */
-  grid-template-columns: 320px 1fr; 
+  grid-template-columns: 320px 1fr;
   gap: 30px;
-  align-items: start;
+  /* Одинаковое расстояние везде */
+  align-items: stretch;
   padding: 20px;
+  height: 82vh;
+  /* Ограничиваем общую высоту контейнера */
 }
 
-/* ТО САМОЕ ПОЛЕ С ЗЕЛЕНОЙ ЛИНИЕЙ (Левая панель целиком) */
+/* ЛЕВАЯ ПАНЕЛЬ */
 .inputPanelWrapper {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(123, 255, 0, 0.2); /* Тонкая зеленая линия */
+  border: 1px solid rgba(123, 255, 0, 0.2);
   border-radius: 20px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-height: 85vh;
-  overflow-y: auto; /* Скролл только внутри этой панели */
+  height: 100%;
+  overflow-y: auto;
 }
 
-/* ПРАВАЯ КОЛОНКА (Твой оригинал, не трогаем) */
+/* СКРОЛЛБАР */
+.inputPanelWrapper::-webkit-scrollbar {
+  width: 4px;
+}
+
+.inputPanelWrapper::-webkit-scrollbar-thumb {
+  background: rgba(123, 255, 0, 0.2);
+  border-radius: 10px;
+}
+
+/* ПРАВАЯ КОЛОНКА */
 .rightColumn {
-  flex: 1; 
-  height: 85vh;
-  /* ТА САМАЯ НЕОНОВАЯ ЛИНИЯ */
-  border: 1px solid rgba(123, 255, 0, 0.2); /* Тонкая зеленая линия */
+  height: 100%;
+  border: 1px solid rgba(123, 255, 0, 0.2);
   display: flex;
   flex-direction: column;
   background: #242D3E;
   border-radius: 20px;
-  padding: 40px;
+  padding: 24px;
+  overflow: hidden;
 }
 
-.drawingWrapper {
-  width: 100%;
-  height: 100%;
+/* ВКЛАДКИ */
+.tabsRow {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-/* ЗАГОЛОВОК И КНОПКА "ДОБАВИТЬ" */
-.headerRow {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 5px;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
-.sectionTitle {
-  color: #7BFF00; /* Твой неоновый зеленый */
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  font-size: 1.2rem;
-  margin: 0;
-}
-
-.addButton {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 0.7rem;
+.tabItem {
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
-/* СПИСОК КАРТОЧЕК */
-.itemsList {
+.activeTab {
+  background: #FFFFFF !important;
+  color: #111827 !important;
+  border-color: #FFFFFF;
+}
+
+.addTabButton {
+  width: 38px;
+  height: 38px;
   display: flex;
-  flex-direction: column;
-  gap: 15px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(123, 255, 0, 0.05);
+  border: 1px dashed rgba(123, 255, 0, 0.4);
+  color: #7BFF00;
+  border-radius: 10px;
+  cursor: pointer;
 }
 
-.itemCard {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 15px;
+/* ЧЕРТЕЖ */
+.drawingWrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
 }
 
-.itemTitle {
-  margin: 0 0 15px 0;
-  color: white;
-  font-size: 0.9rem;
+/* ИНФО-БАР */
+.bottomInfoBar {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px 20px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 14px;
+  margin-top: 15px;
+  flex-shrink: 0;
 }
 
-/* ПОЛЯ ВВОДА */
+.statLabel {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.statLabel span {
+  color: #fff;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+/* ТИПОГРАФИКА ФОРМ */
+.sectionTitle {
+  color: #7BFF00;
+  text-transform: uppercase;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
 .geometryGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* Ровно пополам */
-  grid-template-rows: repeat(2, auto);    /* Два ряда по высоте контента */
-  gap: 15px 12px;                        /* Отступ между рядами 15px, между колонками 12px */
-  margin-bottom: 20px;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .inputGroup {
@@ -106,85 +140,108 @@
   font-size: 0.65rem;
   color: rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  padding-left: 2px; /* Чтобы текст не прилипал к краю */
 }
 
 .inputGroup input {
   width: 100%;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(123, 255, 0, 0.15);
   color: #fff;
   padding: 10px;
   border-radius: 8px;
-  font-size: 0.9rem;
   outline: none;
-  transition: all 0.2s ease;
 }
 
-.inputGroup input:focus {
-  border-color: #7BFF00;
-  background: rgba(15, 23, 42, 1);
-  box-shadow: 0 0 10px rgba(123, 255, 0, 0.1);
+.selectInput {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(123, 255, 0, 0.15);
+  color: #fff;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  outline: none;
 }
 
 .formSection h4 {
   font-size: 0.75rem;
   color: #7BFF00;
-  margin: 0 0 8px 0;
+  margin: 15px 0 8px 0;
   text-transform: uppercase;
 }
 
-/* ТРАПЕЦИЯ */
+.saveButton {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  border-radius: 30px;
+  padding: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.saveButton:hover {
+  background: #7BFF00;
+  color: #111827;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.6);
+}
+
 .checkboxLabel {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: #fff;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  margin: 10px 0;
   cursor: pointer;
 }
 
 .trapezoidFields {
-  margin-top: 15px;
-  background: rgb(255, 255, 255, .8);
-  padding: 10px;
-  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.4);
+  padding: 15px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.saveButton {
-    /* --- СОСТОЯНИЕ ПО УМОЛЧАНИЮ (Как у кнопок слева) --- */
-    background-color: transparent !important; /* Убираем постоянную заливку */
-    color: rgba(255, 255, 255, 0.7) !important; /* Белый/серый текст */
-    border: 1px solid rgba(123, 255, 0, 0.3) !important; /* Тонкая зеленая рамка */
-    
-    /* Скругляем углы как на скрине */
-    border-radius: 30px !important;
-    padding: 12px 30px !important;
-    font-weight: bold;
-    font-size: 14px;
-    text-transform: uppercase;
-    
-    /* Плавный переход для ховера */
-    transition: all 0.3s ease-in-out !important;
-    
-    /* Убираем свечение, которое есть сейчас */
-    box-shadow: none !important;
-    
-    /* Для MUI Button: фиксируем курсор */
-    cursor: pointer;
+/* Добавь это в конец файла */
+
+.tabItem {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Расстояние между текстом "Окно" и крестиком */
+  padding: 10px 16px 10px 24px; /* Немного подправили отступы */
 }
 
-/* --- СОСТОЯНИЕ ПРИ НАВЕДЕНИИ (Hover) --- */
-.saveButton:hover {
-    /* Точно такое же поведение, как у кнопок левой панели */
-    background-color: #7BFF00 !important; /* Ярко-зеленая заливка */
-    color: #111827 !important; /* Темный текст на зеленом фоне */
-    
-    /* То самое свечение (box-shadow) */
-    box-shadow: 0 0 20px rgba(123, 255, 0, 0.8) !important; 
+.closeTab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.3);
+  transition: all 0.2s ease;
+  margin-top: -2px; /* Визуальная центровка по вертикали */
+}
+
+.closeTab:hover {
+  background: rgba(255, 0, 0, 0.2);
+  color: #ff4d4d;
+}
+
+/* Если таб активен (белый), меняем цвет крестика */
+.activeTab .closeTab {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+.activeTab .closeTab:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #000;
 }
