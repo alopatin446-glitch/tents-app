@@ -1,178 +1,188 @@
-/* ГЛАВНЫЙ КОНТЕЙНЕР */
+/* 1. ГЛАВНЫЙ КОНТЕЙНЕР */
 .mainWrapper {
   display: grid;
-  grid-template-columns: 200px 1fr; 
+  grid-template-columns: 260px 1fr; 
   height: 100vh;
-  background-color: #0f172a;
+  background-color: var(--bg-main);
   overflow: hidden;
-  padding: 20px 0 0 0; 
+  padding: 0;
   box-sizing: border-box;
 }
 
-/* ЛЕВАЯ ПАНЕЛЬ УПРАВЛЕНИЯ */
+/* 2. САЙДБАР */
 .sidebar {
-  background-color: rgba(30, 41, 59, 0.5);
-  padding: 10px;
+  background: rgba(255, 255, 255, 0.02) !important; 
+  border-right: 1px solid rgba(123, 255, 0, 0.1); 
+  padding: 40px 24px; 
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 15px 15px 0 0; 
-  height: 100%;
+  gap: 20px; 
+  height: 100vh;
+  box-sizing: border-box;
 }
 
-/* ОБЛАСТЬ ДОСКИ (СКРОЛЛ КОЛОНОК) */
-.board {
-  display: flex !important;
-  flex-direction: row !important;
-  gap: 10px; 
-  overflow-x: hidden;
-  height: 100%;
-  align-items: flex-start;
-  padding: 0 15px 20px 10px; 
+/* ИНПУТ ПОИСКА */
+.sidebarInput {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(123, 255, 0, 0.2) !important;
+  color: #fff;
+  padding: 12px 20px !important;
+  border-radius: 30px !important;
+  outline: none;
+  font-size: 0.85rem;
+  transition: 0.3s;
+  box-sizing: border-box;
 }
 
-/* КОЛОНКА */
-.column {
-  flex: 1;
-  min-width: 150px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-  transition: all 0.2s ease;
+.sidebarInput:focus {
+  border-color: #7BFF00 !important;
+  box-shadow: 0 0 15px rgba(123, 255, 0, 0.2);
 }
 
-/* ЗАГОЛОВОК КОЛОНКИ */
-.columnTitle {
-  font-size: 0.75rem;
-  font-weight: 800;
+/* 3. КНОПКА + КЛИЕНТ */
+.addClientBtn {
+  width: 100%;
+  background: #7BFF00 !important;
+  color: #111827 !important;
+  border: none;
+  padding: 14px;
+  border-radius: 50px !important;
+  font-weight: 900;
+  font-size: 0.85rem;
   text-transform: uppercase;
-  margin-bottom: 12px;
-  min-height: 40px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(123, 255, 0, 0.2);
+  transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* КОНТЕЙНЕР КАРТОЧЕК */
-.cardsContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow-y: visible;
-  padding: 5px;
-}
-
-/* БЛОК ФИЛЬТРОВ В САЙДБАРЕ */
-.quickFilters {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 25px;
+.addClientBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(123, 255, 0, 0.4);
+  filter: brightness(1.1);
 }
 
 /* КНОПКИ ФИЛЬТРОВ */
 .filterBtn {
-  padding: 8px;
-  font-size: 0.7rem;
+  padding: 12px 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
-  border-radius: 8px;
+  border: 1px solid rgba(123, 255, 0, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 50px !important;
   cursor: pointer;
-  text-align: left;
-  transition: 0.2s;
+  transition: 0.3s;
+  text-align: center;
 }
 
 .filterBtn:hover {
-  background: rgba(123, 255, 0, 0.08);
-  border-color: rgba(123, 255, 0, 0.4);
-  color: #fff;
-  transform: translateX(5px);
+  background: #7BFF00 !important;
+  border-color: #7BFF00 !important;
+  color: #111827 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(123, 255, 0, 0.3);
 }
 
-/* Панель массовых действий в сайдбаре */
+.quickFilters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ПАНЕЛЬ УДАЛЕНИЯ */
 .actionPanel {
-  margin-top: 20px;
+  margin-top: auto; /* Прижимаем к низу, если есть место */
   padding: 15px;
-  background: rgba(255, 68, 68, 0.05);
-  border: 1px solid rgba(255, 68, 68, 0.2);
-  border-radius: 15px;
+  background: rgba(255, 68, 68, 0.05) !important;
+  border: 1px solid rgba(255, 68, 68, 0.3) !important;
+  border-radius: 25px !important;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-/* Кнопка удаления */
 .deleteBtn {
-  background: #ff4444;
-  color: #fff;
+  background: #ff4444 !important;
+  color: #fff !important;
   border: none;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 50px !important;
   font-weight: 800;
   cursor: pointer;
-  transition: 0.3s;
-  font-size: 0.8rem;
-}
-
-.deleteBtn:hover {
-  background: #cc0000;
-  transform: scale(1.02);
-}
-
-/* СТИЛИ МОДАЛЬНЫХ ОКОН (Создание и редактирование) */
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(5px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.editModal {
-  background: #1e293b;
-  border: 1px solid rgba(123, 255, 0, 0.3);
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-  padding: 30px;
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.editModal h3 {
-  color: #fff;
-  margin: 0;
-  font-weight: 800;
-  letter-spacing: 1px;
-}
-
-.inputGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.inputGroup label {
-  font-size: 0.65rem;
-  font-weight: 800;
-  color: #7BFF00;
+  font-size: 0.75rem;
   text-transform: uppercase;
 }
 
-/* Если у тебя есть класс для инпута поиска в этом файле */
-.sidebar input {
-  font-size: 0.8rem;
-  padding: 8px;
+/* Чтобы доска скроллилась плавно, если не влезет */
+.board {
+  display: flex !important;
+  gap: 10px; 
+  padding: 20px; 
+  overflow-x: auto;
+  align-items: flex-start;
+  height: calc(100vh - 20px);
+  scrollbar-width: thin; /* Тонкий скролл для Firefox */
+}
+
+/* Стилизация скроллбара для Chrome/Safari */
+.board::-webkit-scrollbar {
+  height: 6px;
+}
+.board::-webkit-scrollbar-thumb {
+  background: rgba(123, 255, 0, 0.1);
+  border-radius: 10px;
+}
+
+/* Уменьшаем ширину колонок, чтобы они влезли в экран */
+.column {
+  flex: 0 0 260px; /* Уменьшили с 280px */
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 60px);
+  transition: all 0.3s ease;
+}
+
+/* Возвращаем стиль заголовков как на image_61fde7.png */
+.columnHeader {
+  margin-bottom: 15px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(123, 255, 0, 0.1); /* Тонкая зеленая линия */
+}
+
+.columnTitle {
+  font-size: 0.75rem !important; /* Маленький заголовок */
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  color: #fff !important;
+  margin: 0 !important;
+  letter-spacing: 0.5px;
+}
+
+/* Добавляем индикатор суммы и количества, как было раньше */
+.columnMeta {
+  font-size: 0.65rem !important;
+  font-weight: 700;
+  color: #7BFF00 !important; /* Насыщенный зеленый для денег */
+  margin-top: 4px;
+}
+
+.cardsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex-grow: 1;
+  /* Скрываем скролл, чтобы было чище, но оставляем функционал */
+  scrollbar-width: none; 
+}
+.cardsContainer::-webkit-scrollbar {
+  display: none;
 }

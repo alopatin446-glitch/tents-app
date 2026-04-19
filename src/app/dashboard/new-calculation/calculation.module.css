@@ -122,3 +122,24 @@
   border-color: rgba(255, 68, 68, 0.3);
   color: #ff4444;
 }
+
+/* Специальный режим для технических вкладок (Изделия, Каркас и т.д.) */
+.wideContent {
+  padding: 1.5rem !important; /* Уменьшаем боковые отступы с 3rem до 1.5rem */
+  max-width: 100% !important;
+}
+
+/* На всякий случай убедись, что в .contentArea нет жесткой ширины */
+.contentArea { 
+  flex: 1; 
+  padding: 2rem 3rem; 
+  display: flex;
+  flex-direction: column;
+  overflow: visible; 
+  min-width: 0; /* Позволяет контейнеру сжиматься/расширяться корректно внутри flex */
+}
+
+/* Специальный класс для расширения зоны изделий */
+.wideContent {
+  padding: 2rem 1rem !important; /* Уменьшаем боковые отступы с 3rem до 1rem */
+}

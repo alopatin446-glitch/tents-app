@@ -4,7 +4,7 @@ import KanbanBoard from './KanbanBoard';
 
 export const dynamic = 'force-dynamic'
 
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma'; // ДОБАВЬ ЭТОТ ИМПОРТ НАВЕРХУ
 
 export default async function ClientsPage() {
   // 1. Прямо здесь (на сервере) забираем данные из PostgreSQL

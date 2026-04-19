@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation'; // Добавили роутер
+import { useRouter } from 'next/navigation';
 import {
   DndContext,
   DragEndEvent,
@@ -28,9 +28,8 @@ const STAGES: Stage[] = [
 
 export default function KanbanBoard() {
   const { clients, updateClient, deleteClient } = useClients();
-  const router = useRouter(); // Инициализация навигации
+  const router = useRouter();
 
-  // Состояния для модалок
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -64,45 +63,68 @@ export default function KanbanBoard() {
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
       <div className={styles.mainWrapper}>
         <aside className={styles.sidebar}>
-          {/* НОВАЯ КНОПКА НАЗАД */}
+          {/* 1. НАВИГАЦИЯ */}
           <button
             onClick={() => router.push('/dashboard')}
             className={styles.filterBtn}
             style={{
-              marginBottom: '20px',
-              width: '100%',
-              background: 'rgba(255,255,255,0.05)',
-              borderColor: 'rgba(255,255,255,0.1)'
+              background: 'transparent',
+              borderColor: 'rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.4)',
+              marginBottom: '10px'
             }}
           >
             ← ГЛАВНОЕ МЕНЮ
           </button>
 
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>УПРАВЛЕНИЕ</h2>
-          <input type="text" placeholder="Поиск..." className="neonInput" style={{ width: '100%' }} />
-
-          <div className={styles.quickFilters}>
-            <button className={styles.filterBtn}>🔥 ГОРЯЩИЕ</button>
-            <button className={styles.filterBtn}>💸 ДОЛЖНИКИ</button>
-          </div>
-
-          {selectedIds.length > 0 && (
-            <div className={styles.actionPanel}>
-              <div style={{ color: '#7BFF00', fontSize: '0.75rem', fontWeight: 800 }}>ВЫБРАНО: {selectedIds.length}</div>
-              <button onClick={deleteSelected} className={styles.deleteBtn}>УДАЛИТЬ КАРТОЧКИ</button>
-              <button onClick={() => setSelectedIds([])} className={styles.filterBtn}>ОТМЕНА</button>
-            </div>
-          )}
-
-          <div style={{ marginTop: 'auto' }}>
+          {/* 2. ПОИСК И СОЗДАНИЕ */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <input 
+              type="text" 
+              placeholder="Поиск..." 
+              className={styles.sidebarInput} 
+            />
             <button
-              className="navButton active"
-              style={{ width: '100%' }}
+              className={styles.addClientBtn}
               onClick={() => setIsAddingNew(true)}
             >
               + КЛИЕНТ
             </button>
           </div>
+
+          {/* РАЗДЕЛИТЕЛЬ */}
+          <div style={{ height: '1px', background: 'rgba(123, 255, 0, 0.1)', margin: '10px 0' }} />
+
+          {/* 3. ФИЛЬТРЫ */}
+          <div className={styles.quickFilters}>
+            <button className={styles.filterBtn}>🔥 ГОРЯЩИЕ</button>
+            <button className={styles.filterBtn}>💸 ДОЛЖНИКИ</button>
+          </div>
+
+          {/* 4. ПАНЕЛЬ УДАЛЕНИЯ */}
+          {selectedIds.length > 0 && (
+            <div className={styles.actionPanel}>
+              <div style={{ 
+                color: '#7BFF00', 
+                fontSize: '0.7rem', 
+                fontWeight: 800, 
+                textAlign: 'center',
+                textTransform: 'uppercase' 
+              }}>
+                ВЫБРАНО: {selectedIds.length}
+              </div>
+              <button onClick={deleteSelected} className={styles.deleteBtn}>
+                УДАЛИТЬ КАРТОЧКИ
+              </button>
+              <button 
+                onClick={() => setSelectedIds([])} 
+                className={styles.filterBtn}
+                style={{ width: '100%', fontSize: '0.65rem', background: 'transparent' }}
+              >
+                ОТМЕНА
+              </button>
+            </div>
+          )}
         </aside>
 
         <div className={styles.board}>
@@ -115,13 +137,11 @@ export default function KanbanBoard() {
               selectedIds={selectedIds}
               onClientSelect={toggleSelect}
               onClientEdit={(client) => setEditingClient(client)}
-              // ВОТ ЗДЕСЬ МАГИЯ: заменяем alert на переход с ID
               onClientOpenFull={(client) => router.push(`/dashboard/new-calculation?id=${client.id}`)}
             />
           ))}
         </div>
 
-        {/* МОДАЛКА РЕДАКТИРОВАНИЯ */}
         {editingClient && (
           <EditModal
             client={editingClient}
@@ -129,7 +149,6 @@ export default function KanbanBoard() {
           />
         )}
 
-        {/* МОДАЛКА СОЗДАНИЯ */}
         {isAddingNew && (
           <CreateClientModal onClose={() => setIsAddingNew(false)} />
         )}

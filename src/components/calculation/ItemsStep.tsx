@@ -177,6 +177,7 @@ export default function ItemsStep({ windows, onSave }: ItemsStepProps) {
                   <option value="Бежевый">Бежевый</option>
                   <option value="Синий">Синий</option>
                 </select>
+                
                 <div className={styles.selectArrow}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9"></polyline>
@@ -192,7 +193,7 @@ export default function ItemsStep({ windows, onSave }: ItemsStepProps) {
               </label>
 
               {activeItem.isTrapezoid && (
-                <div className={styles.trapezoidFields} style={{ backgroundColor: '#1e293b', borderRadius: '8px', padding: '12px', marginTop: '10px' }}>
+                <div className={styles.trapezoidFields}>
                   <div className={styles.inputGroup}>
                     <label>ДИАГОНАЛЬ A-C (см)</label>
                     <input type="text" value={activeItem.diagonalRight === 0 ? "" : activeItem.diagonalRight} placeholder="0" onChange={(e) => handleNumberInputChange(activeItem.id, 'diagonalRight', e.target.value)} />

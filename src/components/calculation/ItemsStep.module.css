@@ -5,21 +5,40 @@
   /* Одинаковое расстояние везде */
   align-items: stretch;
   padding: 20px;
-  height: 82vh;
+  height: 95vh;
   /* Ограничиваем общую высоту контейнера */
 }
 
-/* ЛЕВАЯ ПАНЕЛЬ */
+/* 1. ЛЕВАЯ ПАНЕЛЬ: Теперь она ТЕМНАЯ и не мешает другим цветам */
 .inputPanelWrapper {
-  background: rgba(255, 255, 255, 0.02);
+  /* Ставим темно-синий (как правая панель) или почти черный */
+  background: #242D3E !important; 
   border: 1px solid rgba(123, 255, 0, 0.2);
   border-radius: 20px;
-  padding: 20px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  height: 100%;
-  overflow-y: auto;
+  gap: 15px;
+}
+
+/* Добавь этот новый класс в файл */
+.selectWrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+  /* Перенесли отступ сюда */
+}
+
+/* И поправь позиционирование иконки */
+.selectArrow {
+  position: absolute;
+  right: 12px;
+  top: 15px;
+  /* Подбери по вертикали, чтобы было по центру */
+  pointer-events: none;
+  color: #7BFF00;
+  display: flex;
+  align-items: center;
 }
 
 /* СКРОЛЛБАР */
@@ -53,11 +72,12 @@
   flex-shrink: 0;
 }
 
+/* 3. ВКЛАДКИ (Окно 1, Окно 2) */
 .tabItem {
   padding: 10px 24px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border-radius: 30px !important; /* БЫЛО 12px */
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.85rem;
   font-weight: 600;
@@ -70,6 +90,7 @@
   border-color: #FFFFFF;
 }
 
+/* 4. КНОПКА ДОБАВЛЕНИЯ ОКНА (Круглая) */
 .addTabButton {
   width: 38px;
   height: 38px;
@@ -79,7 +100,7 @@
   background: rgba(123, 255, 0, 0.05);
   border: 1px dashed rgba(123, 255, 0, 0.4);
   color: #7BFF00;
-  border-radius: 10px;
+  border-radius: 50% !important; /* Делаем её идеально круглой */
   cursor: pointer;
 }
 
@@ -93,13 +114,14 @@
   min-height: 0;
 }
 
-/* ИНФО-БАР */
+/* ИНФО-БАР: Теперь это тоже овальная капсула */
 .bottomInfoBar {
   display: flex;
   justify-content: space-between;
-  padding: 15px 20px;
+  padding: 12px 30px; /* Увеличили боковые отступы для формы капсулы */
   background: rgba(15, 23, 42, 0.5);
-  border-radius: 14px;
+  border: 1px solid rgba(123, 255, 0, 0.1); /* Добавим легкий контур */
+  border-radius: 50px; /* БЫЛО 14px — ставим максимум для эффекта таблетки */
   margin-top: 15px;
   flex-shrink: 0;
 }
@@ -122,6 +144,9 @@
   text-transform: uppercase;
   font-size: 1.1rem;
   margin: 0;
+  /* Убираем все внешние отступы */
+  padding-bottom: 0;
+  /* На всякий случай обнуляем паддинг */
 }
 
 .geometryGrid {
@@ -130,10 +155,15 @@
   gap: 12px;
 }
 
-.inputGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+/* 1. ИНПУТЫ ГЕОМЕТРИИ (ширина, высота и т.д.) */
+.inputGroup input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(123, 255, 0, 0.15);
+  color: #fff;
+  padding: 12px 20px; /* Увеличил паддинг для овальной формы */
+  border-radius: 30px !important; /* БЫЛО 8px */
+  outline: none;
 }
 
 .inputGroup label {
@@ -152,14 +182,34 @@
   outline: none;
 }
 
+/* 2. СЕЛЕКТЫ (Материал, Цвет) */
 .selectInput {
   width: 100%;
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(123, 255, 0, 0.15);
-  color: #fff;
-  padding: 10px;
-  border-radius: 8px;
+  color: #ffffff;
+  padding: 12px 20px; /* Увеличил паддинг */
+  border-radius: 30px !important; /* БЫЛО 8px */
   margin-bottom: 10px;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 35px;
+}
+
+/* Убираем стандартный серый фон и ставим темный */
+.selectInput option {
+  background-color: #1e293b;
+  /* Цвет фона опций (работает в части браузеров) */
+  color: #ffffff;
+  padding: 10px;
+}
+
+/* Добавляем стильный фокус, чтобы рамка светилась зеленым при выборе */
+.selectInput:focus {
+  border-color: #7BFF00;
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.2);
   outline: none;
 }
 
@@ -168,6 +218,8 @@
   color: #7BFF00;
   margin: 15px 0 8px 0;
   text-transform: uppercase;
+  margin-top: 5px;
+  /* Вместо стандартных 15px */
 }
 
 .saveButton {
@@ -198,50 +250,20 @@
   cursor: pointer;
 }
 
+/* 5. ПОЛЕ ТРАПЕЦИИ */
 .trapezoidFields {
-  background: rgba(15, 23, 42, 0.4);
+  background-color: #242D3E !important; 
+  border: 1px solid rgba(123, 255, 0, 0.1) !important; /* Добавим тонкую рамку */
   padding: 15px;
-  border-radius: 12px;
+  border-radius: 25px !important; /* БЫЛО 12px */
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  margin-top: 5px;
+  isolation: isolate;
 }
 
-/* Добавь это в конец файла */
-
-.tabItem {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px; /* Расстояние между текстом "Окно" и крестиком */
-  padding: 10px 16px 10px 24px; /* Немного подправили отступы */
-}
-
-.closeTab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  font-size: 16px;
-  line-height: 1;
-  color: rgba(255, 255, 255, 0.3);
-  transition: all 0.2s ease;
-  margin-top: -2px; /* Визуальная центровка по вертикали */
-}
-
-.closeTab:hover {
-  background: rgba(255, 0, 0, 0.2);
-  color: #ff4d4d;
-}
-
-/* Если таб активен (белый), меняем цвет крестика */
-.activeTab .closeTab {
-  color: rgba(0, 0, 0, 0.3);
-}
-
-.activeTab .closeTab:hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: #000;
+/* Чтобы инпуты внутри трапеции не сливались, сделаем их чуть темнее фона */
+.trapezoidFields .inputGroup input {
+  background: rgba(15, 23, 42, 0.4);
 }

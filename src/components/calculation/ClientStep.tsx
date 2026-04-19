@@ -188,7 +188,15 @@ export default function ClientStep({ initialData, onSave, onClose }: { initialDa
                     </div>
                 </div>
                 <div className={styles.actions}>
-                    <button className={styles.saveBtn} onClick={() => onSave(clientData)}>СОХРАНИТЬ</button>
+                    <button
+                        className={styles.saveBtn}
+                        onClick={() => {
+                            console.log("Нажали сохранить! Данные:", clientData);
+                            onSave(clientData);
+                        }}
+                    >
+                        СОХРАНИТЬ
+                    </button>
                     <button className={styles.exitBtn} onClick={onClose}>ВЫЙТИ</button>
                 </div>
             </div>

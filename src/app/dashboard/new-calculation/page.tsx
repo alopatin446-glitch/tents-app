@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation'; 
+import { useSearchParams, useRouter } from 'next/navigation';
 import { createClientDeal, updateClientDeal, getClientById } from '@/app/lib/actions';
 import styles from './calculation.module.css';
 import ClientStep from '@/components/calculation/ClientStep';
@@ -76,7 +76,7 @@ const initialWindow = (id: number): WindowItem => ({
 
 function CalculationContent() {
   const searchParams = useSearchParams();
-  const router = useRouter(); 
+  const router = useRouter();
   const clientId = searchParams.get('id');
 
   const [activeTab, setActiveTab] = useState('Клиент');
@@ -132,7 +132,7 @@ function CalculationContent() {
 
   // ИЗМЕНЕНО: Теперь ведет в главное меню CRM
   const handleExit = () => {
-    router.push('/dashboard'); 
+    router.push('/dashboard');
   };
 
   const handleSaveItems = (updatedWindows: WindowItem[]) => setWindows(updatedWindows);
@@ -158,7 +158,8 @@ function CalculationContent() {
         </nav>
       </aside>
 
-      <section className={styles.contentArea}>
+      <section className={`${styles.contentArea} ${activeTab === 'Изделия' ? styles.wideContent : ''}`}>
+
         {activeTab === 'Клиент' && (
           clientId && !clientData.fio ? (
             <div style={{ padding: '40px', color: '#00f3ff', textAlign: 'center' }}>
@@ -169,7 +170,7 @@ function CalculationContent() {
               key={clientId || 'new'}
               initialData={clientData}
               onSave={handleSaveClient}
-              onClose={handleExit} 
+              onClose={handleExit}
             />
           )
         )}

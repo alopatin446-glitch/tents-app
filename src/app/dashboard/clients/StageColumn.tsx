@@ -10,10 +10,10 @@ interface StageColumnProps {
   stage: Stage;
   clients: Client[];
   id: string;
-  selectedIds: string[]; // Список всех выбранных ID
-  onClientSelect: (id: string) => void; // Функция выбора (ЛКМ)
-  onClientEdit: (client: Client) => void; // Функция редактирования (ПКМ)
-  onClientOpenFull: (client: Client) => void; // Функция открытия карты (2хЛКМ)
+  selectedIds: string[];
+  onClientSelect: (id: string) => void;
+  onClientEdit: (client: Client) => void;
+  onClientOpenFull: (client: Client) => void;
 }
 
 export default function StageColumn({ 
@@ -26,22 +26,25 @@ export default function StageColumn({
   onClientOpenFull 
 }: StageColumnProps) {
   const { setNodeRef } = useDroppable({ id });
-  const totalSum = clients.reduce((acc, client) => acc + client.totalPrice, 0);
+  const totalSum = clients.reduce((acc, client) => acc + (client.totalPrice || 0), 0);
 
   return (
     <div ref={setNodeRef} className={styles.column}>
-      <div className={styles.columnTitle}>
-        <div>{stage.title}</div>
-        <div style={{ fontSize: '0.7rem', color: 'rgba(123, 255, 0, 0.6)' }}>
+      {/* Шапка колонки с названием и итогами */}
+      <div className={styles.columnHeader}>
+        <h3 className={styles.columnTitle}>{stage.title}</h3>
+        <div className={styles.columnMeta}>
           {clients.length} шт. | {totalSum.toLocaleString()} ₽
         </div>
       </div>
+
+      {/* Контейнер для карточек */}
       <div className={styles.cardsContainer}>
         {clients.map(client => (
           <ClientCard 
             key={client.id} 
             client={client} 
-            isSelected={selectedIds.includes(client.id)} // Проверяем, выбран ли этот клиент
+            isSelected={selectedIds.includes(client.id)}
             onSelect={() => onClientSelect(client.id)}
             onEdit={() => onClientEdit(client)}
             onOpenFull={() => onClientOpenFull(client)}
