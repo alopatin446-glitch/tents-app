@@ -145,6 +145,8 @@ function CalculationContent() {
   const pathname = usePathname();
 
   const initialQueryClientId = searchParams.get('id');
+  const mode = searchParams.get('mode');
+  const isReadOnly = mode === 'archive';
   const [clientId, setClientId] = useState<string | null>(initialQueryClientId);
 
   const [activeTab, setActiveTab] = useState('Клиент');
@@ -237,8 +239,8 @@ function CalculationContent() {
     const syncedItems = Array.isArray(windows) && windows.length > 0
       ? windows
       : Array.isArray(clientData.items) && clientData.items.length > 0
-      ? clientData.items
-      : [initialWindow(1)];
+        ? clientData.items
+        : [initialWindow(1)];
 
     const normalizedData: ClientData = {
       ...clientData,
@@ -315,7 +317,11 @@ function CalculationContent() {
     <main className={styles.mainContainer}>
       <aside className={styles.sidebar}>
         <div className={styles.orderBadge}>
-          {clientId ? `РЕДАКТИРОВАНИЕ ID: ${clientId.slice(-4)}` : 'ЗАКАЗ: НОВЫЙ'}
+          {isReadOnly
+            ? `АРХИВ ID: ${clientId?.slice(-4) || '----'}`
+            : clientId
+              ? `РЕДАКТИРОВАНИЕ ID: ${clientId.slice(-4)}`
+              : 'ЗАКАЗ: НОВЫЙ'}
         </div>
 
         <nav className={styles.navMenu}>
@@ -332,9 +338,8 @@ function CalculationContent() {
       </aside>
 
       <section
-        className={`${styles.contentArea} ${
-          activeTab === 'Изделия' ? styles.wideContent : ''
-        }`}
+        className={`${styles.contentArea} ${activeTab === 'Изделия' ? styles.wideContent : ''
+          }`}
       >
         {activeTab === 'Клиент' &&
           (clientId && isLoadingClient ? (
@@ -343,13 +348,14 @@ function CalculationContent() {
             </div>
           ) : (
             <ClientStep
-              key={clientId || 'new'}
+              key={`${clientId || 'new'}-${isReadOnly ? 'archive' : 'edit'}`}
               initialData={{
                 ...clientData,
                 items: windows,
               }}
               onSave={handleSaveClient}
               onClose={handleExit}
+              isReadOnly={isReadOnly}
             />
           ))}
 
@@ -358,10 +364,14 @@ function CalculationContent() {
             windows={windows}
             onSave={handleSaveItems}
             clientId={clientId || undefined}
+            isReadOnly={isReadOnly}
           />
         )}
 
-        {activeTab === 'Крепежи' && <FastenersStep onSave={handleSaveFasteners} />}
+        {activeTab === 'Крепежи' && <FastenersStep
+          onSave={handleSaveFasteners}
+          isReadOnly={isReadOnly}
+        />}
 
         {!['Клиент', 'Изделия', 'Крепежи'].includes(activeTab) && (
           <div className={styles.placeholder}>

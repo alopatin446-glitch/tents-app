@@ -180,7 +180,8 @@ export default async function ArchivePage({ searchParams }: ArchivePageProps) {
               <thead>
                 <tr>
                   <th>Дата</th>
-                  <th>Заказчик</th>
+                  <th>Адрес</th>
+                  <th>Телефон</th>
                   <th>Сумма</th>
                   <th>Статус</th>
                   <th>Менеджер</th>
@@ -194,28 +195,50 @@ export default async function ArchivePage({ searchParams }: ArchivePageProps) {
                     return (
                       <tr key={client.id}>
                         <td>{formatDate(client.updatedAt || client.createdAt)}</td>
+
+                        <td>
+                          <Link
+                            href={`/dashboard/new-calculation?id=${client.id}&mode=archive`}
+                            className={styles.clientName}
+                            style={{ textDecoration: 'none' }}
+                          >
+                            {client.address || '—'}
+                          </Link>
+                        </td>
+
                         <td>
                           <div className={styles.clientCell}>
-                            <div className={styles.clientName}>{client.fio}</div>
                             <div className={styles.clientPhone}>
                               {client.phone || '—'}
                             </div>
+                            <div
+                              style={{
+                                fontSize: '12px',
+                                color: 'rgba(255,255,255,0.45)',
+                                marginTop: '4px',
+                              }}
+                            >
+                              {client.fio || 'Без имени'}
+                            </div>
                           </div>
                         </td>
+
                         <td>{formatMoney(client.totalPrice)}</td>
+
                         <td>
                           <span className={`${styles.statusBadge} ${statusMeta.badgeClass}`}>
                             <span className={`${styles.statusDot} ${statusMeta.dotClass}`} />
                             {statusMeta.label}
                           </span>
                         </td>
+
                         <td>—</td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <div className={styles.emptyState}>
                         По текущему фильтру архивных заказов не найдено.
                       </div>

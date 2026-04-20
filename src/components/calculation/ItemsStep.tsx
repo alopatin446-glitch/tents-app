@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import styles from './ItemsStep.module.css';
 import DrawingCanvas from './DrawingCanvas';
 import { updateClientAction } from '@/app/dashboard/clients/actions';
@@ -28,133 +28,74 @@ interface ItemsStepProps {
   windows: WindowItem[];
   onSave: (items: WindowItem[]) => void;
   clientId?: string;
+  isReadOnly?: boolean;
 }
 
-const DEFAULT_WINDOW_VALUES = {
-  widthTop: '200',
-  heightRight: '200',
-  widthBottom: '200',
-  heightLeft: '200',
-  kantTop: '5',
-  kantRight: '5',
-  kantBottom: '5',
-  kantLeft: '5',
-  kantColor: 'Коричневый',
-  material: 'ПВХ 700 мкм (Прозрачная)',
-  isTrapezoid: false,
-  diagonalLeft: '0',
-  diagonalRight: '0',
-  crossbar: '0',
-};
-
-function toInputString(value: unknown, fallback = ''): string {
-  if (value === undefined || value === null) return fallback;
-  return String(value);
-}
-
-function toNumberValue(value: unknown): number {
-  if (value === undefined || value === null || value === '') return 0;
-
-  const normalized =
-    typeof value === 'string' ? value.replace(',', '.').trim() : value;
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function normalizeWindowForForm(item: Partial<WindowItem> | null | undefined, index: number): WindowItem {
-  return {
-    id: Number(item?.id) || Date.now() + index,
-    name: item?.name ? String(item.name) : `Окно ${index + 1}`,
-
-    widthTop: toInputString(item?.widthTop, DEFAULT_WINDOW_VALUES.widthTop),
-    heightRight: toInputString(item?.heightRight, DEFAULT_WINDOW_VALUES.heightRight),
-    widthBottom: toInputString(item?.widthBottom, DEFAULT_WINDOW_VALUES.widthBottom),
-    heightLeft: toInputString(item?.heightLeft, DEFAULT_WINDOW_VALUES.heightLeft),
-
-    kantTop: toInputString(item?.kantTop, DEFAULT_WINDOW_VALUES.kantTop),
-    kantRight: toInputString(item?.kantRight, DEFAULT_WINDOW_VALUES.kantRight),
-    kantBottom: toInputString(item?.kantBottom, DEFAULT_WINDOW_VALUES.kantBottom),
-    kantLeft: toInputString(item?.kantLeft, DEFAULT_WINDOW_VALUES.kantLeft),
-
-    kantColor: item?.kantColor ? String(item.kantColor) : DEFAULT_WINDOW_VALUES.kantColor,
-    material: item?.material ? String(item.material) : DEFAULT_WINDOW_VALUES.material,
-
-    isTrapezoid: Boolean(item?.isTrapezoid),
-
-    diagonalLeft: toInputString(item?.diagonalLeft, DEFAULT_WINDOW_VALUES.diagonalLeft),
-    diagonalRight: toInputString(item?.diagonalRight, DEFAULT_WINDOW_VALUES.diagonalRight),
-    crossbar: toInputString(item?.crossbar, DEFAULT_WINDOW_VALUES.crossbar),
-  };
-}
-
-function createNewWindow(nextIndex: number): WindowItem {
-  return {
-    id: Date.now(),
-    name: `Окно ${nextIndex}`,
-    ...DEFAULT_WINDOW_VALUES,
-  };
-}
-
-export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps) {
-  const [localWindows, setLocalWindows] = useState<WindowItem[]>(
-    Array.isArray(windows) && windows.length > 0
-      ? windows.map((item, index) => normalizeWindowForForm(item, index))
-      : [createNewWindow(1)]
-  );
-
+export default function ItemsStep({
+  windows,
+  onSave,
+  clientId,
+  isReadOnly = false,
+}: ItemsStepProps) {
+  const [localWindows, setLocalWindows] = useState<WindowItem[]>(windows);
   const [activeWindowId, setActiveWindowId] = useState<number>(
-    Array.isArray(windows) && windows.length > 0
-      ? Number(windows[0]?.id) || Date.now()
-      : Date.now()
+    windows[0]?.id || Date.now()
   );
-
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (!Array.isArray(windows) || windows.length === 0) {
-      const fallbackWindow = createNewWindow(1);
-      setLocalWindows([fallbackWindow]);
-      setActiveWindowId(fallbackWindow.id);
-      return;
+    if (windows && windows.length > 0) {
+      setLocalWindows(windows);
+      if (!activeWindowId) setActiveWindowId(windows[0].id);
     }
+  }, [windows]);
 
-    const normalizedWindows = windows.map((item, index) =>
-      normalizeWindowForForm(item, index)
-    );
-
-    setLocalWindows(normalizedWindows);
-
-    const hasActiveWindow = normalizedWindows.some((item) => item.id === activeWindowId);
-    if (!hasActiveWindow) {
-      setActiveWindowId(normalizedWindows[0].id);
-    }
-  }, [windows, activeWindowId]);
-
-  const activeItem = useMemo(
-    () => localWindows.find((w) => w.id === activeWindowId) || localWindows[0],
-    [localWindows, activeWindowId]
-  );
+  const activeItem =
+    localWindows.find((w) => w.id === activeWindowId) || localWindows[0];
 
   const addWindow = () => {
-    const newWindow = createNewWindow(localWindows.length + 1);
-    setLocalWindows((prev) => [...prev, newWindow]);
-    setActiveWindowId(newWindow.id);
+    if (isReadOnly) return;
+
+    const newId = Date.now();
+    const newWindow: WindowItem = {
+      id: newId,
+      name: `Окно ${localWindows.length + 1}`,
+      widthTop: '200',
+      heightRight: '200',
+      widthBottom: '200',
+      heightLeft: '200',
+      kantTop: '5',
+      kantRight: '5',
+      kantBottom: '5',
+      kantLeft: '5',
+      kantColor: 'Коричневый',
+      material: 'ПВХ 700 мкм (Прозрачная)',
+      isTrapezoid: false,
+      diagonalLeft: '0',
+      diagonalRight: '0',
+      crossbar: '0',
+    };
+
+    setLocalWindows([...localWindows, newWindow]);
+    setActiveWindowId(newId);
   };
 
   const removeWindow = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isReadOnly) return;
     if (localWindows.length <= 1) return;
 
     const updatedWindows = localWindows.filter((win) => win.id !== id);
     setLocalWindows(updatedWindows);
 
-    if (activeWindowId === id && updatedWindows.length > 0) {
+    if (activeWindowId === id) {
       setActiveWindowId(updatedWindows[0].id);
     }
   };
 
   const handleChange = (id: number, field: keyof WindowItem, value: any) => {
+    if (isReadOnly) return;
+
     setLocalWindows((prev) =>
       prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
     );
@@ -165,82 +106,68 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
     field: keyof WindowItem,
     rawValue: string
   ) => {
-    let nextValue = rawValue.replace(/,/g, '.');
-    nextValue = nextValue.replace(/[^0-9.]/g, '');
+    if (isReadOnly) return;
 
-    const parts = nextValue.split('.');
+    let val = rawValue.replace(',', '.');
+    val = val.replace(/[^0-9.]/g, '');
+    const parts = val.split('.');
     if (parts.length > 2) {
-      nextValue = `${parts[0]}.${parts.slice(1).join('')}`;
+      val = parts[0] + '.' + parts.slice(1).join('');
     }
-
-    handleChange(id, field, nextValue);
+    handleChange(id, field, val);
   };
 
-  const getNumericItem = (item: WindowItem): WindowItem => ({
-    id: Number(item.id) || 0,
-    name: item.name ? String(item.name) : '',
-
-    widthTop: toNumberValue(item.widthTop),
-    heightRight: toNumberValue(item.heightRight),
-    widthBottom: toNumberValue(item.widthBottom),
-    heightLeft: toNumberValue(item.heightLeft),
-
-    kantTop: toNumberValue(item.kantTop),
-    kantRight: toNumberValue(item.kantRight),
-    kantBottom: toNumberValue(item.kantBottom),
-    kantLeft: toNumberValue(item.kantLeft),
-
-    kantColor: item.kantColor ? String(item.kantColor) : '',
-    material: item.material ? String(item.material) : '',
-
-    isTrapezoid: Boolean(item.isTrapezoid),
-
-    diagonalLeft: toNumberValue(item.diagonalLeft),
-    diagonalRight: toNumberValue(item.diagonalRight),
-    crossbar: toNumberValue(item.crossbar),
+  const getNumericItem = (item: WindowItem) => ({
+    ...item,
+    widthTop: parseFloat(item.widthTop) || 0,
+    heightRight: parseFloat(item.heightRight) || 0,
+    widthBottom: parseFloat(item.widthBottom) || 0,
+    heightLeft: parseFloat(item.heightLeft) || 0,
+    kantTop: parseFloat(item.kantTop) || 0,
+    kantRight: parseFloat(item.kantRight) || 0,
+    kantBottom: parseFloat(item.kantBottom) || 0,
+    kantLeft: parseFloat(item.kantLeft) || 0,
+    diagonalLeft: parseFloat(item.diagonalLeft) || 0,
+    diagonalRight: parseFloat(item.diagonalRight) || 0,
+    crossbar: parseFloat(item.crossbar) || 0,
   });
 
   const handleFinalSave = async () => {
+    if (isReadOnly) return;
+
     setIsSaving(true);
+    const numericItems = localWindows.map(getNumericItem);
 
-    try {
-      const numericItems = localWindows.map(getNumericItem);
+    onSave(numericItems);
 
-      onSave(numericItems);
-
-      if (clientId) {
+    if (clientId) {
+      try {
         const result = await updateClientAction(clientId, {
           items: numericItems,
         });
 
-        if (!result.success) {
-          throw new Error(result.error || 'Ошибка при сохранении в базу');
+        if (result.success) {
+          alert('Все изделия успешно сохранены в базу!');
+        } else {
+          alert('Ошибка при сохранении в базу: ' + result.error);
         }
-
-        alert('Все изделия успешно сохранены в базу');
-      } else {
-        console.log('Изделия сохранены локально:', numericItems);
+      } catch (err) {
+        alert('Критическая ошибка при связи с сервером');
       }
-    } catch (err) {
-      console.error('Ошибка сохранения изделий:', err);
-    } finally {
-      setIsSaving(false);
+    } else {
+      console.warn('ClientId не передан. Данные сохранены только локально.');
     }
-  };
 
-  const activeItemArea =
-    activeItem != null
-      ? (
-          (toNumberValue(activeItem.widthTop) * toNumberValue(activeItem.heightLeft)) /
-          10000
-        ).toFixed(2)
-      : '0.00';
+    setIsSaving(false);
+  };
 
   return (
     <div className={styles.itemsGrid}>
       <div className={styles.inputPanelWrapper}>
         <div className={styles.headerRow}>
-          <h2 className={styles.sectionTitle}>ПАРАМЕТРЫ</h2>
+          <h2 className={styles.sectionTitle}>
+            ПАРАМЕТРЫ {isReadOnly ? '(ARCHIVE)' : '(EDIT)'}
+          </h2>
           <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>
             {activeItem?.name}
           </span>
@@ -256,11 +183,16 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
               <div className={styles.inputGroup} style={{ position: 'relative' }}>
                 <select
                   className={styles.selectInput}
-                  value={activeItem.material || ''}
-                  onChange={(e) => handleChange(activeItem.id, 'material', e.target.value)}
+                  value={activeItem.material}
+                  onChange={(e) =>
+                    handleChange(activeItem.id, 'material', e.target.value)
+                  }
+                  disabled={isReadOnly}
                 >
                   <option value="ПВХ 700 мкм (Прозрачная)">ПВХ Прозрачная</option>
-                  <option value="ПВХ 700 мкм (Тонированная)">ПВХ Тонированная</option>
+                  <option value="ПВХ 700 мкм (Тонированная)">
+                    ПВХ Тонированная
+                  </option>
                   <option value="ТПУ Полиуретан">ТПУ Полиуретан</option>
                   <option value="Москитная сетка">Москитная сетка</option>
                 </select>
@@ -288,40 +220,60 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
                   <label>Верх</label>
                   <input
                     type="text"
-                    value={activeItem.widthTop ?? ''}
+                    value={activeItem.widthTop}
                     onChange={(e) =>
-                      handleNumberInputChange(activeItem.id, 'widthTop', e.target.value)
+                      handleNumberInputChange(
+                        activeItem.id,
+                        'widthTop',
+                        e.target.value
+                      )
                     }
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className={styles.inputGroup}>
                   <label>Право</label>
                   <input
                     type="text"
-                    value={activeItem.heightRight ?? ''}
+                    value={activeItem.heightRight}
                     onChange={(e) =>
-                      handleNumberInputChange(activeItem.id, 'heightRight', e.target.value)
+                      handleNumberInputChange(
+                        activeItem.id,
+                        'heightRight',
+                        e.target.value
+                      )
                     }
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className={styles.inputGroup}>
                   <label>Низ</label>
                   <input
                     type="text"
-                    value={activeItem.widthBottom ?? ''}
+                    value={activeItem.widthBottom}
                     onChange={(e) =>
-                      handleNumberInputChange(activeItem.id, 'widthBottom', e.target.value)
+                      handleNumberInputChange(
+                        activeItem.id,
+                        'widthBottom',
+                        e.target.value
+                      )
                     }
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className={styles.inputGroup}>
                   <label>Лево</label>
                   <input
                     type="text"
-                    value={activeItem.heightLeft ?? ''}
+                    value={activeItem.heightLeft}
                     onChange={(e) =>
-                      handleNumberInputChange(activeItem.id, 'heightLeft', e.target.value)
+                      handleNumberInputChange(
+                        activeItem.id,
+                        'heightLeft',
+                        e.target.value
+                      )
                     }
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -334,40 +286,60 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
                   <label>Верх</label>
                   <input
                     type="text"
-                    value={activeItem.kantTop ?? ''}
+                    value={activeItem.kantTop}
                     onChange={(e) =>
-                      handleNumberInputChange(activeItem.id, 'kantTop', e.target.value)
+                      handleNumberInputChange(
+                        activeItem.id,
+                        'kantTop',
+                        e.target.value
+                      )
                     }
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className={styles.inputGroup}>
                   <label>Право</label>
                   <input
                     type="text"
-                    value={activeItem.kantRight ?? ''}
+                    value={activeItem.kantRight}
                     onChange={(e) =>
-                      handleNumberInputChange(activeItem.id, 'kantRight', e.target.value)
+                      handleNumberInputChange(
+                        activeItem.id,
+                        'kantRight',
+                        e.target.value
+                      )
                     }
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className={styles.inputGroup}>
                   <label>Низ</label>
                   <input
                     type="text"
-                    value={activeItem.kantBottom ?? ''}
+                    value={activeItem.kantBottom}
                     onChange={(e) =>
-                      handleNumberInputChange(activeItem.id, 'kantBottom', e.target.value)
+                      handleNumberInputChange(
+                        activeItem.id,
+                        'kantBottom',
+                        e.target.value
+                      )
                     }
+                    disabled={isReadOnly}
                   />
                 </div>
                 <div className={styles.inputGroup}>
                   <label>Лево</label>
                   <input
                     type="text"
-                    value={activeItem.kantLeft ?? ''}
+                    value={activeItem.kantLeft}
                     onChange={(e) =>
-                      handleNumberInputChange(activeItem.id, 'kantLeft', e.target.value)
+                      handleNumberInputChange(
+                        activeItem.id,
+                        'kantLeft',
+                        e.target.value
+                      )
                     }
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -378,8 +350,11 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
               <div className={styles.inputGroup} style={{ position: 'relative' }}>
                 <select
                   className={styles.selectInput}
-                  value={activeItem.kantColor || ''}
-                  onChange={(e) => handleChange(activeItem.id, 'kantColor', e.target.value)}
+                  value={activeItem.kantColor}
+                  onChange={(e) =>
+                    handleChange(activeItem.id, 'kantColor', e.target.value)
+                  }
+                  disabled={isReadOnly}
                 >
                   <option value="Белый">Белый</option>
                   <option value="Светло-серый">Светло-серый</option>
@@ -412,10 +387,11 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
               <label className={styles.checkboxLabel}>
                 <input
                   type="checkbox"
-                  checked={Boolean(activeItem.isTrapezoid)}
+                  checked={activeItem.isTrapezoid}
                   onChange={(e) =>
                     handleChange(activeItem.id, 'isTrapezoid', e.target.checked)
                   }
+                  disabled={isReadOnly}
                 />
                 Трапеция
               </label>
@@ -426,7 +402,11 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
                     <label>ДИАГОНАЛЬ A-C (см)</label>
                     <input
                       type="text"
-                      value={activeItem.diagonalRight ?? ''}
+                      value={
+                        activeItem.diagonalRight === 0
+                          ? ''
+                          : activeItem.diagonalRight
+                      }
                       placeholder="0"
                       onChange={(e) =>
                         handleNumberInputChange(
@@ -435,13 +415,18 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
                           e.target.value
                         )
                       }
+                      disabled={isReadOnly}
                     />
                   </div>
                   <div className={styles.inputGroup}>
                     <label>ДИАГОНАЛЬ B-D (см)</label>
                     <input
                       type="text"
-                      value={activeItem.diagonalLeft ?? ''}
+                      value={
+                        activeItem.diagonalLeft === 0
+                          ? ''
+                          : activeItem.diagonalLeft
+                      }
                       placeholder="0"
                       onChange={(e) =>
                         handleNumberInputChange(
@@ -450,17 +435,25 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
                           e.target.value
                         )
                       }
+                      disabled={isReadOnly}
                     />
                   </div>
                   <div className={styles.inputGroup}>
                     <label>ПАРАЛЛЕЛЬ (см)</label>
                     <input
                       type="text"
-                      value={activeItem.crossbar ?? ''}
+                      value={
+                        activeItem.crossbar === 0 ? '' : activeItem.crossbar
+                      }
                       placeholder="0"
                       onChange={(e) =>
-                        handleNumberInputChange(activeItem.id, 'crossbar', e.target.value)
+                        handleNumberInputChange(
+                          activeItem.id,
+                          'crossbar',
+                          e.target.value
+                        )
                       }
+                      disabled={isReadOnly}
                     />
                   </div>
                 </div>
@@ -469,14 +462,16 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
           </div>
         )}
 
-        <button
-          className={styles.saveButton}
-          onClick={handleFinalSave}
-          disabled={isSaving}
-          style={{ marginTop: 'auto' }}
-        >
-          {isSaving ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ ВСЕ ИЗДЕЛИЯ'}
-        </button>
+        {!isReadOnly && (
+          <button
+            className={styles.saveButton}
+            onClick={handleFinalSave}
+            disabled={isSaving}
+            style={{ marginTop: 'auto' }}
+          >
+            {isSaving ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ ВСЕ ИЗДЕЛИЯ'}
+          </button>
+        )}
       </div>
 
       <div className={styles.rightColumn}>
@@ -484,13 +479,12 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
           {localWindows.map((win, index) => (
             <div
               key={win.id}
-              className={`${styles.tabItem} ${
-                activeWindowId === win.id ? styles.activeTab : ''
-              }`}
+              className={`${styles.tabItem} ${activeWindowId === win.id ? styles.activeTab : ''
+                }`}
               onClick={() => setActiveWindowId(win.id)}
             >
               Окно {index + 1}
-              {localWindows.length > 1 && (
+              {!isReadOnly && localWindows.length > 1 && (
                 <span
                   className={styles.closeTab}
                   onClick={(e) => removeWindow(win.id, e)}
@@ -500,9 +494,11 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
               )}
             </div>
           ))}
-          <button className={styles.addTabButton} onClick={addWindow}>
-            +
-          </button>
+          {!isReadOnly && (
+            <button className={styles.addTabButton} onClick={addWindow}>
+              +
+            </button>
+          )}
         </div>
 
         {activeItem ? (
@@ -516,7 +512,15 @@ export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps)
                 Выбрано: <span>{activeItem.name}</span>
               </div>
               <div className={styles.statLabel}>
-                Площадь: <span>{activeItemArea} м²</span>
+                Площадь:{' '}
+                <span>
+                  {(
+                    (parseFloat(activeItem.widthTop || 0) *
+                      parseFloat(activeItem.heightLeft || 0)) /
+                    10000
+                  ).toFixed(2)}{' '}
+                  м²
+                </span>
               </div>
             </div>
           </>

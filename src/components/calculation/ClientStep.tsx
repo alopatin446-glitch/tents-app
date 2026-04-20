@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import styles from './ClientStep.module.css';
 
 const sourceOptions = [
@@ -36,12 +36,18 @@ export default function ClientStep({
   initialData,
   onSave,
   onClose,
+  isReadOnly = false,
 }: {
   initialData: any;
   onSave: (data: any) => void;
   onClose: () => void;
+  isReadOnly?: boolean;
 }) {
   const [clientData, setClientData] = useState(initialData);
+
+  useEffect(() => {
+    setClientData(initialData);
+  }, [initialData]);
 
   const [openSections, setOpenSections] = useState({
     data: false,
@@ -63,6 +69,8 @@ export default function ClientStep({
   };
 
   const handleSaveClick = () => {
+    if (isReadOnly) return;
+
     const payload = {
       ...clientData,
       status: clientData.status || '',
@@ -92,6 +100,7 @@ export default function ClientStep({
                   value={clientData.fio || ''}
                   onChange={handleChange}
                   className={styles.neonInput}
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -104,6 +113,7 @@ export default function ClientStep({
                     value={clientData.phone || ''}
                     onChange={handleChange}
                     className={styles.neonInput}
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -115,6 +125,7 @@ export default function ClientStep({
                     value={clientData.address || ''}
                     onChange={handleChange}
                     className={styles.neonInput}
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -125,6 +136,7 @@ export default function ClientStep({
                     value={clientData.source || ''}
                     onChange={handleChange}
                     className={styles.neonSelect}
+                    disabled={isReadOnly}
                   >
                     <option value="">Выберите источник...</option>
                     {sourceOptions.map((o) => (
@@ -144,6 +156,7 @@ export default function ClientStep({
                     value={clientData.status || ''}
                     onChange={handleChange}
                     className={styles.neonSelect}
+                    disabled={isReadOnly}
                   >
                     <option value="">Выберите статус...</option>
                     {statusOptions.map((o) => (
@@ -162,6 +175,7 @@ export default function ClientStep({
                     value={clientData.measurementDate || ''}
                     onChange={handleChange}
                     className={styles.neonInput}
+                    disabled={isReadOnly}
                   />
                 </div>
               </div>
@@ -178,6 +192,7 @@ export default function ClientStep({
                     minHeight: '80px',
                     paddingTop: '12px',
                   }}
+                  disabled={isReadOnly}
                 />
               </div>
             </div>
@@ -195,7 +210,12 @@ export default function ClientStep({
             <div className={styles.content}>
               <div className={styles.inputGroup}>
                 <label>Фото объекта</label>
-                <input type="file" name="photoObject" className={styles.neonInput} />
+                <input
+                  type="file"
+                  name="photoObject"
+                  className={styles.neonInput}
+                  disabled={isReadOnly}
+                />
               </div>
 
               <div className={styles.inputGroup}>
@@ -204,6 +224,7 @@ export default function ClientStep({
                   type="file"
                   name="photoMeasurement"
                   className={styles.neonInput}
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -215,6 +236,7 @@ export default function ClientStep({
                   value={clientData.installDate || ''}
                   onChange={handleChange}
                   className={styles.neonInput}
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -230,12 +252,18 @@ export default function ClientStep({
                     minHeight: '80px',
                     paddingTop: '12px',
                   }}
+                  disabled={isReadOnly}
                 />
               </div>
 
               <div className={styles.inputGroup}>
                 <label>Фото Договора</label>
-                <input type="file" name="photoContract" className={styles.neonInput} />
+                <input
+                  type="file"
+                  name="photoContract"
+                  className={styles.neonInput}
+                  disabled={isReadOnly}
+                />
               </div>
             </div>
           )}
@@ -261,6 +289,7 @@ export default function ClientStep({
                     value={clientData.totalPrice || ''}
                     onChange={handleChange}
                     className={styles.neonInput}
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -272,6 +301,7 @@ export default function ClientStep({
                     value={clientData.advance || ''}
                     onChange={handleChange}
                     className={styles.neonInput}
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -283,6 +313,7 @@ export default function ClientStep({
                     value={clientData.balance || ''}
                     onChange={handleChange}
                     className={styles.neonInput}
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -293,6 +324,7 @@ export default function ClientStep({
                     value={clientData.paymentType || ''}
                     onChange={handleChange}
                     className={styles.neonSelect}
+                    disabled={isReadOnly}
                   >
                     <option value="">Выберите тип оплаты...</option>
                     <option value="cash">Наличными</option>
@@ -373,7 +405,11 @@ export default function ClientStep({
         </div>
 
         <div className={styles.actions}>
-          <button className={styles.saveBtn} onClick={handleSaveClick}>
+          <button
+            className={styles.saveBtn}
+            onClick={handleSaveClick}
+            disabled={isReadOnly}
+          >
             СОХРАНИТЬ
           </button>
 
