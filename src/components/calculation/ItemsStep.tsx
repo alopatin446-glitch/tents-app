@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import styles from './ItemsStep.module.css';
 import DrawingCanvas from './DrawingCanvas';
+// Импортируем экшен для сохранения в БД
+import { updateClientAction } from '@/app/dashboard/clients/actions';
 
 export interface WindowItem {
   id: number;
@@ -26,11 +28,13 @@ export interface WindowItem {
 interface ItemsStepProps {
   windows: WindowItem[];
   onSave: (items: WindowItem[]) => void;
+  clientId?: string; // Добавили ID клиента в пропсы
 }
 
-export default function ItemsStep({ windows, onSave }: ItemsStepProps) {
+export default function ItemsStep({ windows, onSave, clientId }: ItemsStepProps) {
   const [localWindows, setLocalWindows] = useState<WindowItem[]>(windows);
   const [activeWindowId, setActiveWindowId] = useState<number>(windows[0]?.id || Date.now());
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (windows && windows.length > 0) {
@@ -108,9 +112,38 @@ export default function ItemsStep({ windows, onSave }: ItemsStepProps) {
     crossbar: parseFloat(item.crossbar) || 0,
   });
 
+  // НОВАЯ ФУНКЦИЯ СОХРАНЕНИЯ
+  const handleFinalSave = async () => {
+    setIsSaving(true);
+    const numericItems = localWindows.map(getNumericItem);
+    
+    // 1. Вызываем стандартный пропс (для состояния приложения)
+    onSave(numericItems);
+
+    // 2. Сохраняем в базу данных Prisma
+    if (clientId) {
+      try {
+        const result = await updateClientAction(clientId, {
+          items: numericItems // Отправляем массив окон в поле Json
+        });
+        
+        if (result.success) {
+          alert('Все изделия успешно сохранены в базу!');
+        } else {
+          alert('Ошибка при сохранении в базу: ' + result.error);
+        }
+      } catch (err) {
+        alert('Критическая ошибка при связи с сервером');
+      }
+    } else {
+      console.warn("ClientId не передан. Данные сохранены только локально.");
+    }
+    
+    setIsSaving(false);
+  };
+
   return (
     <div className={styles.itemsGrid}>
-      {/* ЛЕВАЯ ПАНЕЛЬ: Параметры */}
       <div className={styles.inputPanelWrapper}>
         <div className={styles.headerRow}>
           <h2 className={styles.sectionTitle}>ПАРАМЕТРЫ</h2>
@@ -212,12 +245,16 @@ export default function ItemsStep({ windows, onSave }: ItemsStepProps) {
           </div>
         )}
 
-        <button className={styles.saveButton} onClick={() => onSave(localWindows.map(getNumericItem))} style={{ marginTop: 'auto' }}>
-          СОХРАНИТЬ ВСЕ ИЗДЕЛИЯ
+        <button 
+          className={styles.saveButton} 
+          onClick={handleFinalSave} 
+          disabled={isSaving}
+          style={{ marginTop: 'auto' }}
+        >
+          {isSaving ? 'СОХРАНЕНИЕ...' : 'СОХРАНИТЬ ВСЕ ИЗДЕЛИЯ'}
         </button>
       </div>
 
-      {/* ПРАВАЯ ПАНЕЛЬ: Табы и Чертеж */}
       <div className={styles.rightColumn}>
         <div className={styles.tabsRow}>
           {localWindows.map((win, index) => (

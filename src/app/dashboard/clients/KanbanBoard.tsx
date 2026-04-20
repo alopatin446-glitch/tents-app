@@ -1,5 +1,6 @@
 'use client';
 
+import { updateClientAction, deleteClientAction } from './actions';
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -44,19 +45,43 @@ export default function KanbanBoard() {
     );
   };
 
-  const deleteSelected = () => {
+  // ОБНОВЛЕННОЕ УДАЛЕНИЕ: теперь с сохранением в БД
+  const deleteSelected = async () => {
     if (confirm(`Удалить выбранных клиентов (${selectedIds.length} шт.)?`)) {
-      selectedIds.forEach(id => deleteClient(id));
-      setSelectedIds([]);
+      try {
+        // Удаляем каждого клиента в цикле через серверный экшен
+        for (const id of selectedIds) {
+          const result = await deleteClientAction(id);
+          if (result.success) {
+            deleteClient(id); // удаляем из локального контекста для UI
+          } else {
+            console.error(`Не удалось удалить клиента с id ${id}`);
+          }
+        }
+        setSelectedIds([]);
+      } catch (error) {
+        alert("Произошла ошибка при удалении из базы данных");
+      }
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
+
     const clientId = active.id as string;
     const newStatus = over.id as Client['status'];
+
+    // 1. Сначала обновляем локально (для скорости интерфейса)
     updateClient(clientId, { status: newStatus });
+
+    // 2. Отправляем в базу данных
+    const result = await updateClientAction(clientId, { status: newStatus });
+
+    if (!result.success) {
+      alert("Ошибка сохранения в базу!");
+      // Здесь можно добавить логику отката (rollback), если это критично
+    }
   };
 
   return (
@@ -79,10 +104,10 @@ export default function KanbanBoard() {
 
           {/* 2. ПОИСК И СОЗДАНИЕ */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <input 
-              type="text" 
-              placeholder="Поиск..." 
-              className={styles.sidebarInput} 
+            <input
+              type="text"
+              placeholder="Поиск..."
+              className={styles.sidebarInput}
             />
             <button
               className={styles.addClientBtn}
@@ -104,20 +129,20 @@ export default function KanbanBoard() {
           {/* 4. ПАНЕЛЬ УДАЛЕНИЯ */}
           {selectedIds.length > 0 && (
             <div className={styles.actionPanel}>
-              <div style={{ 
-                color: '#7BFF00', 
-                fontSize: '0.7rem', 
-                fontWeight: 800, 
+              <div style={{
+                color: '#7BFF00',
+                fontSize: '0.7rem',
+                fontWeight: 800,
                 textAlign: 'center',
-                textTransform: 'uppercase' 
+                textTransform: 'uppercase'
               }}>
                 ВЫБРАНО: {selectedIds.length}
               </div>
               <button onClick={deleteSelected} className={styles.deleteBtn}>
                 УДАЛИТЬ КАРТОЧКИ
               </button>
-              <button 
-                onClick={() => setSelectedIds([])} 
+              <button
+                onClick={() => setSelectedIds([])}
                 className={styles.filterBtn}
                 style={{ width: '100%', fontSize: '0.65rem', background: 'transparent' }}
               >

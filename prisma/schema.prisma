@@ -3,7 +3,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// 2. Блок подключения (то, что просил терминал)
+// 2. Блок подключения
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -27,6 +27,9 @@ model Client {
   // Даты
   measurementDate DateTime? 
   installDate     DateTime? 
+  
+  // Данные об изделиях (чертежи, размеры и т.д.)
+  items           Json?     // <--- ДОБАВЛЕНО ТУТ
   
   // Комментарии
   managerComment  String?
