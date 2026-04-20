@@ -35,15 +35,34 @@ const statusOptions = [
 type ClientStatus = (typeof statusOptions)[number]['id'];
 type SourceOption = (typeof sourceOptions)[number];
 
-export interface ClientStepData {
+export interface ClientStepWindowItem {
+  id: number | string;
+  name: string;
+  widthTop: number | string;
+  heightRight: number | string;
+  widthBottom: number | string;
+  heightLeft: number | string;
+  kantTop: number | string;
+  kantRight: number | string;
+  kantBottom: number | string;
+  kantLeft: number | string;
+  kantColor: string;
+  material: string;
+  isTrapezoid: boolean;
+  diagonalLeft: number | string;
+  diagonalRight: number | string;
+  crossbar: number | string;
+}
+
+export interface ClientFormData {
   fio?: string | null;
   phone?: string | null;
   address?: string | null;
   source?: SourceOption | string | null;
   status?: ClientStatus | string | null;
-  measurementDate?: string | null;
+  measurementDate?: any;
   managerComment?: string | null;
-  installDate?: string | null;
+  installDate?: any;
   engineerComment?: string | null;
   totalPrice?: number | string | null;
   advance?: number | string | null;
@@ -54,11 +73,15 @@ export interface ClientStepData {
   photoObject?: File | null;
   photoMeasurement?: File | null;
   photoContract?: File | null;
+  items?: ClientStepWindowItem[] | null;
+  [key: string]: any;
 }
 
+export type ClientStepData = ClientFormData;
+
 interface ClientStepProps {
-  initialData: ClientStepData;
-  onSave: (data: ClientStepData) => void | Promise<void>;
+  initialData: ClientFormData;
+  onSave: (data: ClientFormData) => void | Promise<void>;
   onClose: () => void;
   isReadOnly?: boolean;
 }
@@ -75,13 +98,25 @@ type InputChangeEvent =
   | React.ChangeEvent<HTMLTextAreaElement>
   | React.ChangeEvent<HTMLSelectElement>;
 
+function normalizeNumber(value: unknown, fallback = 0): number {
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
+
+  const normalized =
+    typeof value === 'string' ? value.replace(',', '.').trim() : value;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export default function ClientStep({
   initialData,
   onSave,
   onClose,
   isReadOnly = false,
 }: ClientStepProps) {
-  const [clientData, setClientData] = useState<ClientStepData>(initialData);
+  const [clientData, setClientData] = useState<ClientFormData>(initialData);
 
   useEffect(() => {
     setClientData(initialData);
@@ -95,7 +130,10 @@ export default function ClientStep({
   });
 
   const toggleSection = (section: keyof OpenSections) => {
-    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+    setOpenSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
   };
 
   const handleChange = (e: InputChangeEvent) => {
@@ -108,7 +146,7 @@ export default function ClientStep({
     }
 
     setClientData((prev) => {
-      const newData: ClientStepData = {
+      const newData: ClientFormData = {
         ...prev,
         [name]: nextValue,
       };
@@ -121,19 +159,18 @@ export default function ClientStep({
   const handleSaveClick = () => {
     if (isReadOnly) return;
 
-    const payload: ClientStepData = {
+    const payload: ClientFormData = {
       ...clientData,
       status: clientData.status || '',
     };
 
-    console.log('Нажали сохранить! Данные:', payload);
     onSave(payload);
   };
 
   const areaValue = Number(clientData.area || 0);
   const totalPriceValue = Number(clientData.totalPrice || 0);
   const costPriceValue = Number(clientData.costPrice || 0);
-  const profitValue = totalPriceValue - costPriceValue;
+  const profitValue = Number(totalPriceValue) - Number(costPriceValue);
 
   return (
     <div className={styles.container}>
@@ -193,9 +230,9 @@ export default function ClientStep({
                     disabled={isReadOnly}
                   >
                     <option value="">Выберите источник...</option>
-                    {sourceOptions.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
+                    {sourceOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
                       </option>
                     ))}
                   </select>
@@ -213,9 +250,9 @@ export default function ClientStep({
                     disabled={isReadOnly}
                   >
                     <option value="">Выберите статус...</option>
-                    {statusOptions.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.label}
+                    {statusOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
                       </option>
                     ))}
                   </select>
