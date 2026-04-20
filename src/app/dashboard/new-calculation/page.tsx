@@ -265,9 +265,8 @@ function CalculationContent() {
             ? normalizeNumber(updatedData.balance, 0)
             : clientData.balance,
         paymentType: updatedData.paymentType ?? clientData.paymentType,
-        measurementDate:
-          updatedData.measurementDate ?? clientData.measurementDate,
-        installDate: updatedData.installDate ?? clientData.installDate,
+        measurementDate: (updatedData.measurementDate ?? clientData.measurementDate) as any,
+        installDate: (updatedData.installDate ?? clientData.installDate) as any,
         items: normalizedItems,
         managerComment: updatedData.managerComment ?? clientData.managerComment,
         engineerComment:
@@ -347,9 +346,8 @@ function CalculationContent() {
           {menuItems.map((item) => (
             <button
               key={item}
-              className={`${styles.navButton} ${
-                activeTab === item ? styles.active : ''
-              }`}
+              className={`${styles.navButton} ${activeTab === item ? styles.active : ''
+                }`}
               onClick={() => setActiveTab(item)}
             >
               {item}
@@ -359,9 +357,8 @@ function CalculationContent() {
       </aside>
 
       <section
-        className={`${styles.contentArea} ${
-          activeTab === 'Изделия' ? styles.wideContent : ''
-        }`}
+        className={`${styles.contentArea} ${activeTab === 'Изделия' ? styles.wideContent : ''
+          }`}
       >
         {activeTab === 'Клиент' &&
           (clientId && isLoadingClient ? (
