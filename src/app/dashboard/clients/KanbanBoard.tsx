@@ -1,16 +1,16 @@
 'use client';
 
-import { updateClientAction, deleteClientAction } from './actions';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
   DragEndEvent,
-  closestCorners,
   PointerSensor,
+  closestCorners,
   useSensor,
-  useSensors
+  useSensors,
 } from '@dnd-kit/core';
+import { updateClientAction, deleteClientAction } from './actions';
 import styles from './KanbanBoard.module.css';
 import StageColumn from './StageColumn';
 import EditModal from './EditModal';
@@ -24,8 +24,14 @@ const STAGES: Stage[] = [
   { id: 'promised_pay', title: 'Обещал заплатить' },
   { id: 'waiting_production', title: 'Ожидает изделия' },
   { id: 'waiting_install', title: 'Ожидает монтаж' },
-  { id: 'special_case', title: 'Особые случаи' }
+  { id: 'special_case', title: 'Особые случаи' },
 ];
+
+const STAGE_IDS = new Set<Client['status']>(STAGES.map((stage) => stage.id));
+
+function normalizeSearchValue(value: string): string {
+  return value.trim().toLowerCase();
+}
 
 export default function KanbanBoard() {
   const { clients, updateClient, deleteClient } = useClients();
@@ -34,61 +40,171 @@ export default function KanbanBoard() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    })
   );
 
+  const filteredClients = useMemo(() => {
+    const normalizedQuery = normalizeSearchValue(searchQuery);
+
+    if (!normalizedQuery) {
+      return clients;
+    }
+
+    return clients.filter((client) => {
+      const fio = String(client.fio || '').toLowerCase();
+      const phone = String(client.phone || '').toLowerCase();
+      const address = String(client.address || '').toLowerCase();
+
+      return (
+        fio.includes(normalizedQuery) ||
+        phone.includes(normalizedQuery) ||
+        address.includes(normalizedQuery)
+      );
+    });
+  }, [clients, searchQuery]);
+
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
+    const normalizedId = String(id);
+
+    setSelectedIds((prev) =>
+      prev.includes(normalizedId)
+        ? prev.filter((itemId) => String(itemId) !== normalizedId)
+        : [...prev, normalizedId]
     );
   };
 
-  // ОБНОВЛЕННОЕ УДАЛЕНИЕ: теперь с сохранением в БД
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
   const deleteSelected = async () => {
-    if (confirm(`Удалить выбранных клиентов (${selectedIds.length} шт.)?`)) {
-      try {
-        // Удаляем каждого клиента в цикле через серверный экшен
-        for (const id of selectedIds) {
+    if (selectedIds.length === 0) return;
+
+    const confirmed = confirm(`Удалить выбранных клиентов (${selectedIds.length} шт.)?`);
+    if (!confirmed) return;
+
+    try {
+      const idsToDelete = selectedIds.map((id) => String(id));
+
+      const results = await Promise.allSettled(
+        idsToDelete.map(async (id) => {
           const result = await deleteClientAction(id);
-          if (result.success) {
-            deleteClient(id); // удаляем из локального контекста для UI
-          } else {
-            console.error(`Не удалось удалить клиента с id ${id}`);
+
+          if (!result.success) {
+            throw new Error(result.error || `Не удалось удалить клиента ${id}`);
           }
+
+          return id;
+        })
+      );
+
+      const deletedIds: string[] = [];
+      const failedIds: string[] = [];
+
+      results.forEach((result, index) => {
+        const currentId = idsToDelete[index];
+
+        if (result.status === 'fulfilled') {
+          deletedIds.push(currentId);
+        } else {
+          failedIds.push(currentId);
         }
-        setSelectedIds([]);
-      } catch (error) {
-        alert("Произошла ошибка при удалении из базы данных");
+      });
+
+      deletedIds.forEach((id) => {
+        deleteClient(String(id));
+      });
+
+      setSelectedIds((prev) =>
+        prev.filter((id) => !deletedIds.includes(String(id)))
+      );
+
+      router.refresh();
+
+      if (failedIds.length > 0) {
+        alert(
+          `Удаление завершено частично.\n\nУдалено: ${deletedIds.length}\nНе удалено: ${failedIds.length}`
+        );
       }
+    } catch (error) {
+      alert('Произошла ошибка при удалении из базы данных');
     }
+  };
+
+  const resolveDropStatus = (
+    overId: string,
+    allClients: Client[]
+  ): Client['status'] | null => {
+    if (STAGE_IDS.has(overId as Client['status'])) {
+      return overId as Client['status'];
+    }
+
+    const overClient = allClients.find(
+      (client) => String(client.id) === String(overId)
+    );
+
+    if (!overClient) {
+      return null;
+    }
+
+    return overClient.status;
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+
     if (!over) return;
 
-    const clientId = active.id as string;
-    const newStatus = over.id as Client['status'];
+    const activeClientId = String(active.id);
+    const overId = String(over.id);
 
-    // 1. Сначала обновляем локально (для скорости интерфейса)
-    updateClient(clientId, { status: newStatus });
+    const draggedClient = clients.find(
+      (client) => String(client.id) === activeClientId
+    );
 
-    // 2. Отправляем в базу данных
-    const result = await updateClientAction(clientId, { status: newStatus });
+    if (!draggedClient) {
+      return;
+    }
+
+    const previousStatus = draggedClient.status;
+    const nextStatus = resolveDropStatus(overId, clients);
+
+    if (!nextStatus) {
+      return;
+    }
+
+    if (previousStatus === nextStatus) {
+      return;
+    }
+
+    updateClient(activeClientId, { status: nextStatus });
+
+    const result = await updateClientAction(activeClientId, {
+      status: nextStatus,
+    });
 
     if (!result.success) {
-      alert("Ошибка сохранения в базу!");
-      // Здесь можно добавить логику отката (rollback), если это критично
+      updateClient(activeClientId, { status: previousStatus });
+      alert('Ошибка сохранения в базу!');
+      return;
     }
+
+    router.refresh();
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragEnd={handleDragEnd}
+    >
       <div className={styles.mainWrapper}>
         <aside className={styles.sidebar}>
-          {/* 1. НАВИГАЦИЯ */}
           <button
             onClick={() => router.push('/dashboard')}
             className={styles.filterBtn}
@@ -96,19 +212,21 @@ export default function KanbanBoard() {
               background: 'transparent',
               borderColor: 'rgba(255,255,255,0.1)',
               color: 'rgba(255,255,255,0.4)',
-              marginBottom: '10px'
+              marginBottom: '10px',
             }}
           >
             ← ГЛАВНОЕ МЕНЮ
           </button>
 
-          {/* 2. ПОИСК И СОЗДАНИЕ */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <input
               type="text"
               placeholder="Поиск..."
               className={styles.sidebarInput}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
+
             <button
               className={styles.addClientBtn}
               onClick={() => setIsAddingNew(true)}
@@ -117,34 +235,45 @@ export default function KanbanBoard() {
             </button>
           </div>
 
-          {/* РАЗДЕЛИТЕЛЬ */}
-          <div style={{ height: '1px', background: 'rgba(123, 255, 0, 0.1)', margin: '10px 0' }} />
+          <div
+            style={{
+              height: '1px',
+              background: 'rgba(123, 255, 0, 0.1)',
+              margin: '10px 0',
+            }}
+          />
 
-          {/* 3. ФИЛЬТРЫ */}
           <div className={styles.quickFilters}>
             <button className={styles.filterBtn}>🔥 ГОРЯЩИЕ</button>
             <button className={styles.filterBtn}>💸 ДОЛЖНИКИ</button>
           </div>
 
-          {/* 4. ПАНЕЛЬ УДАЛЕНИЯ */}
           {selectedIds.length > 0 && (
             <div className={styles.actionPanel}>
-              <div style={{
-                color: '#7BFF00',
-                fontSize: '0.7rem',
-                fontWeight: 800,
-                textAlign: 'center',
-                textTransform: 'uppercase'
-              }}>
+              <div
+                style={{
+                  color: '#7BFF00',
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  textAlign: 'center',
+                  textTransform: 'uppercase',
+                }}
+              >
                 ВЫБРАНО: {selectedIds.length}
               </div>
+
               <button onClick={deleteSelected} className={styles.deleteBtn}>
                 УДАЛИТЬ КАРТОЧКИ
               </button>
+
               <button
-                onClick={() => setSelectedIds([])}
+                onClick={clearSelection}
                 className={styles.filterBtn}
-                style={{ width: '100%', fontSize: '0.65rem', background: 'transparent' }}
+                style={{
+                  width: '100%',
+                  fontSize: '0.65rem',
+                  background: 'transparent',
+                }}
               >
                 ОТМЕНА
               </button>
@@ -153,16 +282,20 @@ export default function KanbanBoard() {
         </aside>
 
         <div className={styles.board}>
-          {STAGES.map(stage => (
+          {STAGES.map((stage) => (
             <StageColumn
               key={stage.id}
               id={stage.id}
               stage={stage}
-              clients={clients.filter(c => c.status === stage.id)}
+              clients={filteredClients.filter(
+                (client) => client.status === stage.id
+              )}
               selectedIds={selectedIds}
               onClientSelect={toggleSelect}
               onClientEdit={(client) => setEditingClient(client)}
-              onClientOpenFull={(client) => router.push(`/dashboard/new-calculation?id=${client.id}`)}
+              onClientOpenFull={(client) =>
+                router.push(`/dashboard/new-calculation?id=${String(client.id)}`)
+              }
             />
           ))}
         </div>

@@ -3,25 +3,26 @@
 import { useEffect, useState } from 'react';
 import styles from './ItemsStep.module.css';
 import DrawingCanvas from './DrawingCanvas';
-import { updateClientAction } from '@/app/dashboard/clients/actions';
+
+type NumericFieldValue = number | string;
 
 export interface WindowItem {
   id: number;
   name: string;
-  widthTop: any;
-  heightRight: any;
-  widthBottom: any;
-  heightLeft: any;
-  kantTop: any;
-  kantRight: any;
-  kantBottom: any;
-  kantLeft: any;
+  widthTop: NumericFieldValue;
+  heightRight: NumericFieldValue;
+  widthBottom: NumericFieldValue;
+  heightLeft: NumericFieldValue;
+  kantTop: NumericFieldValue;
+  kantRight: NumericFieldValue;
+  kantBottom: NumericFieldValue;
+  kantLeft: NumericFieldValue;
   kantColor: string;
   material: string;
   isTrapezoid: boolean;
-  diagonalLeft: any;
-  diagonalRight: any;
-  crossbar: any;
+  diagonalLeft: NumericFieldValue;
+  diagonalRight: NumericFieldValue;
+  crossbar: NumericFieldValue;
 }
 
 interface ItemsStepProps {
@@ -46,9 +47,12 @@ export default function ItemsStep({
   useEffect(() => {
     if (windows && windows.length > 0) {
       setLocalWindows(windows);
-      if (!activeWindowId) setActiveWindowId(windows[0].id);
+
+      if (!activeWindowId) {
+        setActiveWindowId(windows[0].id);
+      }
     }
-  }, [windows]);
+  }, [windows, activeWindowId]);
 
   const activeItem =
     localWindows.find((w) => w.id === activeWindowId) || localWindows[0];
@@ -57,6 +61,7 @@ export default function ItemsStep({
     if (isReadOnly) return;
 
     const newId = Date.now();
+
     const newWindow: WindowItem = {
       id: newId,
       name: `Окно ${localWindows.length + 1}`,
@@ -76,24 +81,29 @@ export default function ItemsStep({
       crossbar: '0',
     };
 
-    setLocalWindows([...localWindows, newWindow]);
+    setLocalWindows((prev) => [...prev, newWindow]);
     setActiveWindowId(newId);
   };
 
-  const removeWindow = (id: number, e: React.MouseEvent) => {
+  const removeWindow = (id: number, e: React.MouseEvent<HTMLSpanElement>) => {
     e.stopPropagation();
+
     if (isReadOnly) return;
     if (localWindows.length <= 1) return;
 
     const updatedWindows = localWindows.filter((win) => win.id !== id);
     setLocalWindows(updatedWindows);
 
-    if (activeWindowId === id) {
+    if (activeWindowId === id && updatedWindows.length > 0) {
       setActiveWindowId(updatedWindows[0].id);
     }
   };
 
-  const handleChange = (id: number, field: keyof WindowItem, value: any) => {
+  const handleChange = (
+    id: number,
+    field: keyof WindowItem,
+    value: string | number | boolean
+  ) => {
     if (isReadOnly) return;
 
     setLocalWindows((prev) =>
@@ -110,55 +120,41 @@ export default function ItemsStep({
 
     let val = rawValue.replace(',', '.');
     val = val.replace(/[^0-9.]/g, '');
+
     const parts = val.split('.');
     if (parts.length > 2) {
       val = parts[0] + '.' + parts.slice(1).join('');
     }
+
     handleChange(id, field, val);
   };
 
-  const getNumericItem = (item: WindowItem) => ({
+  const getNumericItem = (item: WindowItem): WindowItem => ({
     ...item,
-    widthTop: parseFloat(item.widthTop) || 0,
-    heightRight: parseFloat(item.heightRight) || 0,
-    widthBottom: parseFloat(item.widthBottom) || 0,
-    heightLeft: parseFloat(item.heightLeft) || 0,
-    kantTop: parseFloat(item.kantTop) || 0,
-    kantRight: parseFloat(item.kantRight) || 0,
-    kantBottom: parseFloat(item.kantBottom) || 0,
-    kantLeft: parseFloat(item.kantLeft) || 0,
-    diagonalLeft: parseFloat(item.diagonalLeft) || 0,
-    diagonalRight: parseFloat(item.diagonalRight) || 0,
-    crossbar: parseFloat(item.crossbar) || 0,
+    widthTop: parseFloat(String(item.widthTop)) || 0,
+    heightRight: parseFloat(String(item.heightRight)) || 0,
+    widthBottom: parseFloat(String(item.widthBottom)) || 0,
+    heightLeft: parseFloat(String(item.heightLeft)) || 0,
+    kantTop: parseFloat(String(item.kantTop)) || 0,
+    kantRight: parseFloat(String(item.kantRight)) || 0,
+    kantBottom: parseFloat(String(item.kantBottom)) || 0,
+    kantLeft: parseFloat(String(item.kantLeft)) || 0,
+    diagonalLeft: parseFloat(String(item.diagonalLeft)) || 0,
+    diagonalRight: parseFloat(String(item.diagonalRight)) || 0,
+    crossbar: parseFloat(String(item.crossbar)) || 0,
   });
 
   const handleFinalSave = async () => {
     if (isReadOnly) return;
 
     setIsSaving(true);
-    const numericItems = localWindows.map(getNumericItem);
 
-    onSave(numericItems);
-
-    if (clientId) {
-      try {
-        const result = await updateClientAction(clientId, {
-          items: numericItems,
-        });
-
-        if (result.success) {
-          alert('Все изделия успешно сохранены в базу!');
-        } else {
-          alert('Ошибка при сохранении в базу: ' + result.error);
-        }
-      } catch (err) {
-        alert('Критическая ошибка при связи с сервером');
-      }
-    } else {
-      console.warn('ClientId не передан. Данные сохранены только локально.');
+    try {
+      const numericItems = localWindows.map(getNumericItem);
+      onSave(numericItems);
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
   };
 
   return (
@@ -403,7 +399,7 @@ export default function ItemsStep({
                     <input
                       type="text"
                       value={
-                        activeItem.diagonalRight === 0
+                        Number(activeItem.diagonalRight) === 0
                           ? ''
                           : activeItem.diagonalRight
                       }
@@ -423,7 +419,7 @@ export default function ItemsStep({
                     <input
                       type="text"
                       value={
-                        activeItem.diagonalLeft === 0
+                        Number(activeItem.diagonalLeft) === 0
                           ? ''
                           : activeItem.diagonalLeft
                       }
@@ -442,9 +438,7 @@ export default function ItemsStep({
                     <label>ПАРАЛЛЕЛЬ (см)</label>
                     <input
                       type="text"
-                      value={
-                        activeItem.crossbar === 0 ? '' : activeItem.crossbar
-                      }
+                      value={Number(activeItem.crossbar) === 0 ? '' : activeItem.crossbar}
                       placeholder="0"
                       onChange={(e) =>
                         handleNumberInputChange(
@@ -479,8 +473,9 @@ export default function ItemsStep({
           {localWindows.map((win, index) => (
             <div
               key={win.id}
-              className={`${styles.tabItem} ${activeWindowId === win.id ? styles.activeTab : ''
-                }`}
+              className={`${styles.tabItem} ${
+                activeWindowId === win.id ? styles.activeTab : ''
+              }`}
               onClick={() => setActiveWindowId(win.id)}
             >
               Окно {index + 1}
@@ -494,6 +489,7 @@ export default function ItemsStep({
               )}
             </div>
           ))}
+
           {!isReadOnly && (
             <button className={styles.addTabButton} onClick={addWindow}>
               +
@@ -515,8 +511,8 @@ export default function ItemsStep({
                 Площадь:{' '}
                 <span>
                   {(
-                    (parseFloat(activeItem.widthTop || 0) *
-                      parseFloat(activeItem.heightLeft || 0)) /
+                    (parseFloat(String(activeItem.widthTop || 0)) *
+                      parseFloat(String(activeItem.heightLeft || 0))) /
                     10000
                   ).toFixed(2)}{' '}
                   м²

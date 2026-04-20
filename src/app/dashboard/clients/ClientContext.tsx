@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 import { Client } from './types';
 
 interface ClientContextType {
@@ -12,33 +12,96 @@ interface ClientContextType {
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
-// Добавляем initialClients в пропсы
-export function ClientProvider({ 
-  children, 
-  initialClients = [] 
-}: { 
-  children: React.ReactNode, 
-  initialClients?: Client[] 
-}) {
-  // Инициализируем стейт данными, которые пришли из базы через page.tsx
-  const [clients, setClients] = useState<Client[]>(initialClients);
+function normalizeClientId(id: unknown): string {
+  return String(id);
+}
 
-  // УДАЛИЛИ блоки useEffect с localStorage, так как теперь данные живут в PostgreSQL
+function normalizeClients(clients: Client[]): Client[] {
+  if (!Array.isArray(clients)) {
+    return [];
+  }
+
+  return clients.map((client) => ({
+    ...client,
+    id: normalizeClientId(client.id),
+  }));
+}
+
+interface ClientProviderProps {
+  children: React.ReactNode;
+  initialClients?: Client[];
+}
+
+export function ClientProvider({
+  children,
+  initialClients = [],
+}: ClientProviderProps) {
+  const [clients, setClients] = useState<Client[]>(() =>
+    normalizeClients(initialClients)
+  );
 
   const addClient = (client: Client) => {
-    setClients(prev => [...prev, client]);
+    const normalizedClient: Client = {
+      ...client,
+      id: normalizeClientId(client.id),
+    };
+
+    setClients((prev) => {
+      const normalizedId = normalizeClientId(normalizedClient.id);
+      const existingIndex = prev.findIndex(
+        (item) => normalizeClientId(item.id) === normalizedId
+      );
+
+      if (existingIndex === -1) {
+        return [...prev, normalizedClient];
+      }
+
+      return prev.map((item) =>
+        normalizeClientId(item.id) === normalizedId
+          ? { ...item, ...normalizedClient }
+          : item
+      );
+    });
   };
 
   const updateClient = (id: string, updates: Partial<Client>) => {
-    setClients(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    const normalizedId = normalizeClientId(id);
+
+    setClients((prev) =>
+      prev.map((client) =>
+        normalizeClientId(client.id) === normalizedId
+          ? {
+              ...client,
+              ...updates,
+              id: normalizeClientId(client.id),
+            }
+          : client
+      )
+    );
   };
 
   const deleteClient = (id: string) => {
-    setClients(prev => prev.filter(c => c.id !== id));
+    const normalizedId = normalizeClientId(id);
+
+    setClients((prev) =>
+      prev.filter(
+        (client) => normalizeClientId(client.id) !== normalizedId
+      )
+    );
   };
 
+  const value = useMemo(
+    () => ({
+      clients,
+      addClient,
+      updateClient,
+      deleteClient,
+    }),
+    [clients]
+  );
+
   return (
-    <ClientContext.Provider value={{ clients, addClient, updateClient, deleteClient }}>
+    <ClientContext.Provider value={value}>
       {children}
     </ClientContext.Provider>
   );
@@ -46,6 +109,10 @@ export function ClientProvider({
 
 export const useClients = () => {
   const context = useContext(ClientContext);
-  if (!context) throw new Error('useClients must be used within ClientProvider');
+
+  if (!context) {
+    throw new Error('useClients must be used within ClientProvider');
+  }
+
   return context;
 };

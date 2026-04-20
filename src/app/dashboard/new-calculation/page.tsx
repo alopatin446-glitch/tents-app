@@ -1,35 +1,20 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   createClientDeal,
-  updateClientDeal,
   getClientById,
+  updateClientDeal,
 } from '@/app/lib/actions';
 import styles from './calculation.module.css';
-import ClientStep from '@/components/calculation/ClientStep';
-import ItemsStep from '@/components/calculation/ItemsStep';
+import ClientStep, {
+  ClientFormData,
+} from '@/components/calculation/ClientStep';
+import ItemsStep, {
+  WindowItem,
+} from '@/components/calculation/ItemsStep';
 import FastenersStep from '@/components/calculation/FastenersStep';
-
-interface WindowItem {
-  id: number;
-  name: string;
-  widthTop: number | string;
-  heightRight: number | string;
-  widthBottom: number | string;
-  heightLeft: number | string;
-  kantTop: number | string;
-  kantRight: number | string;
-  kantBottom: number | string;
-  kantLeft: number | string;
-  kantColor: string;
-  material: string;
-  isTrapezoid: boolean;
-  diagonalLeft: number | string;
-  diagonalRight: number | string;
-  crossbar: number | string;
-}
 
 interface ClientData {
   fio: string;
@@ -37,17 +22,13 @@ interface ClientData {
   address: string;
   source: string;
   status: string;
-
   totalPrice: number;
   advance: number;
   balance: number;
   paymentType: string;
-
   measurementDate: string;
   installDate: string;
-
   items: WindowItem[];
-
   managerComment: string;
   engineerComment: string;
 }
@@ -77,23 +58,21 @@ const initialClientData: ClientData = {
   address: '',
   source: '',
   status: 'special_case',
-
   totalPrice: 0,
   advance: 0,
   balance: 0,
   paymentType: '',
-
   measurementDate: '',
   installDate: '',
-
   items: [initialWindow(1)],
-
   managerComment: '',
   engineerComment: '',
 };
 
 function normalizeNumber(value: unknown, fallback = 0): number {
-  if (value === undefined || value === null || value === '') return fallback;
+  if (value === undefined || value === null || value === '') {
+    return fallback;
+  }
 
   const normalized =
     typeof value === 'string' ? value.replace(',', '.').trim() : value;
@@ -103,9 +82,15 @@ function normalizeNumber(value: unknown, fallback = 0): number {
 }
 
 function normalizeDateForInput(value: unknown): string {
-  if (!value) return '';
+  if (!value) {
+    return '';
+  }
+
   const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
   return date.toISOString().split('T')[0];
 }
 
@@ -117,22 +102,17 @@ function normalizeWindows(items: unknown): WindowItem[] {
   return items.map((item: any, index: number) => ({
     id: Number(item?.id) || index + 1,
     name: item?.name || `Окно ${index + 1}`,
-
     widthTop: item?.widthTop ?? 0,
     heightRight: item?.heightRight ?? 0,
     widthBottom: item?.widthBottom ?? 0,
     heightLeft: item?.heightLeft ?? 0,
-
     kantTop: item?.kantTop ?? 0,
     kantRight: item?.kantRight ?? 0,
     kantBottom: item?.kantBottom ?? 0,
     kantLeft: item?.kantLeft ?? 0,
-
     kantColor: item?.kantColor || 'Коричневый',
     material: item?.material || 'ПВХ 700 мкм (Прозрачная)',
-
     isTrapezoid: Boolean(item?.isTrapezoid),
-
     diagonalLeft: item?.diagonalLeft ?? 0,
     diagonalRight: item?.diagonalRight ?? 0,
     crossbar: item?.crossbar ?? 0,
@@ -147,8 +127,8 @@ function CalculationContent() {
   const initialQueryClientId = searchParams.get('id');
   const mode = searchParams.get('mode');
   const isReadOnly = mode === 'archive';
-  const [clientId, setClientId] = useState<string | null>(initialQueryClientId);
 
+  const [clientId, setClientId] = useState<string | null>(initialQueryClientId);
   const [activeTab, setActiveTab] = useState('Клиент');
   const [clientData, setClientData] = useState<ClientData>(initialClientData);
   const [windows, setWindows] = useState<WindowItem[]>(initialClientData.items);
@@ -183,17 +163,13 @@ function CalculationContent() {
             address: dbClient.address || '',
             source: dbClient.source || '',
             status: dbClient.status || 'special_case',
-
             totalPrice: normalizeNumber(dbClient.totalPrice, 0),
             advance: normalizeNumber(dbClient.advance, 0),
             balance: normalizeNumber(dbClient.balance, 0),
             paymentType: dbClient.paymentType || '',
-
             measurementDate: normalizeDateForInput(dbClient.measurementDate),
             installDate: normalizeDateForInput(dbClient.installDate),
-
             items: normalizedItems,
-
             managerComment: dbClient.managerComment || '',
             engineerComment: dbClient.engineerComment || '',
           });
@@ -217,49 +193,91 @@ function CalculationContent() {
     'Для производства',
   ];
 
-  const handleSaveClient = async (updatedData: Partial<ClientData>) => {
+  const buildClientSnapshot = (
+    baseData: ClientData,
+    overrides: Partial<ClientData> = {},
+    forcedWindows?: WindowItem[]
+  ): ClientData => {
     const nextTotalPrice = normalizeNumber(
-      updatedData?.totalPrice ?? clientData.totalPrice,
+      overrides.totalPrice ?? baseData.totalPrice,
       0
     );
+
     const nextAdvance = normalizeNumber(
-      updatedData?.advance ?? clientData.advance,
+      overrides.advance ?? baseData.advance,
       0
     );
 
     const hasExplicitBalance =
-      updatedData?.balance !== undefined &&
-      updatedData?.balance !== null &&
-      String(updatedData.balance).trim() !== '';
+      overrides.balance !== undefined &&
+      overrides.balance !== null &&
+      String(overrides.balance).trim() !== '';
 
     const nextBalance = hasExplicitBalance
-      ? normalizeNumber(updatedData.balance, 0)
+      ? normalizeNumber(overrides.balance, 0)
       : nextTotalPrice - nextAdvance;
 
-    const syncedItems = Array.isArray(windows) && windows.length > 0
-      ? windows
-      : Array.isArray(clientData.items) && clientData.items.length > 0
-        ? clientData.items
-        : [initialWindow(1)];
+    const syncedItems =
+      Array.isArray(forcedWindows) && forcedWindows.length > 0
+        ? forcedWindows
+        : Array.isArray(overrides.items) && overrides.items.length > 0
+          ? overrides.items
+          : Array.isArray(baseData.items) && baseData.items.length > 0
+            ? baseData.items
+            : [initialWindow(1)];
 
-    const normalizedData: ClientData = {
-      ...clientData,
-      ...updatedData,
-
+    return {
+      ...baseData,
+      ...overrides,
       totalPrice: nextTotalPrice,
       advance: nextAdvance,
       balance: nextBalance,
-
       items: syncedItems,
-
-      managerComment:
-        updatedData?.managerComment ?? clientData.managerComment ?? '',
+      managerComment: overrides.managerComment ?? baseData.managerComment ?? '',
       engineerComment:
-        updatedData?.engineerComment ?? clientData.engineerComment ?? '',
+        overrides.engineerComment ?? baseData.engineerComment ?? '',
     };
+  };
+
+  const handleSaveClient = async (updatedData: Partial<ClientFormData>) => {
+    const normalizedItems = Array.isArray(updatedData.items)
+      ? normalizeWindows(updatedData.items)
+      : windows;
+
+    const normalizedData = buildClientSnapshot(
+      clientData,
+      {
+        fio: updatedData.fio ?? clientData.fio,
+        phone: updatedData.phone ?? clientData.phone,
+        address: updatedData.address ?? clientData.address,
+        source: updatedData.source ?? clientData.source,
+        status: updatedData.status ?? clientData.status,
+        totalPrice:
+          updatedData.totalPrice !== undefined
+            ? normalizeNumber(updatedData.totalPrice, 0)
+            : clientData.totalPrice,
+        advance:
+          updatedData.advance !== undefined
+            ? normalizeNumber(updatedData.advance, 0)
+            : clientData.advance,
+        balance:
+          updatedData.balance !== undefined
+            ? normalizeNumber(updatedData.balance, 0)
+            : clientData.balance,
+        paymentType: updatedData.paymentType ?? clientData.paymentType,
+        measurementDate:
+          updatedData.measurementDate ?? clientData.measurementDate,
+        installDate: updatedData.installDate ?? clientData.installDate,
+        items: normalizedItems,
+        managerComment: updatedData.managerComment ?? clientData.managerComment,
+        engineerComment:
+          updatedData.engineerComment ?? clientData.engineerComment,
+      },
+      normalizedItems
+    );
 
     setClientData(normalizedData);
-    setWindows(syncedItems);
+    setWindows(normalizedData.items);
 
     try {
       if (clientId) {
@@ -279,7 +297,7 @@ function CalculationContent() {
           alert('Клиент создан!');
         }
       }
-    } catch (e) {
+    } catch (error) {
       alert('Ошибка базы');
     }
   };
@@ -290,28 +308,29 @@ function CalculationContent() {
 
   const handleSaveItems = async (updatedWindows: WindowItem[]) => {
     const normalizedWindows = normalizeWindows(updatedWindows);
+    const nextClientData = buildClientSnapshot(
+      clientData,
+      { items: normalizedWindows },
+      normalizedWindows
+    );
 
     setWindows(normalizedWindows);
-    setClientData((prev) => ({
-      ...prev,
-      items: normalizedWindows,
-    }));
+    setClientData(nextClientData);
 
     if (!clientId) {
       return;
     }
 
     try {
-      await updateClientDeal(clientId, {
-        ...clientData,
-        items: normalizedWindows,
-      });
-    } catch (e) {
-      console.error('Ошибка сохранения изделий:', e);
+      await updateClientDeal(clientId, nextClientData);
+    } catch (error) {
+      console.error('Ошибка сохранения изделий:', error);
     }
   };
 
-  const handleSaveFasteners = () => console.log('SAVE');
+  const handleSaveFasteners = () => {
+    console.log('SAVE');
+  };
 
   return (
     <main className={styles.mainContainer}>
@@ -328,7 +347,9 @@ function CalculationContent() {
           {menuItems.map((item) => (
             <button
               key={item}
-              className={`${styles.navButton} ${activeTab === item ? styles.active : ''}`}
+              className={`${styles.navButton} ${
+                activeTab === item ? styles.active : ''
+              }`}
               onClick={() => setActiveTab(item)}
             >
               {item}
@@ -338,8 +359,9 @@ function CalculationContent() {
       </aside>
 
       <section
-        className={`${styles.contentArea} ${activeTab === 'Изделия' ? styles.wideContent : ''
-          }`}
+        className={`${styles.contentArea} ${
+          activeTab === 'Изделия' ? styles.wideContent : ''
+        }`}
       >
         {activeTab === 'Клиент' &&
           (clientId && isLoadingClient ? (
@@ -368,10 +390,12 @@ function CalculationContent() {
           />
         )}
 
-        {activeTab === 'Крепежи' && <FastenersStep
-          onSave={handleSaveFasteners}
-          isReadOnly={isReadOnly}
-        />}
+        {activeTab === 'Крепежи' && (
+          <FastenersStep
+            onSave={handleSaveFasteners}
+            isReadOnly={isReadOnly}
+          />
+        )}
 
         {!['Клиент', 'Изделия', 'Крепежи'].includes(activeTab) && (
           <div className={styles.placeholder}>
