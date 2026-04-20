@@ -12,7 +12,15 @@ export interface Client {
   phone: string;
   address: string;
   totalPrice: number;
-  status: 'negotiation' | 'waiting_measure' | 'promised_pay' | 'waiting_production' | 'waiting_install' | 'special_case';
+  status:
+    | 'negotiation'
+    | 'waiting_measure'
+    | 'promised_pay'
+    | 'waiting_production'
+    | 'waiting_install'
+    | 'special_case'
+    | 'completed'
+    | 'rejected';
   createdAt: string;
   products: Product[]; // Массив изделий из твоего 1-го скрина
   comment?: string;
