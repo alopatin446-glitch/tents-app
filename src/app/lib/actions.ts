@@ -1,6 +1,6 @@
 'use server';
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 
 const prisma = new PrismaClient();
@@ -34,9 +34,14 @@ function toNullableDate(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function toJsonItems(value: unknown) {
-  if (value === undefined || value === null || value === '') return null;
-  return value;
+function toJsonItems(
+  value: unknown
+): Prisma.InputJsonValue | typeof Prisma.JsonNull {
+  if (value === undefined || value === null || value === '') {
+    return Prisma.JsonNull;
+  }
+
+  return value as Prisma.InputJsonValue;
 }
 
 function buildCleanClientData(data: any) {
@@ -75,7 +80,6 @@ function buildCleanClientData(data: any) {
   };
 }
 
-// 1. ПОЛУЧЕНИЕ КЛИЕНТА ПО ID
 export async function getClientById(id: string) {
   try {
     const client = await prisma.client.findUnique({
@@ -93,7 +97,6 @@ export async function getClientById(id: string) {
   }
 }
 
-// 2. ОБНОВЛЕНИЕ КЛИЕНТА
 export async function updateClientDeal(id: string, data: any) {
   console.log('--- СЕРВЕР: ОБНОВЛЕНИЕ ДАННЫХ ---', id);
 
@@ -115,7 +118,6 @@ export async function updateClientDeal(id: string, data: any) {
   }
 }
 
-// 3. СОЗДАНИЕ КЛИЕНТА
 export async function createClientDeal(data: any) {
   console.log('--- СЕРВЕР: ПОЛУЧЕНЫ ДАННЫЕ (NEW) ---', data);
 
@@ -132,6 +134,9 @@ export async function createClientDeal(data: any) {
     return { success: true, id: newClient.id };
   } catch (error: any) {
     console.error('Ошибка createClientDeal:', error);
-    return { success: false, error: error.message || 'Ошибка при создании записи' };
+    return {
+      success: false,
+      error: error.message || 'Ошибка при создании записи',
+    };
   }
 }
