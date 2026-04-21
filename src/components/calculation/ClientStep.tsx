@@ -82,6 +82,7 @@ export type ClientStepData = ClientFormData;
 interface ClientStepProps {
   initialData: ClientFormData;
   onSave: (data: ClientFormData) => void | Promise<void>;
+  onDraftChange?: (data: ClientFormData) => void;
   onClose: () => void;
   isReadOnly?: boolean;
 }
@@ -113,6 +114,7 @@ function normalizeNumber(value: unknown, fallback = 0): number {
 export default function ClientStep({
   initialData,
   onSave,
+  onDraftChange,
   onClose,
   isReadOnly = false,
 }: ClientStepProps) {
@@ -151,7 +153,10 @@ export default function ClientStep({
         [name]: nextValue,
       };
 
-      onSave(newData);
+      if (onDraftChange) {
+        setTimeout(() => onDraftChange(newData), 0);
+      }
+
       return newData;
     });
   };

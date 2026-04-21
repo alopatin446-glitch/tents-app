@@ -1,21 +1,18 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   createClientDeal,
-  getClientById,
   updateClientDeal,
+  getClientById,
 } from '@/app/lib/actions';
 import styles from './calculation.module.css';
-import ClientStep, {
-  ClientFormData,
-} from '@/components/calculation/ClientStep';
-import ItemsStep, {
-  WindowItem,
-} from '@/components/calculation/ItemsStep';
+import ClientStep from '@/components/calculation/ClientStep';
+import ItemsStep, { WindowItem } from '@/components/calculation/ItemsStep';
 import FastenersStep from '@/components/calculation/FastenersStep';
 
+// Описываем типы так, чтобы они принимали только конкретные значения (без null)
 interface ClientData {
   fio: string;
   phone: string;
@@ -69,39 +66,28 @@ const initialClientData: ClientData = {
   engineerComment: '',
 };
 
+// Хелпер для очистки данных от null/undefined
+const safeStr = (v: any) => v ?? '';
+
 function normalizeNumber(value: unknown, fallback = 0): number {
-  if (value === undefined || value === null || value === '') {
-    return fallback;
-  }
-
-  const normalized =
-    typeof value === 'string' ? value.replace(',', '.').trim() : value;
-
+  if (value === undefined || value === null || value === '') return fallback;
+  const normalized = typeof value === 'string' ? value.replace(',', '.').trim() : value;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function normalizeDateForInput(value: unknown): string {
-  if (!value) {
-    return '';
-  }
-
+  if (!value) return '';
   const date = new Date(String(value));
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
+  if (Number.isNaN(date.getTime())) return '';
   return date.toISOString().split('T')[0];
 }
 
 function normalizeWindows(items: unknown): WindowItem[] {
-  if (!Array.isArray(items) || items.length === 0) {
-    return [initialWindow(1)];
-  }
-
+  if (!Array.isArray(items) || items.length === 0) return [initialWindow(1)];
   return items.map((item: any, index: number) => ({
     id: Number(item?.id) || index + 1,
-    name: item?.name || `Окно ${index + 1}`,
+    name: safeStr(item?.name) || `Окно ${index + 1}`,
     widthTop: item?.widthTop ?? 0,
     heightRight: item?.heightRight ?? 0,
     widthBottom: item?.widthBottom ?? 0,
@@ -110,8 +96,8 @@ function normalizeWindows(items: unknown): WindowItem[] {
     kantRight: item?.kantRight ?? 0,
     kantBottom: item?.kantBottom ?? 0,
     kantLeft: item?.kantLeft ?? 0,
-    kantColor: item?.kantColor || 'Коричневый',
-    material: item?.material || 'ПВХ 700 мкм (Прозрачная)',
+    kantColor: safeStr(item?.kantColor) || 'Коричневый',
+    material: safeStr(item?.material) || 'ПВХ 700 мкм (Прозрачная)',
     isTrapezoid: Boolean(item?.isTrapezoid),
     diagonalLeft: item?.diagonalLeft ?? 0,
     diagonalRight: item?.diagonalRight ?? 0,
@@ -127,228 +113,117 @@ function CalculationContent() {
   const initialQueryClientId = searchParams.get('id');
   const mode = searchParams.get('mode');
   const isReadOnly = mode === 'archive';
-
   const [clientId, setClientId] = useState<string | null>(initialQueryClientId);
+
   const [activeTab, setActiveTab] = useState('Клиент');
-  const [clientData, setClientData] = useState<ClientData>(initialClientData);
-  const [windows, setWindows] = useState<WindowItem[]>(initialClientData.items);
+
+  // Основные стейты
+  const [clientDraft, setClientDraft] = useState<ClientData>(initialClientData);
+  const [windowsDraft, setWindowsDraft] = useState<WindowItem[]>(initialClientData.items);
   const [isLoadingClient, setIsLoadingClient] = useState(false);
 
   useEffect(() => {
-    setClientId(initialQueryClientId);
-  }, [initialQueryClientId]);
-
-  useEffect(() => {
     async function fetchClient() {
-      if (!clientId) {
-        setClientData(initialClientData);
-        setWindows(initialClientData.items);
-        return;
-      }
-
+      if (!clientId) return;
       setIsLoadingClient(true);
-
       try {
         const result = await getClientById(clientId);
-
         if (result.success && result.data) {
-          const dbClient = result.data;
-          const normalizedItems = normalizeWindows(dbClient.items);
+          const db = result.data;
+          const normalizedItems = normalizeWindows(db.items);
 
-          setWindows(normalizedItems);
-
-          setClientData({
-            fio: dbClient.fio || '',
-            phone: dbClient.phone || '',
-            address: dbClient.address || '',
-            source: dbClient.source || '',
-            status: dbClient.status || 'special_case',
-            totalPrice: normalizeNumber(dbClient.totalPrice, 0),
-            advance: normalizeNumber(dbClient.advance, 0),
-            balance: normalizeNumber(dbClient.balance, 0),
-            paymentType: dbClient.paymentType || '',
-            measurementDate: normalizeDateForInput(dbClient.measurementDate),
-            installDate: normalizeDateForInput(dbClient.installDate),
+          const mapped: ClientData = {
+            fio: safeStr(db.fio),
+            phone: safeStr(db.phone),
+            address: safeStr(db.address),
+            source: safeStr(db.source),
+            status: safeStr(db.status) || 'special_case',
+            totalPrice: normalizeNumber(db.totalPrice),
+            advance: normalizeNumber(db.advance),
+            balance: normalizeNumber(db.balance),
+            paymentType: safeStr(db.paymentType),
+            measurementDate: normalizeDateForInput(db.measurementDate),
+            installDate: normalizeDateForInput(db.installDate),
             items: normalizedItems,
-            managerComment: dbClient.managerComment || '',
-            engineerComment: dbClient.engineerComment || '',
-          });
+            managerComment: safeStr(db.managerComment),
+            engineerComment: safeStr(db.engineerComment),
+          };
+          setClientDraft(mapped);
+          setWindowsDraft(normalizedItems);
         }
       } finally {
         setIsLoadingClient(false);
       }
     }
-
     fetchClient();
   }, [clientId]);
 
-  const menuItems = [
-    'Клиент',
-    'Изделия',
-    'Крепежи',
-    'Дополнения',
-    'Каркас',
-    'Расчёт',
-    'Цены',
-    'Для производства',
-  ];
-
-  const buildClientSnapshot = (
-    baseData: ClientData,
-    overrides: Partial<ClientData> = {},
-    forcedWindows?: WindowItem[]
-  ): ClientData => {
-    const nextTotalPrice = normalizeNumber(
-      overrides.totalPrice ?? baseData.totalPrice,
-      0
-    );
-
-    const nextAdvance = normalizeNumber(
-      overrides.advance ?? baseData.advance,
-      0
-    );
-
-    const hasExplicitBalance =
-      overrides.balance !== undefined &&
-      overrides.balance !== null &&
-      String(overrides.balance).trim() !== '';
-
-    const nextBalance = hasExplicitBalance
-      ? normalizeNumber(overrides.balance, 0)
-      : nextTotalPrice - nextAdvance;
-
-    const syncedItems =
-      Array.isArray(forcedWindows) && forcedWindows.length > 0
-        ? forcedWindows
-        : Array.isArray(overrides.items) && overrides.items.length > 0
-          ? overrides.items
-          : Array.isArray(baseData.items) && baseData.items.length > 0
-            ? baseData.items
-            : [initialWindow(1)];
-
-    return {
-      ...baseData,
-      ...overrides,
-      totalPrice: nextTotalPrice,
-      advance: nextAdvance,
-      balance: nextBalance,
-      items: syncedItems,
-      managerComment: overrides.managerComment ?? baseData.managerComment ?? '',
-      engineerComment:
-        overrides.engineerComment ?? baseData.engineerComment ?? '',
-    };
+  const handleTabChange = async (nextTab: string) => {
+    if (activeTab === nextTab) return;
+    if (!isReadOnly && clientId) {
+      // Сохраняем черновик при переходе
+      await updateClientDeal(clientId, { ...clientDraft, items: windowsDraft });
+    }
+    setActiveTab(nextTab);
   };
 
-  const handleSaveClient = async (updatedData: Partial<ClientFormData>) => {
-    const normalizedItems = Array.isArray(updatedData.items)
-      ? normalizeWindows(updatedData.items)
-      : windows;
+  const handleSaveClient = async (updatedData: any) => {
+    const nextTotalPrice = normalizeNumber(updatedData?.totalPrice ?? clientDraft.totalPrice, 0);
+    const nextAdvance = normalizeNumber(updatedData?.advance ?? clientDraft.advance, 0);
 
-    const normalizedData = buildClientSnapshot(
-      clientData,
-      {
-        fio: updatedData.fio ?? clientData.fio,
-        phone: updatedData.phone ?? clientData.phone,
-        address: updatedData.address ?? clientData.address,
-        source: updatedData.source ?? clientData.source,
-        status: updatedData.status ?? clientData.status,
-        totalPrice:
-          updatedData.totalPrice !== undefined
-            ? normalizeNumber(updatedData.totalPrice, 0)
-            : clientData.totalPrice,
-        advance:
-          updatedData.advance !== undefined
-            ? normalizeNumber(updatedData.advance, 0)
-            : clientData.advance,
-        balance:
-          updatedData.balance !== undefined
-            ? normalizeNumber(updatedData.balance, 0)
-            : clientData.balance,
-        paymentType: updatedData.paymentType ?? clientData.paymentType,
-        measurementDate: (updatedData.measurementDate ?? clientData.measurementDate) as any,
-        installDate: (updatedData.installDate ?? clientData.installDate) as any,
-        items: normalizedItems,
-        managerComment: updatedData.managerComment ?? clientData.managerComment,
-        engineerComment:
-          updatedData.engineerComment ?? clientData.engineerComment,
-      },
-      normalizedItems
-    );
+    const normalizedData: ClientData = {
+      ...clientDraft,
+      ...updatedData,
+      fio: safeStr(updatedData.fio ?? clientDraft.fio),
+      totalPrice: nextTotalPrice,
+      advance: nextAdvance,
+      balance: nextTotalPrice - nextAdvance,
+      items: windowsDraft,
+    };
 
-    setClientData(normalizedData);
-    setWindows(normalizedData.items);
+    setClientDraft(normalizedData);
 
     try {
       if (clientId) {
-        const result = await updateClientDeal(clientId, normalizedData);
-        if (result.success) {
-          alert('Данные сохранены!');
-        }
+        await updateClientDeal(clientId, normalizedData);
+        alert('Данные сохранены!');
       } else {
         const result = await createClientDeal(normalizedData);
-
         if (result.success && result.id) {
-          const newId = result.id as string;
-
-          setClientId(newId);
-          router.replace(`${pathname}?id=${newId}`);
-
+          setClientId(result.id);
+          router.replace(`${pathname}?id=${result.id}`);
           alert('Клиент создан!');
         }
       }
-    } catch (error) {
-      alert('Ошибка базы');
-    }
-  };
-
-  const handleExit = () => {
-    router.push('/dashboard');
+    } catch { alert('Ошибка базы'); }
   };
 
   const handleSaveItems = async (updatedWindows: WindowItem[]) => {
-    const normalizedWindows = normalizeWindows(updatedWindows);
-    const nextClientData = buildClientSnapshot(
-      clientData,
-      { items: normalizedWindows },
-      normalizedWindows
-    );
+    const normalized = normalizeWindows(updatedWindows);
+    setWindowsDraft(normalized);
+    setClientDraft(prev => ({ ...prev, items: normalized }));
 
-    setWindows(normalizedWindows);
-    setClientData(nextClientData);
-
-    if (!clientId) {
-      return;
-    }
-
+    if (!clientId) return;
     try {
-      await updateClientDeal(clientId, nextClientData);
-    } catch (error) {
-      console.error('Ошибка сохранения изделий:', error);
-    }
+      await updateClientDeal(clientId, { ...clientDraft, items: normalized });
+      alert('Изделия сохранены!');
+    } catch (e) { console.error('Ошибка:', e); }
   };
 
-  const handleSaveFasteners = () => {
-    console.log('SAVE');
-  };
+  const menuItems = ['Клиент', 'Изделия', 'Крепежи', 'Дополнения', 'Каркас', 'Расчёт', 'Цены', 'Для производства'];
 
   return (
     <main className={styles.mainContainer}>
       <aside className={styles.sidebar}>
         <div className={styles.orderBadge}>
-          {isReadOnly
-            ? `АРХИВ ID: ${clientId?.slice(-4) || '----'}`
-            : clientId
-              ? `РЕДАКТИРОВАНИЕ ID: ${clientId.slice(-4)}`
-              : 'ЗАКАЗ: НОВЫЙ'}
+          {clientId ? `ID: ${clientId.slice(-4)}` : 'НОВЫЙ'}
         </div>
-
         <nav className={styles.navMenu}>
           {menuItems.map((item) => (
             <button
               key={item}
-              className={`${styles.navButton} ${activeTab === item ? styles.active : ''
-                }`}
-              onClick={() => setActiveTab(item)}
+              className={`${styles.navButton} ${activeTab === item ? styles.active : ''}`}
+              onClick={() => handleTabChange(item)}
             >
               {item}
             </button>
@@ -356,43 +231,37 @@ function CalculationContent() {
         </nav>
       </aside>
 
-      <section
-        className={`${styles.contentArea} ${activeTab === 'Изделия' ? styles.wideContent : ''
-          }`}
-      >
-        {activeTab === 'Клиент' &&
-          (clientId && isLoadingClient ? (
-            <div style={{ padding: '40px', color: '#00f3ff', textAlign: 'center' }}>
-              <h2>ЗАГРУЗКА ДАННЫХ ИЗ БАЗЫ...</h2>
-            </div>
-          ) : (
-            <ClientStep
-              key={`${clientId || 'new'}-${isReadOnly ? 'archive' : 'edit'}`}
-              initialData={{
-                ...clientData,
-                items: windows,
-              }}
-              onSave={handleSaveClient}
-              onClose={handleExit}
-              isReadOnly={isReadOnly}
-            />
-          ))}
+      <section className={`${styles.contentArea} ${activeTab === 'Изделия' ? styles.wideContent : ''}`}>
+        {activeTab === 'Клиент' && (
+          <ClientStep
+            key={clientId || 'new'}
+            initialData={{ ...clientDraft, items: windowsDraft }}
+            onDraftChange={(data: any) => setClientDraft(prev => ({
+              ...prev,
+              ...data,
+              fio: safeStr(data.fio ?? prev.fio)
+            }))}
+            onSave={handleSaveClient}
+            onClose={() => router.push('/dashboard')}
+            isReadOnly={isReadOnly}
+          />
+        )}
 
         {activeTab === 'Изделия' && (
           <ItemsStep
-            windows={windows}
+            key={`items-${clientId || 'new'}-${windowsDraft.length}`} // Добавлен ключ для сброса стейта внутри компонента
+            windows={windowsDraft.length > 0 ? windowsDraft : [initialWindow(1)]}
+            onDraftChange={(items) => {
+              setWindowsDraft(items);
+              setClientDraft(prev => ({ ...prev, items }));
+            }}
             onSave={handleSaveItems}
             clientId={clientId || undefined}
             isReadOnly={isReadOnly}
           />
         )}
 
-        {activeTab === 'Крепежи' && (
-          <FastenersStep
-            onSave={handleSaveFasteners}
-            isReadOnly={isReadOnly}
-          />
-        )}
+        {activeTab === 'Крепежи' && <FastenersStep onSave={() => { }} isReadOnly={isReadOnly} />}
 
         {!['Клиент', 'Изделия', 'Крепежи'].includes(activeTab) && (
           <div className={styles.placeholder}>
@@ -406,9 +275,5 @@ function CalculationContent() {
 }
 
 export default function NewCalculation() {
-  return (
-    <Suspense fallback={<div>Загрузка...</div>}>
-      <CalculationContent />
-    </Suspense>
-  );
+  return <Suspense fallback={<div>Загрузка...</div>}><CalculationContent /></Suspense>;
 }
