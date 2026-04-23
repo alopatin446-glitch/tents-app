@@ -2,10 +2,9 @@
  * ЕДИНЫЙ РЕЕСТР ТИПОВ ПРОЕКТА
  *
  * Содержит:
- *   - WindowItem и вспомогательные типы (бывший window.ts)
- *   - Client, Stage для UI-слоя
- *
- * Все импорты в проекте используют '@/types'
+ * - Типы крепежа: FastenerType, FastenerFinish, FastenerConfig
+ * - WindowItem с полем fasteners
+ * - Client, Stage для UI-слоя
  *
  * @module src/types/index.ts
  */
@@ -13,17 +12,59 @@
 import { type ClientStatus } from '@/lib/logic/statusDictionary';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WindowItem — типы изделий
+// Типы крепежа
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Допустимые материалы полотна. Расширять только здесь. */
+export type FastenerType =
+  | 'eyelet_10'
+  | 'strap'
+  | 'staple_pa'
+  | 'staple_metal'
+  | 'french_lock'
+  | 'none';
+
+export type FastenerFinish = 'zinc' | 'black' | 'color' | null;
+
+export type FastenerSideState = 'default' | boolean;
+
+export interface FastenerSides {
+  top: FastenerSideState;
+  right: boolean;
+  bottom: boolean;
+  left: boolean;
+}
+
+export interface FastenerConfig {
+  type: FastenerType;
+  sides: FastenerSides;
+  finish: FastenerFinish;
+}
+
+/**
+ * Инициализация конфига крепежа по умолчанию.
+ * Название изменено на getInitialFastener для сброса кеша Turbopack.
+ */
+export function getInitialFastener(): FastenerConfig {
+  return {
+    type: 'none',
+    sides: { top: false, right: false, bottom: false, left: false },
+    finish: null,
+  };
+}
+
+// Алиас для совместимости, если где-то остался старый импорт
+export const getDefaultFastenerConfig = getInitialFastener;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WindowItem
+// ─────────────────────────────────────────────────────────────────────────────
+
 export type WindowMaterial =
   | 'ПВХ 700 мкм (Прозрачная)'
   | 'ПВХ 700 мкм (Тонированная)'
   | 'ТПУ Полиуретан'
   | 'Москитная сетка';
 
-/** Допустимые цвета канта. Расширять только здесь. */
 export type KantColor =
   | 'Белый'
   | 'Светло-серый'
@@ -34,36 +75,15 @@ export type KantColor =
   | 'Бежевый'
   | 'Синий';
 
-/** Числовые геометрические поля изделия. */
 export type WindowNumericField =
-  | 'widthTop'
-  | 'heightRight'
-  | 'widthBottom'
-  | 'heightLeft'
-  | 'kantTop'
-  | 'kantRight'
-  | 'kantBottom'
-  | 'kantLeft'
-  | 'diagonalLeft'
-  | 'diagonalRight'
-  | 'crossbar';
+  | 'widthTop' | 'heightRight' | 'widthBottom' | 'heightLeft'
+  | 'kantTop' | 'kantRight' | 'kantBottom' | 'kantLeft'
+  | 'diagonalLeft' | 'diagonalRight' | 'crossbar';
 
-/** Строковые редактируемые поля изделия. */
 export type WindowTextField = 'name' | 'kantColor' | 'material';
-
-/** Булевые редактируемые поля изделия. */
 export type WindowBooleanField = 'isTrapezoid';
+export type WindowEditableField = WindowNumericField | WindowTextField | WindowBooleanField;
 
-/** Объединение всех редактируемых полей. */
-export type WindowEditableField =
-  | WindowNumericField
-  | WindowTextField
-  | WindowBooleanField;
-
-/**
- * Полное описание одного изделия (окна/полотна).
- * Все числовые поля — строго number.
- */
 export interface WindowItem {
   id: number;
   name: string;
@@ -81,11 +101,9 @@ export interface WindowItem {
   diagonalLeft: number;
   diagonalRight: number;
   crossbar: number;
+  fasteners?: FastenerConfig;
 }
 
-/**
- * Возвращает новый WindowItem с безопасными дефолтами.
- */
 export function createDefaultWindowItem(id: number, index: number): WindowItem {
   return {
     id,
@@ -104,27 +122,21 @@ export function createDefaultWindowItem(id: number, index: number): WindowItem {
     diagonalLeft: 0,
     diagonalRight: 0,
     crossbar: 0,
+    fasteners: getInitialFastener(),
   };
 }
 
-/**
- * Type guard: проверяет, является ли объект валидным WindowItem.
- */
 export function isWindowItem(value: unknown): value is WindowItem {
   if (typeof value !== 'object' || value === null) return false;
-
   const obj = value as Record<string, unknown>;
-
   const numericFields: WindowNumericField[] = [
     'widthTop', 'heightRight', 'widthBottom', 'heightLeft',
     'kantTop', 'kantRight', 'kantBottom', 'kantLeft',
     'diagonalLeft', 'diagonalRight', 'crossbar',
   ];
-
   const allNumericValid = numericFields.every(
     (field) => typeof obj[field] === 'number' && Number.isFinite(obj[field] as number)
   );
-
   return (
     typeof obj['id'] === 'number' &&
     typeof obj['name'] === 'string' &&
@@ -135,54 +147,35 @@ export function isWindowItem(value: unknown): value is WindowItem {
   );
 }
 
-/**
- * Парсит массив из JSON-поля БД в WindowItem[].
- * Невалидные записи отфильтровываются.
- */
 export function parseWindowItems(raw: unknown): WindowItem[] {
   if (!Array.isArray(raw)) return [];
-
-  return raw.filter((item): item is WindowItem => {
-    const valid = isWindowItem(item);
-    if (!valid) {
+  return raw.reduce<WindowItem[]>((acc, item) => {
+    if (!isWindowItem(item)) {
       console.warn('[parseWindowItems] Пропущена невалидная запись:', item);
+      return acc;
     }
-    return valid;
-  });
+    acc.push({ 
+      ...item, 
+      fasteners: item.fasteners ?? getInitialFastener() 
+    });
+    return acc;
+  }, []);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Client, Stage — типы UI-слоя
+// Client, Stage
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** @deprecated Используйте WindowItem */
-export interface Product {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-}
+export interface Product { id: string; name: string; quantity: number; price: number; }
 
 export interface Client {
-  id: string;
-  fio: string;
-  phone: string;
-  address: string | null;
-  source?: string | null;
-  totalPrice: number;
-  advance?: number;
-  balance?: number;
-  paymentType?: string | null;
-  status: ClientStatus;
-  createdAt: string | Date;
-  measurementDate?: string | Date | null;
-  installDate?: string | Date | null;
-  items?: WindowItem[] | null;
-  managerComment?: string | null;
-  engineerComment?: string | null;
+  id: string; fio: string; phone: string; address: string | null;
+  source?: string | null; totalPrice: number; advance?: number;
+  balance?: number; paymentType?: string | null; status: ClientStatus;
+  createdAt: string | Date; measurementDate?: string | Date | null;
+  installDate?: string | Date | null; items?: WindowItem[] | null;
+  managerComment?: string | null; engineerComment?: string | null;
 }
 
-export interface Stage {
-  id: ClientStatus;
-  title: string;
-}
+export interface Stage { id: ClientStatus; title: string; }

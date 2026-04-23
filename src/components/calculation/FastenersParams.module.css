@@ -1,0 +1,235 @@
+/**
+ * FastenersParams.module.css
+ * Стили панели настройки крепежа. Визуальный стиль — Neon Dark,
+ * согласован с ItemsStep и ClientStep (овальные инпуты, зелёный акцент).
+ */
+
+/* ── Обёртка ─────────────────────────────────────────────────────────────── */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 0;
+}
+
+/* ── Секция (тип / стороны / отделка) ───────────────────────────────────── */
+
+.formSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sectionLabel {
+  font-size: 0.7rem;
+  color: #7bff00;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+  font-weight: 700;
+}
+
+.sideHint {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ── Селект типа крепежа ─────────────────────────────────────────────────── */
+
+.selectWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.selectInput {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  color: #ffffff;
+  padding: 11px 36px 11px 18px;
+  border-radius: 30px;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.selectInput:focus {
+  border-color: #7bff00;
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.2);
+}
+
+.selectInput option {
+  background-color: #1a2640;
+  color: #ffffff;
+}
+
+.selectArrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #7bff00;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Сетка сторон (2×2) ──────────────────────────────────────────────────── */
+
+.sidesGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Кнопка стороны — базовый стиль */
+.sideBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.5);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 62px;
+}
+
+.sideBtn:hover:not(:disabled) {
+  border-color: rgba(123, 255, 0, 0.4);
+}
+
+.sideBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 'default' — серый (люверс Ø10) */
+.sideBtnDefault {
+  border-color: rgba(180, 180, 180, 0.4);
+  background: rgba(100, 100, 100, 0.15);
+  color: rgba(200, 200, 200, 0.9);
+}
+
+/* true — зелёный (активный крепёж) */
+.sideBtnActive {
+  border-color: #7bff00;
+  background: rgba(123, 255, 0, 0.08);
+  color: #7bff00;
+  box-shadow: 0 0 12px rgba(123, 255, 0, 0.15);
+}
+
+/* false — выключен */
+.sideBtnInactive {
+  border-color: rgba(255, 77, 77, 0.3);
+  background: rgba(255, 77, 77, 0.05);
+  color: rgba(255, 100, 100, 0.7);
+}
+
+.sideBtnIcon {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.sideBtnLabel {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.sideBtnHint {
+  font-size: 0.58rem;
+  opacity: 0.7;
+  letter-spacing: 0.04em;
+}
+
+/* ── Отделка (radio-кнопки) ──────────────────────────────────────────────── */
+
+.finishGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.finishBtn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 18px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.5);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.82rem;
+}
+
+.finishBtn:hover:not(:disabled) {
+  border-color: rgba(123, 255, 0, 0.35);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.finishBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.finishBtnActive {
+  border-color: #7bff00;
+  background: rgba(123, 255, 0, 0.08);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.15);
+}
+
+.finishLabel {
+  font-weight: 600;
+}
+
+.finishPremium {
+  font-size: 0.72rem;
+  color: #7bff00;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+/* ── Итоговый блок ───────────────────────────────────────────────────────── */
+
+.summaryBlock {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.summaryRow strong {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
