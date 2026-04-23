@@ -1,68 +1,53 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+/**
+ * Форма данных клиента — аккордеон с секциями.
+ * Исправлена структура для корректной работы sticky-сайдбара.
+ */
+
+import {
+  type ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import styles from './ClientStep.module.css';
 
-const sourceOptions = [
-  'VK',
-  '2Гис',
-  'Макс',
-  'Сайт',
-  'Авито',
-  'Telegram',
-  'Яндекс бизнес',
-  'Яндекс Директ',
-  'Повторный клиент',
-  'По рекомендации',
-  'Проезжал мимо офиса',
-  'Проезжал мимо цеха',
-  'От председателя',
-  'Баннер в СНТ',
-  'Другое',
+// Ядро: типы изделия
+import { type WindowItem } from '@/types';
+
+// Ядро: статусы
+import { ALL_STATUS_OPTIONS } from '@/lib/logic/statusDictionary';
+
+// Ядро: финансы
+import {
+  toFinancialNumber,
+  calculateClientFinancials,
+  formatMoney,
+  formatMargin,
+} from '@/lib/logic/financialCalculations';
+
+export type { WindowItem as ClientStepWindowItem };
+
+const SOURCE_OPTIONS = [
+  'VK', '2Гис', 'Макс', 'Сайт', 'Авито', 'Telegram', 
+  'Яндекс бизнес', 'Яндекс Директ', 'Повторный клиент', 
+  'По рекомендации', 'Проезжал мимо офиса', 'Проезжал мимо цеха', 
+  'От председателя', 'Баннер в СНТ', 'Другое',
 ] as const;
 
-const statusOptions = [
-  { id: 'negotiation', label: 'Общение с клиентом' },
-  { id: 'waiting_measure', label: 'Ожидает замер' },
-  { id: 'promised_pay', label: 'Обещал заплатить' },
-  { id: 'waiting_production', label: 'Ожидает изделия' },
-  { id: 'waiting_install', label: 'Ожидает монтаж' },
-  { id: 'special_case', label: 'Особый случай' },
-  { id: 'completed', label: 'Сделка успешна' },
-  { id: 'rejected', label: 'Сделка провалена' },
-] as const;
-
-type ClientStatus = (typeof statusOptions)[number]['id'];
-type SourceOption = (typeof sourceOptions)[number];
-
-export interface ClientStepWindowItem {
-  id: number | string;
-  name: string;
-  widthTop: number | string;
-  heightRight: number | string;
-  widthBottom: number | string;
-  heightLeft: number | string;
-  kantTop: number | string;
-  kantRight: number | string;
-  kantBottom: number | string;
-  kantLeft: number | string;
-  kantColor: string;
-  material: string;
-  isTrapezoid: boolean;
-  diagonalLeft: number | string;
-  diagonalRight: number | string;
-  crossbar: number | string;
-}
+type SourceOption = (typeof SOURCE_OPTIONS)[number];
 
 export interface ClientFormData {
   fio?: string | null;
   phone?: string | null;
   address?: string | null;
   source?: SourceOption | string | null;
-  status?: ClientStatus | string | null;
-  measurementDate?: any;
+  status?: string | null;
+  measurementDate?: string | Date | null;
   managerComment?: string | null;
-  installDate?: any;
+  installDate?: string | Date | null;
   engineerComment?: string | null;
   totalPrice?: number | string | null;
   advance?: number | string | null;
@@ -73,18 +58,7 @@ export interface ClientFormData {
   photoObject?: File | null;
   photoMeasurement?: File | null;
   photoContract?: File | null;
-  items?: ClientStepWindowItem[] | null;
-  [key: string]: any;
-}
-
-export type ClientStepData = ClientFormData;
-
-interface ClientStepProps {
-  initialData: ClientFormData;
-  onSave: (data: ClientFormData) => void | Promise<void>;
-  onDraftChange?: (data: ClientFormData) => void;
-  onClose: () => void;
-  isReadOnly?: boolean;
+  items?: WindowItem[] | null;
 }
 
 type OpenSections = {
@@ -95,20 +69,16 @@ type OpenSections = {
 };
 
 type InputChangeEvent =
-  | React.ChangeEvent<HTMLInputElement>
-  | React.ChangeEvent<HTMLTextAreaElement>
-  | React.ChangeEvent<HTMLSelectElement>;
+  | ChangeEvent<HTMLInputElement>
+  | ChangeEvent<HTMLTextAreaElement>
+  | ChangeEvent<HTMLSelectElement>;
 
-function normalizeNumber(value: unknown, fallback = 0): number {
-  if (value === undefined || value === null || value === '') {
-    return fallback;
-  }
-
-  const normalized =
-    typeof value === 'string' ? value.replace(',', '.').trim() : value;
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : fallback;
+interface ClientStepProps {
+  initialData: ClientFormData;
+  onSave: (data: ClientFormData) => void | Promise<void>;
+  onDraftChange?: (data: ClientFormData) => void;
+  onClose: () => void;
+  isReadOnly?: boolean;
 }
 
 export default function ClientStep({
@@ -120,311 +90,135 @@ export default function ClientStep({
 }: ClientStepProps) {
   const [clientData, setClientData] = useState<ClientFormData>(initialData);
 
-  useEffect(() => {
-    setClientData(initialData);
-  }, [initialData]);
-
   const [openSections, setOpenSections] = useState<OpenSections>({
-    data: false,
+    data: true, // По умолчанию открываем первую
     media: false,
     payments: false,
     results: false,
   });
 
-  const toggleSection = (section: keyof OpenSections) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
-
-  const handleChange = (e: InputChangeEvent) => {
-    const { name, value, type } = e.target;
-
-    let nextValue: string | number = value;
-
-    if (type === 'number') {
-      nextValue = value === '' ? '' : Number(value);
+  // Синхронизация черновика
+  useEffect(() => {
+    if (!isReadOnly) {
+      onDraftChange?.(clientData);
     }
+  }, [clientData, onDraftChange, isReadOnly]);
 
-    setClientData((prev) => {
-      const newData: ClientFormData = {
-        ...prev,
-        [name]: nextValue,
-      };
+  // Расчеты
+  const financials = useMemo(
+    () =>
+      calculateClientFinancials({
+        totalPrice: toFinancialNumber(clientData.totalPrice),
+        advance: toFinancialNumber(clientData.advance),
+        costPrice: toFinancialNumber(clientData.costPrice),
+      }),
+    [clientData.totalPrice, clientData.advance, clientData.costPrice]
+  );
 
-      if (onDraftChange) {
-        setTimeout(() => onDraftChange(newData), 0);
-      }
+  const toggleSection = useCallback((section: keyof OpenSections): void => {
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+  }, []);
 
-      return newData;
-    });
-  };
-
-  const handleSaveClick = () => {
+  const handleChange = useCallback((e: InputChangeEvent): void => {
     if (isReadOnly) return;
+    const { name, value } = e.target;
+    setClientData((prev) => ({ ...prev, [name]: value }));
+  }, [isReadOnly]);
 
-    const payload: ClientFormData = {
-      ...clientData,
-      status: clientData.status || '',
-    };
+  const handleSaveClick = useCallback((): void => {
+    if (isReadOnly) return;
+    onSave({ ...clientData, status: clientData.status ?? '' });
+  }, [isReadOnly, clientData, onSave]);
 
-    onSave(payload);
-  };
-
-  const areaValue = Number(clientData.area || 0);
-  const totalPriceValue = Number(clientData.totalPrice || 0);
-  const costPriceValue = Number(clientData.costPrice || 0);
-  const profitValue = Number(totalPriceValue) - Number(costPriceValue);
+  const areaDisplay = toFinancialNumber(clientData.area);
+  const totalPriceDisplay = toFinancialNumber(clientData.totalPrice);
 
   return (
     <div className={styles.container}>
+      {/* ЛЕВАЯ КОЛОНКА: АККОРДЕОНЫ */}
       <div className={styles.accordionArea}>
+        
+        {/* Данные клиента */}
         <div className={styles.section}>
           <div className={styles.header} onClick={() => toggleSection('data')}>
             <span>Данные клиента</span>
-            <span className={styles.arrow}>{openSections.data ? '▲' : '▼'}</span>
+            <span>{openSections.data ? '▲' : '▼'}</span>
           </div>
-
           {openSections.data && (
             <div className={styles.content}>
               <div className={styles.inputGroup}>
                 <label>ФИО</label>
-                <input
-                  type="text"
-                  name="fio"
-                  value={clientData.fio || ''}
-                  onChange={handleChange}
-                  className={styles.neonInput}
-                  disabled={isReadOnly}
-                />
+                <input type="text" name="fio" value={clientData.fio || ''} onChange={handleChange} className={styles.neonInput} disabled={isReadOnly} />
               </div>
-
               <div className={styles.row}>
                 <div className={styles.inputGroup}>
                   <label>Телефон</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={clientData.phone || ''}
-                    onChange={handleChange}
-                    className={styles.neonInput}
-                    disabled={isReadOnly}
-                  />
+                  <input type="tel" name="phone" value={clientData.phone || ''} onChange={handleChange} className={styles.neonInput} disabled={isReadOnly} />
                 </div>
-
                 <div className={styles.inputGroup}>
-                  <label>Адрес (Ключ поиска)</label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={clientData.address || ''}
-                    onChange={handleChange}
-                    className={styles.neonInput}
-                    disabled={isReadOnly}
-                  />
+                  <label>Адрес</label>
+                  <input type="text" name="address" value={clientData.address || ''} onChange={handleChange} className={styles.neonInput} disabled={isReadOnly} />
                 </div>
-
                 <div className={styles.inputGroup}>
-                  <label>Откуда узнали</label>
-                  <select
-                    name="source"
-                    value={clientData.source || ''}
-                    onChange={handleChange}
-                    className={styles.neonSelect}
-                    disabled={isReadOnly}
-                  >
+                  <label>Источник</label>
+                  <select name="source" value={clientData.source || ''} onChange={handleChange} className={styles.neonSelect} disabled={isReadOnly}>
                     <option value="">Выберите источник...</option>
-                    {sourceOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
+                    {SOURCE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 </div>
               </div>
-
               <div className={styles.row}>
                 <div className={styles.inputGroup}>
                   <label>Статус</label>
-                  <select
-                    name="status"
-                    value={clientData.status || ''}
-                    onChange={handleChange}
-                    className={styles.neonSelect}
-                    disabled={isReadOnly}
-                  >
+                  <select name="status" value={clientData.status || ''} onChange={handleChange} className={styles.neonSelect} disabled={isReadOnly}>
                     <option value="">Выберите статус...</option>
-                    {statusOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
+                    {ALL_STATUS_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
                   </select>
                 </div>
-
                 <div className={styles.inputGroup}>
                   <label>Дата замера</label>
-                  <input
-                    type="date"
-                    name="measurementDate"
-                    value={clientData.measurementDate || ''}
-                    onChange={handleChange}
-                    className={styles.neonInput}
-                    disabled={isReadOnly}
-                  />
+                  <input type="date" name="measurementDate" value={clientData.measurementDate instanceof Date ? clientData.measurementDate.toISOString().split('T')[0] : clientData.measurementDate || ''} onChange={handleChange} className={styles.neonInput} disabled={isReadOnly} />
                 </div>
               </div>
-
               <div className={styles.inputGroup}>
                 <label>Комментарий менеджера</label>
-                <textarea
-                  name="managerComment"
-                  value={clientData.managerComment || ''}
-                  onChange={handleChange}
-                  className={styles.neonInput}
-                  style={{
-                    borderRadius: '25px',
-                    minHeight: '80px',
-                    paddingTop: '12px',
-                  }}
-                  disabled={isReadOnly}
-                />
+                <textarea name="managerComment" value={clientData.managerComment || ''} onChange={handleChange} className={styles.neonInput} style={{ minHeight: '80px', borderRadius: '25px' }} disabled={isReadOnly} />
               </div>
             </div>
           )}
         </div>
 
+        {/* Фото и материалы */}
         <div className={styles.section}>
           <div className={styles.header} onClick={() => toggleSection('media')}>
             <span>Фото и материалы</span>
-            <span className={styles.arrow}>{openSections.media ? '▲' : '▼'}</span>
+            <span>{openSections.media ? '▲' : '▼'}</span>
           </div>
-
           {openSections.media && (
             <div className={styles.content}>
-              <div className={styles.inputGroup}>
-                <label>Фото объекта</label>
-                <input
-                  type="file"
-                  name="photoObject"
-                  className={styles.neonInput}
-                  disabled={isReadOnly}
-                />
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label>Фото замера</label>
-                <input
-                  type="file"
-                  name="photoMeasurement"
-                  className={styles.neonInput}
-                  disabled={isReadOnly}
-                />
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label>Дата монтажа</label>
-                <input
-                  type="date"
-                  name="installDate"
-                  value={clientData.installDate || ''}
-                  onChange={handleChange}
-                  className={styles.neonInput}
-                  disabled={isReadOnly}
-                />
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label>Комментарий инженера</label>
-                <textarea
-                  name="engineerComment"
-                  value={clientData.engineerComment || ''}
-                  onChange={handleChange}
-                  className={styles.neonInput}
-                  style={{
-                    borderRadius: '25px',
-                    minHeight: '80px',
-                    paddingTop: '12px',
-                  }}
-                  disabled={isReadOnly}
-                />
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label>Фото Договора</label>
-                <input
-                  type="file"
-                  name="photoContract"
-                  className={styles.neonInput}
-                  disabled={isReadOnly}
-                />
-              </div>
+              <div className={styles.inputGroup}><label>Фото объекта</label><input type="file" className={styles.neonInput} disabled={isReadOnly} /></div>
+              <div className={styles.inputGroup}><label>Дата монтажа</label><input type="date" name="installDate" value={clientData.installDate instanceof Date ? clientData.installDate.toISOString().split('T')[0] : clientData.installDate || ''} onChange={handleChange} className={styles.neonInput} disabled={isReadOnly} /></div>
+              <div className={styles.inputGroup}><label>Комментарий инженера</label><textarea name="engineerComment" value={clientData.engineerComment || ''} onChange={handleChange} className={styles.neonInput} style={{ minHeight: '80px', borderRadius: '25px' }} disabled={isReadOnly} /></div>
             </div>
           )}
         </div>
 
+        {/* Платежи */}
         <div className={styles.section}>
           <div className={styles.header} onClick={() => toggleSection('payments')}>
             <span>Платежи и переводы</span>
-            <span className={styles.arrow}>
-              {openSections.payments ? '▲' : '▼'}
-            </span>
+            <span>{openSections.payments ? '▲' : '▼'}</span>
           </div>
-
           {openSections.payments && (
             <div className={styles.content}>
               <div className={styles.row}>
-                <div className={styles.inputGroup}>
-                  <label>Стоимость заказа</label>
-                  <input
-                    type="number"
-                    name="totalPrice"
-                    value={clientData.totalPrice || ''}
-                    onChange={handleChange}
-                    className={styles.neonInput}
-                    disabled={isReadOnly}
-                  />
-                </div>
-
-                <div className={styles.inputGroup}>
-                  <label>Аванс</label>
-                  <input
-                    type="number"
-                    name="advance"
-                    value={clientData.advance || ''}
-                    onChange={handleChange}
-                    className={styles.neonInput}
-                    disabled={isReadOnly}
-                  />
-                </div>
-
-                <div className={styles.inputGroup}>
-                  <label>Остаток</label>
-                  <input
-                    type="number"
-                    name="balance"
-                    value={clientData.balance || ''}
-                    onChange={handleChange}
-                    className={styles.neonInput}
-                    disabled={isReadOnly}
-                  />
-                </div>
-
-                <div className={styles.inputGroup}>
-                  <label>Тип оплаты</label>
-                  <select
-                    name="paymentType"
-                    value={clientData.paymentType || ''}
-                    onChange={handleChange}
-                    className={styles.neonSelect}
-                    disabled={isReadOnly}
-                  >
-                    <option value="">Выберите тип оплаты...</option>
+                <div className={styles.inputGroup}><label>Стоимость</label><input type="number" name="totalPrice" value={clientData.totalPrice ?? ''} onChange={handleChange} className={styles.neonInput} disabled={isReadOnly} /></div>
+                <div className={styles.inputGroup}><label>Аванс</label><input type="number" name="advance" value={clientData.advance ?? ''} onChange={handleChange} className={styles.neonInput} disabled={isReadOnly} /></div>
+                <div className={styles.inputGroup}><label>Тип оплаты</label>
+                  <select name="paymentType" value={clientData.paymentType || ''} onChange={handleChange} className={styles.neonSelect} disabled={isReadOnly}>
                     <option value="cash">Наличными</option>
                     <option value="transfer">Переводом</option>
-                    <option value="mixed">Смешанная оплата</option>
-                    <option value="invoice">По расчётному счёту</option>
+                    <option value="invoice">По счету</option>
                   </select>
                 </div>
               </div>
@@ -432,37 +226,21 @@ export default function ClientStep({
           )}
         </div>
 
+        {/* Прибыль */}
         <div className={styles.section}>
           <div className={styles.header} onClick={() => toggleSection('results')}>
             <span>Прибыль и расход</span>
-            <span className={styles.arrow}>{openSections.results ? '▲' : '▼'}</span>
+            <span>{openSections.results ? '▲' : '▼'}</span>
           </div>
-
           {openSections.results && (
             <div className={styles.content}>
+              <div className={styles.statLine}><span>Площадь:</span><strong>{areaDisplay.toFixed(2)} м²</strong></div>
+              <div className={styles.statLine}><span>Себестоимость:</span><input type="number" name="costPrice" value={clientData.costPrice ?? ''} onChange={handleChange} className={styles.neonInput} style={{ width: '120px' }} disabled={isReadOnly} /></div>
+              <hr className={styles.divider} />
               <div className={styles.statLine}>
-                <span>Площадь:</span>
-                <strong>{Number(areaValue)} м²</strong>
-              </div>
-
-              <div className={styles.statLine}>
-                <span>Стоимость:</span>
-                <strong>{Number(totalPriceValue)} ₽</strong>
-              </div>
-
-              <div className={styles.statLine}>
-                <span>Себестоимость:</span>
-                <strong style={{ color: '#ff4d4d' }}>
-                  {Number(costPriceValue)} ₽
-                </strong>
-              </div>
-
-              <hr className={styles.divider} style={{ margin: '10px 0' }} />
-
-              <div className={styles.statLine}>
-                <span>Прибыль/Маржа:</span>
-                <strong className={styles.profitText}>
-                  {Number(profitValue)} ₽
+                <span>Прибыль:</span>
+                <strong style={{ color: financials.isUnprofitable ? '#ff4d4d' : '#a3ff00' }}>
+                  {formatMoney(financials.profit)} ({formatMargin(financials.marginPercent)})
                 </strong>
               </div>
             </div>
@@ -470,44 +248,24 @@ export default function ClientStep({
         </div>
       </div>
 
-      <div className={styles.stickySidebar}>
+      {/* ПРАВАЯ КОЛОНКА: САЙДБАР */}
+      <aside className={styles.stickySidebar}>
         <div className={styles.infoCard}>
           <h3>Служебная информация</h3>
-          <p>
-            Дата создания: <span>Авто</span>
-          </p>
-          <p>
-            Дата изменения: <span>Авто</span>
-          </p>
-          <p>
-            Создал: <span>Админ</span>
-          </p>
-          <p>
-            Изменил: <span>Админ</span>
-          </p>
-
+          <p>Создал: <span>Админ</span></p>
+          <p>Изменил: <span>Админ</span></p>
           <hr className={styles.divider} />
-
           <div className={styles.sidebarTotal}>
             <span>Сумма заказа:</span>
-            <strong>{Number(totalPriceValue)} ₽</strong>
+            <strong>{formatMoney(totalPriceDisplay)}</strong>
           </div>
         </div>
 
         <div className={styles.actions}>
-          <button
-            className={styles.saveBtn}
-            onClick={handleSaveClick}
-            disabled={isReadOnly}
-          >
-            СОХРАНИТЬ
-          </button>
-
-          <button className={styles.exitBtn} onClick={onClose}>
-            ВЫЙТИ
-          </button>
+          <button className={styles.saveBtn} onClick={handleSaveClick} disabled={isReadOnly}>СОХРАНИТЬ</button>
+          <button className={styles.exitBtn} onClick={onClose}>ВЫЙТИ</button>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

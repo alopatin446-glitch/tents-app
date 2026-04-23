@@ -1,37 +1,71 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+/**
+ * Канбан-доска активных клиентов.
+ *
+ * Архитектурные изменения (ШАГ 2.2.1):
+ *   - Колонки доски строятся из ACTIVE_STATUSES (statusDictionary) — D-05 закрыт.
+ *   - Хардкоженный массив STAGES и Set STAGE_IDS удалены.
+ *   - ACTIVE_STATUS_ID_SET заменяет локальный Set в resolveDropStatus.
+ *   - Тип ClientStatus из ядра выровнен с Client['status'] из ./types.
+ *
+ * @module src/components/KanbanBoard.tsx
+ */
+
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
-  DragEndEvent,
+  type DragEndEvent,
   PointerSensor,
   closestCorners,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+
+// Серверные экшены
 import { updateClientAction, deleteClientAction } from './actions';
+
+// Стили и дочерние компоненты
 import styles from './KanbanBoard.module.css';
 import StageColumn from './StageColumn';
 import EditModal from './EditModal';
 import CreateClientModal from './CreateClientModal';
-import { Client, Stage } from './types';
+
+// Типы: Client из локального types, Stage конструируем из словаря
+import { type Client, type Stage } from '@/types';
 import { useClients } from './ClientContext';
 
-const STAGES: Stage[] = [
-  { id: 'negotiation', title: 'Общение с клиентом' },
-  { id: 'waiting_measure', title: 'Ожидает замер' },
-  { id: 'promised_pay', title: 'Обещал заплатить' },
-  { id: 'waiting_production', title: 'Ожидает изделия' },
-  { id: 'waiting_install', title: 'Ожидает монтаж' },
-  { id: 'special_case', title: 'Особые случаи' },
-];
+// Ядро: словарь статусов (D-05)
+import {
+  ACTIVE_STATUSES,
+  ACTIVE_STATUS_ID_SET,
+  type ClientStatus,
+} from '@/lib/logic/statusDictionary';
 
-const STAGE_IDS = new Set<Client['status']>(STAGES.map((stage) => stage.id));
+// ---------------------------------------------------------------------------
+// Колонки канбана
+//
+// ACTIVE_STATUSES из словаря уже отсортированы по kanbanOrder.
+// Маппим label → title для совместимости с интерфейсом Stage из ./types.
+// StageColumn не трогаем — он по-прежнему получает Stage с полем title.
+// ---------------------------------------------------------------------------
+const KANBAN_STAGES: Stage[] = ACTIVE_STATUSES.map((s) => ({
+  id: s.id,
+  title: s.label,
+}));
+
+// ---------------------------------------------------------------------------
+// Утилиты
+// ---------------------------------------------------------------------------
 
 function normalizeSearchValue(value: string): string {
   return value.trim().toLowerCase();
 }
+
+// ---------------------------------------------------------------------------
+// Компонент
+// ---------------------------------------------------------------------------
 
 export default function KanbanBoard() {
   const { clients, updateClient, deleteClient } = useClients();
@@ -47,6 +81,10 @@ export default function KanbanBoard() {
       activationConstraint: { distance: 5 },
     })
   );
+
+  // ---------------------------------------------------------------------------
+  // Фильтрация клиентов по строке поиска
+  // ---------------------------------------------------------------------------
 
   const filteredClients = useMemo(() => {
     const normalizedQuery = normalizeSearchValue(searchQuery);
@@ -68,7 +106,11 @@ export default function KanbanBoard() {
     });
   }, [clients, searchQuery]);
 
-  const toggleSelect = (id: string) => {
+  // ---------------------------------------------------------------------------
+  // Управление выделением карточек
+  // ---------------------------------------------------------------------------
+
+  const toggleSelect = (id: string): void => {
     const normalizedId = String(id);
 
     setSelectedIds((prev) =>
@@ -78,14 +120,20 @@ export default function KanbanBoard() {
     );
   };
 
-  const clearSelection = () => {
+  const clearSelection = (): void => {
     setSelectedIds([]);
   };
 
-  const deleteSelected = async () => {
+  // ---------------------------------------------------------------------------
+  // Массовое удаление выделенных карточек
+  // ---------------------------------------------------------------------------
+
+  const deleteSelected = async (): Promise<void> => {
     if (selectedIds.length === 0) return;
 
-    const confirmed = confirm(`Удалить выбранных клиентов (${selectedIds.length} шт.)?`);
+    const confirmed = confirm(
+      `Удалить выбранных клиентов (${selectedIds.length} шт.)?`
+    );
     if (!confirmed) return;
 
     try {
@@ -128,22 +176,31 @@ export default function KanbanBoard() {
 
       if (failedIds.length > 0) {
         alert(
-          `Удаление завершено частично.\n\nУдалено: ${deletedIds.length}\nНе удалено: ${failedIds.length}`
+          `Удаление завершено частично.\n\nУдалено: ${deletedIds.length}\nНе удалось: ${failedIds.length}`
         );
       }
-    } catch (error) {
+    } catch {
       alert('Произошла ошибка при удалении из базы данных');
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // DnD: определение целевого статуса при перетаскивании
+  //
+  // ACTIVE_STATUS_ID_SET из ядра заменяет локальный STAGE_IDS.
+  // O(1)-проверка через Set остаётся — только источник данных теперь правильный.
+  // ---------------------------------------------------------------------------
+
   const resolveDropStatus = (
     overId: string,
     allClients: Client[]
-  ): Client['status'] | null => {
-    if (STAGE_IDS.has(overId as Client['status'])) {
-      return overId as Client['status'];
+  ): ClientStatus | null => {
+    // Случай 1: карточку бросили на саму колонку (overId = id статуса)
+    if (ACTIVE_STATUS_ID_SET.has(overId as ClientStatus)) {
+      return overId as ClientStatus;
     }
 
+    // Случай 2: карточку бросили на другую карточку — берём статус той карточки
     const overClient = allClients.find(
       (client) => String(client.id) === String(overId)
     );
@@ -152,10 +209,13 @@ export default function KanbanBoard() {
       return null;
     }
 
-    return overClient.status;
+    // Убеждаемся, что статус целевой карточки — активный (не терминальный).
+    // Нельзя перетащить клиента на архивную колонку через DnD.
+    const status = overClient.status as ClientStatus;
+    return ACTIVE_STATUS_ID_SET.has(status) ? status : null;
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent): Promise<void> => {
     const { active, over } = event;
 
     if (!over) return;
@@ -167,21 +227,15 @@ export default function KanbanBoard() {
       (client) => String(client.id) === activeClientId
     );
 
-    if (!draggedClient) {
-      return;
-    }
+    if (!draggedClient) return;
 
     const previousStatus = draggedClient.status;
     const nextStatus = resolveDropStatus(overId, clients);
 
-    if (!nextStatus) {
-      return;
-    }
+    if (!nextStatus) return;
+    if (previousStatus === nextStatus) return;
 
-    if (previousStatus === nextStatus) {
-      return;
-    }
-
+    // Оптимистичное обновление — UI реагирует мгновенно
     updateClient(activeClientId, { status: nextStatus });
 
     const result = await updateClientAction(activeClientId, {
@@ -189,13 +243,18 @@ export default function KanbanBoard() {
     });
 
     if (!result.success) {
+      // Откат при ошибке сервера
       updateClient(activeClientId, { status: previousStatus });
-      alert('Ошибка сохранения в базу!');
+      alert('Ошибка сохранения статуса. Изменения отменены.');
       return;
     }
 
     router.refresh();
   };
+
+  // ---------------------------------------------------------------------------
+  // Рендер
+  // ---------------------------------------------------------------------------
 
   return (
     <DndContext
@@ -204,6 +263,8 @@ export default function KanbanBoard() {
       onDragEnd={handleDragEnd}
     >
       <div className={styles.mainWrapper}>
+
+        {/* ── Боковая панель ───────────────────────────────────────────── */}
         <aside className={styles.sidebar}>
           <button
             onClick={() => router.push('/dashboard')}
@@ -281,8 +342,9 @@ export default function KanbanBoard() {
           )}
         </aside>
 
+        {/* ── Канбан-доска ─────────────────────────────────────────────── */}
         <div className={styles.board}>
-          {STAGES.map((stage) => (
+          {KANBAN_STAGES.map((stage) => (
             <StageColumn
               key={stage.id}
               id={stage.id}
@@ -300,6 +362,7 @@ export default function KanbanBoard() {
           ))}
         </div>
 
+        {/* ── Модалы ───────────────────────────────────────────────────── */}
         {editingClient && (
           <EditModal
             client={editingClient}

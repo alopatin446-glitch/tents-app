@@ -1,22 +1,21 @@
 'use client';
 
-import React from 'react';
-import { WindowItem } from './ItemsStep';
+/**
+ * SVG-чертёж одного изделия (окна/полотна).
+ *
+ * Обновление (ШАГ 2.2.2):
+ *   - WindowItem импортируется из @/types/window (строгие number-поля).
+ *   - Локальная функция toNumber удалена: поля WindowItem уже строго number,
+ *     конвертация происходит в ItemsStep до передачи в этот компонент.
+ *   - Визуальный рендер SVG не изменён ни на пиксель.
+ *
+ * @module src/components/steps/DrawingCanvas.tsx
+ */
+
+import { type WindowItem } from '@/types';
 
 interface DrawingCanvasProps {
   item: WindowItem;
-}
-
-function toNumber(value: number | string, fallback = 0): number {
-  if (value === '' || value === null || value === undefined) {
-    return fallback;
-  }
-
-  const normalized =
-    typeof value === 'string' ? value.replace(',', '.').trim() : value;
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 export default function DrawingCanvas({ item }: DrawingCanvasProps) {
@@ -27,16 +26,9 @@ export default function DrawingCanvas({ item }: DrawingCanvasProps) {
   const drawW = vbW - padding * 2;
   const drawH = vbH - padding * 2;
 
-  const kantTop = toNumber(item.kantTop, 0);
-  const kantRight = toNumber(item.kantRight, 0);
-  const kantBottom = toNumber(item.kantBottom, 0);
-  const kantLeft = toNumber(item.kantLeft, 0);
-
-  const widthTop = toNumber(item.widthTop, 0);
-  const widthBottom = toNumber(item.widthBottom, 0);
-  const heightLeft = toNumber(item.heightLeft, 0);
-  const heightRight = toNumber(item.heightRight, 0);
-  const crossbar = toNumber(item.crossbar, 0);
+  // Поля WindowItem — строго number, приведение не требуется
+  const { kantTop, kantRight, kantBottom, kantLeft } = item;
+  const { widthTop, widthBottom, heightLeft, heightRight, crossbar } = item;
 
   const maxKant = Math.max(kantTop, kantRight, kantBottom, kantLeft, 5);
   const maxItemW = Math.max(widthTop, widthBottom, 1);
@@ -71,7 +63,7 @@ export default function DrawingCanvas({ item }: DrawingCanvasProps) {
   const innerPath = `M ${x1} ${y1} L ${x2} ${y2} L ${x3} ${y3} L ${x4} ${y4} Z`;
   const outerPath = `M ${outX1} ${outY1} L ${outX2} ${outY2} L ${outX3} ${outY3} L ${outX4} ${outY4} Z`;
 
-  const colorMap: { [key: string]: string } = {
+  const colorMap: Record<string, string> = {
     Белый: '#FFFFFF',
     'Светло-серый': '#D1D5DB',
     Серый: '#6B7280',
@@ -82,7 +74,7 @@ export default function DrawingCanvas({ item }: DrawingCanvasProps) {
     Синий: '#1E3A8A',
   };
 
-  const strokeColor = colorMap[item.kantColor] || '#54301a';
+  const strokeColor = colorMap[item.kantColor] ?? '#54301a';
   const isALower = y1 > y2;
   const parallelY = isALower ? y1 : y2;
 
@@ -101,11 +93,14 @@ export default function DrawingCanvas({ item }: DrawingCanvasProps) {
         preserveAspectRatio="xMidYMid meet"
         style={{ width: '100%', height: '100%', maxHeight: '100%' }}
       >
+        {/* Кант (внешний контур) */}
         <path
           d={outerPath}
           fill={strokeColor}
           style={{ transition: 'fill 0.4s ease' }}
         />
+
+        {/* Полотно (внутренний контур) */}
         <path
           d={innerPath}
           fill="#aac7ee"
@@ -114,6 +109,7 @@ export default function DrawingCanvas({ item }: DrawingCanvasProps) {
           style={{ transition: 'all 0.3s ease' }}
         />
 
+        {/* Перемычка (только для трапеции с crossbar > 0) */}
         {item.isTrapezoid && crossbar > 0 && (
           <g>
             <line
@@ -148,26 +144,20 @@ export default function DrawingCanvas({ item }: DrawingCanvasProps) {
           </g>
         )}
 
+        {/* Метки угловых точек a, b, c, d */}
         <g
           fontSize="24"
           fontWeight="bold"
           fill="#fff"
           style={{ pointerEvents: 'none' }}
         >
-          <text x={x1 - 30} y={y1 - 10}>
-            a
-          </text>
-          <text x={x2 + 10} y={y2 - 10}>
-            b
-          </text>
-          <text x={x3 + 10} y={y3 + 30}>
-            c
-          </text>
-          <text x={x4 - 30} y={y4 + 30}>
-            d
-          </text>
+          <text x={x1 - 30} y={y1 - 10}>a</text>
+          <text x={x2 + 10} y={y2 - 10}>b</text>
+          <text x={x3 + 10} y={y3 + 30}>c</text>
+          <text x={x4 - 30} y={y4 + 30}>d</text>
         </g>
 
+        {/* Размерные метки сторон */}
         <g
           fontSize="16"
           fontWeight="600"

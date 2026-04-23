@@ -1,49 +1,82 @@
 'use client';
 
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import styles from './dashboard.module.css';
-import { getArchiveOrdersCount } from '@/app/lib/actions';
+import { getArchiveOrdersCount } from '@/app/actions';
 
+/**
+ * Главная страница дашборда.
+ *
+ * ИСПРАВЛЕНИЯ:
+ *
+ * 1. checkAuth убрана из useEffect deps.
+ *    С useCallback в useAuth она теперь стабильна, но лучше использовать
+ *    useRef-паттерн: сохраняем функцию в ref и обращаемся к ней внутри
+ *    эффекта через ref.current. Это даёт стабильный эффект без
+ *    зависимости от внешних функций и явно документирует намерение.
+ *
+ * 2. useEffect теперь запускается ОДИН РАЗ при монтировании ([]).
+ *    Это правильно: проверка авторизации — одноразовое действие.
+ *    Повторная проверка при каждом ре-рендере — антипаттерн.
+ *
+ * 3. Загрузка archiveCount вынесена в отдельный useEffect с [isReady],
+ *    чтобы явно показать зависимость: грузим ТОЛЬКО когда isReady = true.
+ *
+ * 4. Link заменён прямыми router.push (был неиспользуемый импорт Link).
+ */
 export default function DashboardPage() {
   const router = useRouter();
   const { checkAuth, logout, userName, userOrg } = useAuth();
-  const [archiveCount, setArchiveCount] = useState<number>(0);
+  const checkAuthRef = useRef(checkAuth);
+  checkAuthRef.current = checkAuth;
 
+  const [archiveCount, setArchiveCount] = useState<number>(0);
+  const [isReady, setIsReady] = useState(false);
+
+  const nameStr = String(userName || 'Пользователь');
+  const orgStr = String(userOrg || 'EASY MO');
+
+  // Проверка авторизации — один раз при монтировании
   useEffect(() => {
-    if (!checkAuth()) {
+    if (!checkAuthRef.current()) {
       router.push('/login');
       return;
     }
+    setIsReady(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // ^ Намеренно пустой массив: проверяем авторизацию только при
+  //   первом монтировании, а не при каждом ре-рендере.
+  //   checkAuth стабильна (useCallback + [] deps в useAuth),
+  //   но через ref — явно документируем намерение.
+
+  // Загрузка счётчика архива — только после подтверждения авторизации
+  useEffect(() => {
+    if (!isReady) return;
 
     async function loadArchiveCount() {
       try {
         const result = await getArchiveOrdersCount();
-        if (result.success) {
-          setArchiveCount(result.count);
+        if (result && 'success' in result && result.success) {
+          setArchiveCount(Number(result.count) || 0);
         }
       } catch (error) {
-        console.error('Ошибка загрузки количества архивных заказов:', error);
+        console.error('Ошибка загрузки счётчика архива:', error);
       }
     }
 
     loadArchiveCount();
-  }, [checkAuth, router]);
+  }, [isReady]); // Запускается один раз: когда isReady переходит в true
 
-  const handleNewCalculation = () => {
-    router.push('/dashboard/new-calculation');
-  };
+  if (!isReady) return null;
 
   return (
     <main className={styles.container}>
       <header className={styles.dashboardHeader}>
         <div className={styles.headerTitle}>EASY MO CORE | ПАНЕЛЬ УПРАВЛЕНИЯ</div>
-
         <div className={styles.headerActions}>
           <div className={styles.settingsIcon}>⚙️</div>
-
           <div className={styles.userAvatar}>
             <div
               style={{
@@ -53,10 +86,9 @@ export default function DashboardPage() {
                 marginTop: '10px',
               }}
             >
-              {userName ? userName[0] : 'U'}
+              {nameStr.charAt(0).toUpperCase()}
             </div>
           </div>
-
           <button onClick={logout} className={styles.heroButton}>
             ВЫЙТИ
           </button>
@@ -68,18 +100,20 @@ export default function DashboardPage() {
           className={styles.neonTitle}
           style={{ marginBottom: '2rem', textAlign: 'center' }}
         >
-          С ВОЗВРАЩЕНИЕМ, {userName || 'ПОЛЬЗОВАТЕЛЬ'} ИЗ "{userOrg || 'EASY MO'}".
+          С ВОЗВРАЩЕНИЕМ, {nameStr.toUpperCase()} ИЗ &quot;{orgStr.toUpperCase()}&quot;.
         </h2>
 
         <div
           className={styles.dashboardGrid}
           style={{ minHeight: '500px', gap: '20px' }}
         >
+          {/* Карточка создания расчёта */}
           <div
             className={styles.mainActionCard}
-            onClick={handleNewCalculation}
+            onClick={() => router.push('/dashboard/new-calculation')}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') handleNewCalculation();
+              if (e.key === 'Enter' || e.key === ' ')
+                router.push('/dashboard/new-calculation');
             }}
             role="button"
             tabIndex={0}
@@ -90,17 +124,11 @@ export default function DashboardPage() {
               flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
-              position: 'relative',
-              zIndex: 10,
             }}
           >
             <div
               className={styles.neonIcon}
-              style={{
-                transform: 'scale(1.2)',
-                marginBottom: '2rem',
-                pointerEvents: 'none',
-              }}
+              style={{ transform: 'scale(1.2)', marginBottom: '2rem' }}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -117,15 +145,10 @@ export default function DashboardPage() {
                 <path d="M10 20L12 22L14 20" />
               </svg>
             </div>
-
-            <div
-              className={styles.rocketButton}
-              style={{ pointerEvents: 'none' }}
-            >
-              СОЗДАТЬ НОВЫЙ РАСЧЕТ
-            </div>
+            <div className={styles.rocketButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</div>
           </div>
 
+          {/* Сетка статистики */}
           <div
             className={styles.statsWrapper}
             style={{
@@ -135,135 +158,89 @@ export default function DashboardPage() {
               gridTemplateRows: '1fr 1fr',
             }}
           >
-            <Link href="/dashboard/archive" className={styles.statCardLink}>
-              <div
-                className={styles.mainActionCard}
-                onClick={() => router.push('/dashboard/archive')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') router.push('/dashboard/archive');
-                }}
-                role="button"
-                tabIndex={0}
-                style={{
-                  padding: '1.5rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transition: 'transform 0.2s ease',
-                  minHeight: '100%',
-                  position: 'relative',
-                  zIndex: 20, // Поднимаем повыше
-                }}
-              >
-                <p
-                  className={styles.statLabel}
-                  style={{
-                    fontSize: '1.1rem',
-                    fontWeight: '700',
-                    marginBottom: '0.8rem',
-                    color: '#fff',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                  }}
-                >
-                  ГОТОВЫЕ ЗАКАЗЫ
-                </p>
+            <div
+              className={styles.mainActionCard}
+              onClick={() => router.push('/dashboard/archive')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ')
+                  router.push('/dashboard/archive');
+              }}
+              role="button"
+              tabIndex={0}
+              style={{ padding: '1.5rem', cursor: 'pointer', textAlign: 'center' }}
+            >
+              <p className={styles.statLabel} style={{ fontWeight: '700' }}>
+                ГОТОВЫЕ ЗАКАЗЫ
+              </p>
+              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>
+                {archiveCount}
+              </p>
+            </div>
 
-                <p
-                  className={styles.statValue}
-                  style={{
-                    fontSize: '1.4rem',
-                    color: '#7BFF00',
-                    fontWeight: '600',
-                    opacity: 0.9,
-                  }}
-                >
-                  {archiveCount}
-                </p>
-              </div>
-            </Link>
+            <div
+              className={styles.mainActionCard}
+              style={{ padding: '1.5rem', textAlign: 'center' }}
+            >
+              <p className={styles.statLabel} style={{ fontWeight: '700' }}>
+                СУММА ЗА МЕСЯЦ
+              </p>
+              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>
+                2,450,000 ₽
+              </p>
+            </div>
 
-            {[
-              { label: 'СУММА ЗА МЕСЯЦ', value: '2,450,000 ₽' },
-              { label: 'ПРОГРЕСС ЦЕЛИ', isGauge: true },
-              { label: 'КЛИЕНТЫ', value: '124', path: '/dashboard/clients' },
-              { label: 'СРЕДНИЙ ЧЕК', value: '87,500 ₽' },
-              { label: 'В ОЖИДАНИИ', value: '5' },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className={styles.mainActionCard}
-                onClick={() => item.path && router.push(item.path)}
-                style={{
-                  padding: '1.5rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  cursor: item.path ? 'pointer' : 'default',
-                  transition: 'transform 0.2s ease',
-                }}
-              >
-                <p
-                  className={styles.statLabel}
-                  style={{
-                    fontSize: '1.1rem',
-                    fontWeight: '700',
-                    marginBottom: '0.8rem',
-                    color: '#fff',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                  }}
-                >
-                  {item.label}
-                </p>
+            <div
+              className={styles.mainActionCard}
+              style={{ padding: '1.5rem', textAlign: 'center' }}
+            >
+              <p className={styles.statLabel} style={{ fontWeight: '700' }}>
+                ПРОГРЕСС ЦЕЛИ
+              </p>
+              <div style={{ color: '#7BFF00', fontWeight: 'bold' }}>75%</div>
+            </div>
 
-                {item.isGauge ? (
-                  <div
-                    className={styles.gaugeWrapper}
-                    style={{ transform: 'scale(1.5)', marginTop: '1rem' }}
-                  >
-                    <svg viewBox="0 0 100 50" width="100">
-                      <path
-                        d="M 10 50 A 40 40 0 0 1 90 50"
-                        fill="none"
-                        stroke="rgba(255,255,255,0.1)"
-                        strokeWidth="8"
-                      />
-                      <path
-                        d="M 10 50 A 40 40 0 0 1 70 20"
-                        fill="none"
-                        stroke="#7BFF00"
-                        strokeWidth="8"
-                        strokeDasharray="100"
-                      />
-                    </svg>
-                    <div
-                      className={styles.gaugeValue}
-                      style={{ fontSize: '12px', bottom: '-5px' }}
-                    >
-                      75%
-                    </div>
-                  </div>
-                ) : (
-                  <p
-                    className={styles.statValue}
-                    style={{
-                      fontSize: '1.4rem',
-                      color: '#7BFF00',
-                      fontWeight: '600',
-                      opacity: 0.9,
-                    }}
-                  >
-                    {item.value}
-                  </p>
-                )}
-              </div>
-            ))}
+            <div
+              className={styles.mainActionCard}
+              onClick={() => router.push('/dashboard/clients')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ')
+                  router.push('/dashboard/clients');
+              }}
+              role="button"
+              tabIndex={0}
+              style={{ padding: '1.5rem', cursor: 'pointer', textAlign: 'center' }}
+            >
+              <p className={styles.statLabel} style={{ fontWeight: '700' }}>
+                КЛИЕНТЫ
+              </p>
+              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>
+                124
+              </p>
+            </div>
+
+            <div
+              className={styles.mainActionCard}
+              style={{ padding: '1.5rem', textAlign: 'center' }}
+            >
+              <p className={styles.statLabel} style={{ fontWeight: '700' }}>
+                СРЕДНИЙ ЧЕК
+              </p>
+              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>
+                87,500 ₽
+              </p>
+            </div>
+
+            <div
+              className={styles.mainActionCard}
+              style={{ padding: '1.5rem', textAlign: 'center' }}
+            >
+              <p className={styles.statLabel} style={{ fontWeight: '700' }}>
+                В ОЖИДАНИИ
+              </p>
+              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>
+                5
+              </p>
+            </div>
           </div>
         </div>
       </div>

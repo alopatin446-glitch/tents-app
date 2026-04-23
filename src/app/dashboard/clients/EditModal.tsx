@@ -1,13 +1,15 @@
 'use client';
 
-import React from 'react';
 import { useRouter } from 'next/navigation';
 import { updateClientAction } from './actions';
 import styles from './KanbanBoard.module.css';
 import ClientStep, {
-  ClientStepWindowItem,
+  type ClientFormData,
+  type ClientStepWindowItem,
 } from '@/components/calculation/ClientStep';
 import { useClients } from './ClientContext';
+import { toFinancialNumber, calculateClientBalance } from '@/lib/logic/financialCalculations';
+import { type ClientStatus } from '@/lib/logic/statusDictionary';
 
 interface EditModalClient {
   id: string;
@@ -33,29 +35,19 @@ interface EditModalProps {
   onClose: () => void;
 }
 
-function toNumberValue(value: unknown, fallback = 0): number {
-  if (value === undefined || value === null || value === '') return fallback;
-
-  const normalized =
-    typeof value === 'string' ? value.replace(',', '.').trim() : value;
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
 export default function EditModal({ client, onClose }: EditModalProps) {
   const router = useRouter();
   const { updateClient } = useClients();
 
-  const handleUpdate = async (updatedData: Record<string, unknown>) => {
-    const nextTotalPrice = toNumberValue(
+  // Сигнатура совпадает с ClientStep.onSave: (data: ClientFormData) => void | Promise<void>
+  const handleUpdate = async (updatedData: ClientFormData): Promise<void> => {
+    const nextTotalPrice = toFinancialNumber(
       updatedData.totalPrice,
-      toNumberValue(client.totalPrice, 0)
+      toFinancialNumber(client.totalPrice as string | number | null | undefined, 0)
     );
-
-    const nextAdvance = toNumberValue(
+    const nextAdvance = toFinancialNumber(
       updatedData.advance,
-      toNumberValue(client.advance, 0)
+      toFinancialNumber(client.advance as string | number | null | undefined, 0)
     );
 
     const hasExplicitBalance =
@@ -64,8 +56,8 @@ export default function EditModal({ client, onClose }: EditModalProps) {
       String(updatedData.balance).trim() !== '';
 
     const nextBalance = hasExplicitBalance
-      ? toNumberValue(updatedData.balance, 0)
-      : nextTotalPrice - nextAdvance;
+      ? toFinancialNumber(updatedData.balance, 0)
+      : calculateClientBalance(nextTotalPrice, nextAdvance);
 
     const dataToSave = {
       fio: updatedData.fio ?? client.fio ?? '',
@@ -87,26 +79,20 @@ export default function EditModal({ client, onClose }: EditModalProps) {
     const result = await updateClientAction(client.id, dataToSave);
 
     if (result.success) {
+      const nextStatus = String(dataToSave.status || 'special_case') as ClientStatus;
       updateClient(String(client.id), {
         fio: String(dataToSave.fio || ''),
         phone: String(dataToSave.phone || ''),
-        address: String(dataToSave.address || ''),
+        address: dataToSave.address ? String(dataToSave.address) : null,
         totalPrice: nextTotalPrice,
-        status: String(dataToSave.status || 'special_case') as
-          | 'negotiation'
-          | 'waiting_measure'
-          | 'promised_pay'
-          | 'waiting_production'
-          | 'waiting_install'
-          | 'special_case'
-          | 'completed'
-          | 'rejected',
+        advance: nextAdvance,
+        balance: nextBalance,
+        status: nextStatus,
       });
-
       onClose();
       router.refresh();
     } else {
-      alert('Ошибка при сохранении в базу данных: ' + result.error);
+      alert('Ошибка при сохранении: ' + result.error);
     }
   };
 
@@ -114,52 +100,14 @@ export default function EditModal({ client, onClose }: EditModalProps) {
     <div className={styles.modalOverlay}>
       <div
         className={styles.editModal}
-        style={{
-          width: '1200px',
-          maxWidth: '95vw',
-          height: '95vh',
-          overflowY: 'auto',
-          padding: '20px',
-          background: '#182234',
-          borderRadius: '16px',
-          position: 'relative',
-        }}
+        style={{ width: '1200px', maxWidth: '95vw', height: '95vh', overflowY: 'auto', padding: '20px', background: '#182234', borderRadius: '16px', position: 'relative' }}
       >
-        <div
-          style={{
-            padding: '10px 0',
-            borderBottom: '1px solid rgba(123, 255, 0, 0.2)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '20px',
-          }}
-        >
-          <h2
-            style={{
-              color: '#7BFF00',
-              margin: 0,
-              fontSize: '1.2rem',
-              textTransform: 'uppercase',
-            }}
-          >
+        <div style={{ padding: '10px 0', borderBottom: '1px solid rgba(123, 255, 0, 0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ color: '#7BFF00', margin: 0, fontSize: '1.2rem', textTransform: 'uppercase' }}>
             Редактирование: {client.fio || client.name}
           </h2>
-
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#666',
-              cursor: 'pointer',
-              fontSize: '1.5rem',
-            }}
-          >
-            ×
-          </button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.5rem' }}>×</button>
         </div>
-
         <ClientStep
           initialData={client}
           onSave={handleUpdate}

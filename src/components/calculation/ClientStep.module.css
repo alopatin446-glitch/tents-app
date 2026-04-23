@@ -1,21 +1,22 @@
 .container {
     display: flex;
-    justify-content: flex-start;
-    align-items: flex-start; /* Это обязательно, чтобы сайдбар не растягивался на всю высоту */
+    flex-direction: row; /* Явно задаем направление */
+    justify-content: center; /* Центрируем всю конструкцию */
+    align-items: flex-start;
     width: 100%;
-    gap: 30px;
-    position: relative; /* Создаем контекст для липкого элемента */
-    overflow: visible;  /* Важно: sticky не работает внутри overflow: hidden */
+    min-height: 100%;
+    gap: 40px; /* Увеличим отступ между колонками */
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 /* ЦЕНТРАЛЬНАЯ ЧАСТЬ */
 .accordionArea {
-  /* Если 750px всё еще кажется широким, можно поставить 700px */
-  flex: 0 0 750px; 
-  width: 750px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+    flex: 0 1 750px; /* Позволяем немного сужаться, если экран совсем маленький */
+    min-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 /* Исправляем секцию, чтобы не было двойных рамок */
@@ -70,13 +71,12 @@
 .stickySidebar {
     flex: 0 0 350px;
     width: 350px;
-    position: -webkit-sticky; /* Для Safari */
     position: sticky;
-    top: 40px; /* Расстояние от верхнего края экрана при скролле */
+    top: 20px; /* Прилипает к верху при скролле */
     display: flex;
     flex-direction: column;
     gap: 20px;
-    align-self: flex-start; /* Дополнительная страховка */
+    /* Убедись, что нет overflow: hidden у родителей, иначе sticky не сработает */
 }
 
 .infoCard {
@@ -214,4 +214,52 @@
     border: none;
     color: inherit;
     cursor: pointer;
+}
+
+.mainWrapper {
+    display: flex;
+    flex-direction: row; /* ТАБЫ СЛЕВА, КОНТЕНТ СПРАВА */
+    align-items: flex-start;
+    width: 100%;
+    gap: 15px;
+}
+
+.sideNav {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 20px;
+    flex-shrink: 0;
+}
+
+.navBtn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(123, 255, 0, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    padding: 15px 5px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    width: 90px;
+    transition: all 0.2s ease;
+}
+
+.activeNav {
+    background: #7BFF00;
+    color: #000;
+    border-color: #7BFF00;
+}
+
+/* Обновляем твой контейнер */
+.container {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1; /* Чтобы форма заняла всё остальное место */
+    justify-content: flex-start; /* Убираем center, чтобы не было дыр */
+    align-items: flex-start;
+    gap: 30px;
+    padding: 20px;
+    box-sizing: border-box;
 }

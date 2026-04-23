@@ -1,7 +1,30 @@
 'use client';
 
-import React, { createContext, useContext, useMemo, useState } from 'react';
-import { Client } from './types';
+/**
+ * Контекст списка клиентов для канбан-доски.
+ *
+ * Хранит актуальный список в памяти и предоставляет методы
+ * оптимистичного обновления (без ожидания ответа сервера).
+ *
+ * Обновление (ШАГ 2.2.1):
+ *   - Тип Client теперь использует ClientStatus из ядра (D-05).
+ *   - Убрана локальная нормализация — типы гарантируют корректность.
+ *
+ * @module src/app/dashboard/clients/ClientContext.tsx
+ */
+
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { type Client } from '@/types';
+
+// ---------------------------------------------------------------------------
+// Интерфейс контекста
+// ---------------------------------------------------------------------------
 
 interface ClientContextType {
   clients: Client[];
@@ -10,25 +33,34 @@ interface ClientContextType {
   deleteClient: (id: string) => void;
 }
 
+// ---------------------------------------------------------------------------
+// Создание контекста
+// ---------------------------------------------------------------------------
+
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
-function normalizeClientId(id: unknown): string {
+// ---------------------------------------------------------------------------
+// Вспомогательные функции
+// ---------------------------------------------------------------------------
+
+function normalizeId(id: unknown): string {
   return String(id);
 }
 
 function normalizeClients(clients: Client[]): Client[] {
-  if (!Array.isArray(clients)) {
-    return [];
-  }
-
+  if (!Array.isArray(clients)) return [];
   return clients.map((client) => ({
     ...client,
-    id: normalizeClientId(client.id),
+    id: normalizeId(client.id),
   }));
 }
 
+// ---------------------------------------------------------------------------
+// Провайдер
+// ---------------------------------------------------------------------------
+
 interface ClientProviderProps {
-  children: React.ReactNode;
+  children: ReactNode;
   initialClients?: Client[];
 }
 
@@ -40,63 +72,62 @@ export function ClientProvider({
     normalizeClients(initialClients)
   );
 
-  const addClient = (client: Client) => {
-    const normalizedClient: Client = {
-      ...client,
-      id: normalizeClientId(client.id),
-    };
+  // ── addClient ─────────────────────────────────────────────────────────────
+  // Если клиент с таким id уже есть — обновляем (upsert).
+  // Это защита от двойного добавления при быстром клике.
+
+  const addClient = (client: Client): void => {
+    const normalized: Client = { ...client, id: normalizeId(client.id) };
 
     setClients((prev) => {
-      const normalizedId = normalizeClientId(normalizedClient.id);
       const existingIndex = prev.findIndex(
-        (item) => normalizeClientId(item.id) === normalizedId
+        (item) => normalizeId(item.id) === normalized.id
       );
 
       if (existingIndex === -1) {
-        return [...prev, normalizedClient];
+        return [...prev, normalized];
       }
 
       return prev.map((item) =>
-        normalizeClientId(item.id) === normalizedId
-          ? { ...item, ...normalizedClient }
+        normalizeId(item.id) === normalized.id
+          ? { ...item, ...normalized }
           : item
       );
     });
   };
 
-  const updateClient = (id: string, updates: Partial<Client>) => {
-    const normalizedId = normalizeClientId(id);
+  // ── updateClient ──────────────────────────────────────────────────────────
+  // Оптимистичное обновление: UI реагирует мгновенно.
+  // При ошибке сервера — вызывающий код восстанавливает предыдущий статус.
+
+  const updateClient = (id: string, updates: Partial<Client>): void => {
+    const normalizedId = normalizeId(id);
 
     setClients((prev) =>
       prev.map((client) =>
-        normalizeClientId(client.id) === normalizedId
-          ? {
-              ...client,
-              ...updates,
-              id: normalizeClientId(client.id),
-            }
+        normalizeId(client.id) === normalizedId
+          ? { ...client, ...updates, id: normalizeId(client.id) }
           : client
       )
     );
   };
 
-  const deleteClient = (id: string) => {
-    const normalizedId = normalizeClientId(id);
+  // ── deleteClient ──────────────────────────────────────────────────────────
 
+  const deleteClient = (id: string): void => {
+    const normalizedId = normalizeId(id);
     setClients((prev) =>
-      prev.filter(
-        (client) => normalizeClientId(client.id) !== normalizedId
-      )
+      prev.filter((client) => normalizeId(client.id) !== normalizedId)
     );
   };
 
-  const value = useMemo(
-    () => ({
-      clients,
-      addClient,
-      updateClient,
-      deleteClient,
-    }),
+  // ── Мемоизация значения контекста ─────────────────────────────────────────
+  // Без useMemo каждый ре-рендер провайдера создаёт новый объект value,
+  // что вызывает ре-рендер всех потребителей контекста.
+
+  const value = useMemo<ClientContextType>(
+    () => ({ clients, addClient, updateClient, deleteClient }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [clients]
   );
 
@@ -107,12 +138,19 @@ export function ClientProvider({
   );
 }
 
-export const useClients = () => {
+// ---------------------------------------------------------------------------
+// Хук-потребитель
+// ---------------------------------------------------------------------------
+
+export function useClients(): ClientContextType {
   const context = useContext(ClientContext);
 
   if (!context) {
-    throw new Error('useClients must be used within ClientProvider');
+    throw new Error(
+      '[useClients] Хук должен использоваться внутри <ClientProvider>. ' +
+        'Оберни компонент в ClientProvider или добавь его в layout.tsx.'
+    );
   }
 
   return context;
-};
+}
