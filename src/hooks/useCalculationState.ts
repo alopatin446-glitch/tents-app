@@ -1,17 +1,11 @@
 /**
- * Хук общего состояния расчёта.
+ * Calculation state hook.
  *
- * Решает D-11: связывает список изделий (ItemsStep) с финансовыми
- * показателями клиента (ClientStep) через реактивный расчёт площади.
- *
- * Принцип работы:
- *   1. Хук хранит `windows` и `clientData` раздельно.
- *   2. При каждом изменении `windows` пересчитывает `totalArea`
- *      через `calculateTotalArea` из ядра (единственное место расчёта).
- *   3. `totalArea` автоматически инжектируется в `clientData.area` —
- *      ClientStep получает актуальное значение без ручного ввода.
- *   4. Оба компонента (ClientStep, ItemsStep) получают только свою часть
- *      состояния — хук изолирует их от деталей друг друга.
+ * Changes vs. previous version:
+ *   - All incoming windows are normalized through `normalizeAllWindowExtras`
+ *     on initialization so `additionalElements` is always present.
+ *   - Exposes `handleWindowsChange` and `handleExtrasChange` separately
+ *     so ExtrasStep can update additionalElements without touching geometry.
  *
  * @module src/hooks/useCalculationState.ts
  */
@@ -24,129 +18,114 @@ import {
   calculateTotalArea,
   calculateTotalAreaWithKant,
 } from '@/lib/logic/windowCalculations';
+import {
+  normalizeAllWindowExtras,
+  normalizeExtrasOnResize,
+} from '@/lib/logic/extrasCalculations';
 
 // ---------------------------------------------------------------------------
-// Типы
+// Types
 // ---------------------------------------------------------------------------
 
 export interface CalculationState {
-  /** Актуальный список изделий. */
+  /** Normalized window list — additionalElements always present. */
   windows: WindowItem[];
-
-  /**
-   * Данные клиента с инжектированной площадью.
-   * `area` всегда равна `calculateTotalArea(windows)` — никогда не устаревает.
-   */
   clientDataWithArea: ClientFormData;
-
-  /** Суммарная площадь полотна (без канта) в м². */
   totalAreaMaterial: number;
-
-  /** Суммарная площадь с кантом в м². */
   totalAreaWithKant: number;
-
-  // --- Обработчики для передачи в дочерние компоненты ---
-
-  /**
-   * Вызывается из `ItemsStep.onDraftChange` или `ItemsStep.onSave`.
-   * Обновляет список изделий → триггерит пересчёт площади.
-   */
   handleWindowsChange: (updated: WindowItem[]) => void;
-
-  /**
-   * Вызывается из `ClientStep.onDraftChange`.
-   * Обновляет поля клиента (не трогает `area` — она управляется хуком).
-   */
   handleClientDataChange: (updated: ClientFormData) => void;
+  /**
+   * Updates additionalElements for a single window.
+   * ADDITIVE ONLY — does not touch geometry, borders, or fasteners.
+   */
+  handleExtrasChange: (windowId: number, extras: WindowItem['additionalElements']) => void;
 }
 
 // ---------------------------------------------------------------------------
-// Хук
+// Hook
 // ---------------------------------------------------------------------------
 
-/**
- * @param initialClientData - начальные данные клиента (из БД или пустые)
- * @param initialWindows    - начальный список изделий (из БД или пустой)
- */
 export function useCalculationState(
   initialClientData: ClientFormData,
-  initialWindows: WindowItem[]
+  initialWindows: WindowItem[],
 ): CalculationState {
-  const [windows, setWindows] = useState<WindowItem[]>(initialWindows);
+  const [windows, setWindows] = useState<WindowItem[]>(
+    () => normalizeAllWindowExtras(initialWindows),
+  );
   const [clientData, setClientData] = useState<ClientFormData>(initialClientData);
 
-  // ---------------------------------------------------------------------------
-  // Реактивный расчёт площади (D-11)
-  //
-  // useMemo: пересчёт только при изменении массива windows.
-  // Функции из ядра — единственный источник формул площади (D-03).
-  // ---------------------------------------------------------------------------
+  // ── Reactive area calculation ─────────────────────────────────────────────
 
   const totalAreaMaterial = useMemo(
     () => calculateTotalArea(windows),
-    [windows]
+    [windows],
   );
 
   const totalAreaWithKant = useMemo(
     () => calculateTotalAreaWithKant(windows),
-    [windows]
+    [windows],
   );
 
-  /**
-   * Данные клиента с актуальной площадью.
-   *
-   * `area` инжектируется автоматически — ClientStep никогда не получает
-   * устаревшее значение. Поле `area` в форме становится read-only отображением,
-   * а не ручным вводом.
-   */
   const clientDataWithArea = useMemo<ClientFormData>(
-    () => ({
-      ...clientData,
-      area: totalAreaMaterial,
-    }),
-    [clientData, totalAreaMaterial]
+    () => ({ ...clientData, area: totalAreaMaterial }),
+    [clientData, totalAreaMaterial],
   );
 
-  // ---------------------------------------------------------------------------
-  // Обработчики
-  // ---------------------------------------------------------------------------
+  // ── Handlers ─────────────────────────────────────────────────────────────
 
   /**
-   * Обновляет список изделий.
-   * Вызывается из `ItemsStep.onDraftChange` (live) и `ItemsStep.onSave` (сохранение).
-   * useCallback: стабильная ссылка — не вызывает лишних ре-рендеров ItemsStep.
+   * Replaces the full window list.
+   * When dimensions change, re-derives extras proportionally per window.
    */
   const handleWindowsChange = useCallback((updated: WindowItem[]): void => {
-    setWindows(updated);
+    setWindows((prev) => {
+      const prevById = new Map(prev.map((w) => [w.id, w]));
+      const normalized = normalizeAllWindowExtras(updated);
+      // For each window whose dimensions changed, scale extras proportionally
+      return normalized.map((curr) => {
+        const prevWindow = prevById.get(curr.id);
+        if (!prevWindow) return curr;
+        const dimsChanged =
+          curr.widthTop !== prevWindow.widthTop ||
+          curr.widthBottom !== prevWindow.widthBottom ||
+          curr.heightLeft !== prevWindow.heightLeft ||
+          curr.heightRight !== prevWindow.heightRight;
+        if (!dimsChanged) return curr;
+        return { ...curr, additionalElements: normalizeExtrasOnResize(curr, prevWindow) };
+      });
+    });
   }, []);
 
   /**
-   * Обновляет данные клиента.
-   * НЕ перезаписывает `area` — она управляется хуком.
-   * Вызывается из `ClientStep.onDraftChange`.
+   * Updates only additionalElements for one window.
+   * Does NOT touch geometry, borders, or fasteners.
+   */
+  const handleExtrasChange = useCallback(
+    (windowId: number, extras: WindowItem['additionalElements']): void => {
+      setWindows((prev) =>
+        prev.map((w) => (w.id === windowId ? { ...w, additionalElements: extras } : w)),
+      );
+    },
+    [],
+  );
+
+  /**
+   * Updates client form data (never overwrites `area`).
    */
   const handleClientDataChange = useCallback(
     (updated: ClientFormData): void => {
       setClientData((prev) => {
-        // Исключаем area, так как она вычисляется автоматически в этом хуке
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { area: _ignored, ...rest } = updated;
-
-        // ПРОВЕРКА: Сравниваем каждое поле. Если изменений нет — возвращаем старый объект.
-        // Это предотвратит лишний рендер и остановит петлю в React.
-        const hasChanges = Object.keys(rest).some((k) => {
-          const key = k as keyof ClientFormData;
-          return prev[key] !== (rest as any)[key];
-        });
-
-        if (!hasChanges) {
-          return prev;
-        }
-
+        const hasChanges = Object.keys(rest).some(
+          (k) => prev[k as keyof ClientFormData] !== (rest as Record<string, unknown>)[k],
+        );
+        if (!hasChanges) return prev;
         return { ...prev, ...rest };
       });
     },
-    []
+    [],
   );
 
   return {
@@ -156,5 +135,6 @@ export function useCalculationState(
     totalAreaWithKant,
     handleWindowsChange,
     handleClientDataChange,
+    handleExtrasChange,
   };
 }

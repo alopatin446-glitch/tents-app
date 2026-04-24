@@ -1,0 +1,515 @@
+/* ExtrasStep.module.css */
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+
+.layout {
+  display: grid;
+  /* Левая панель строго 280px, правая забирает ВСЁ остальное (1fr) */
+  grid-template-columns: 330px 1fr; 
+  gap: 15px; /* Уменьшаем зазор между панелями до эталонного */
+  padding: 10px; /* Уменьшаем внешние поля, чтобы панели стали шире */
+  height: 100%;
+  width: 45%; /* Убедимся, что сетка растянута на всю ширину */
+  box-sizing: border-box;
+  overflow: hidden;
+  height: 100%;
+  align-items: stretch;
+  /* ДОБАВЛЕНО: Гарантируем, что макет не выйдет за пределы экрана. */
+}
+
+/* ── Panels ────────────────────────────────────────────────────────────────── */
+
+.leftPanel {
+  background: #242D3E;
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  border-radius: 20px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.rightPanel {
+  background: #242D3E;
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  border-radius: 20px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  min-width: 0;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sectionTitle {
+  color: #7bff00;
+  text-transform: uppercase;
+  font-size: 1.1rem;
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.windowName {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Validation / warning banners ───────────────────────────────────────────── */
+
+.errorBlock {
+  padding: 10px 12px;
+  background: rgba(220, 50, 50, 0.15);
+  border: 1px solid rgba(220, 50, 50, 0.5);
+  border-radius: 10px;
+  color: #fca5a5;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.errorList {
+  margin: 6px 0 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.warnBlock {
+  padding: 10px 12px;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  border-radius: 10px;
+  color: #fde68a;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.warnList {
+  margin: 6px 0 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── Accordion / scroll area ───────────────────────────────────────────────── */
+
+.accordion {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.accordion::-webkit-scrollbar {
+  width: 4px;
+}
+
+.accordion::-webkit-scrollbar-thumb {
+  background: rgba(123, 255, 0, 0.2);
+  border-radius: 10px;
+}
+
+.accordionItem {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.accordionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  font-weight: 700;
+  transition: 0.2s ease;
+}
+
+.accordionHeader:hover {
+  background: rgba(123, 255, 0, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.accordionHeaderOpen {
+  background: rgba(123, 255, 0, 0.1);
+  color: #7bff00;
+}
+
+.accordionTitle {
+  flex: 1;
+  min-width: 0;
+}
+
+.accordionChevron {
+  font-size: 10px;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.badge {
+  background: rgba(123, 255, 0, 0.12);
+  color: #7bff00;
+  border: 1px solid rgba(123, 255, 0, 0.25);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.accordionBody {
+  padding: 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* ── Field rows ─────────────────────────────────────────────────────────────── */
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  min-width: 0;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 120px;
+}
+
+.fieldValue {
+  font-size: 13px;
+  color: #e2e8f0;
+  font-weight: 600;
+  min-width: 0;
+}
+
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #cbd5e1;
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+
+.checkLabel input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: #7bff00;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.numInput {
+  width: 80px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  color: #e2e8f0;
+  font-size: 13px;
+  text-align: right;
+  transition: border-color 0.15s;
+}
+
+.numInput:focus {
+  outline: none;
+  border-color: rgba(123, 255, 0, 0.45);
+}
+
+.numInput:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Segmented control ──────────────────────────────────────────────────────── */
+
+.segmentedControl {
+  display: flex;
+  border: 1px solid rgba(123, 255, 0, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.segBtn {
+  padding: 4px 10px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.segBtn:last-child {
+  border-right: none;
+}
+
+.segBtn:hover:not(:disabled) {
+  background: rgba(123, 255, 0, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.segBtnActive {
+  background: #7bff00 !important;
+  color: #111827 !important;
+  font-weight: 700;
+}
+
+.segBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── List cards ─────────────────────────────────────────────────────────────── */
+
+.listCard {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.listCardCut {
+  border-color: rgba(220, 50, 50, 0.3);
+  background: rgba(220, 50, 50, 0.05);
+}
+
+.listCardPatch {
+  border-color: rgba(50, 180, 50, 0.3);
+  background: rgba(50, 180, 50, 0.05);
+}
+
+.listCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 2px;
+  min-width: 0;
+}
+
+.removeBtn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(220, 50, 50, 0.2);
+  border: 1px solid rgba(220, 50, 50, 0.3);
+  border-radius: 999px;
+  color: #fca5a5;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.removeBtn:hover {
+  background: rgba(220, 50, 50, 0.4);
+}
+
+/* ── Add buttons ────────────────────────────────────────────────────────────── */
+
+.addBtn {
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px dashed rgba(123, 255, 0, 0.3);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.addBtn:hover {
+  background: rgba(123, 255, 0, 0.12);
+  color: #7bff00;
+}
+
+.addGroup {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.addGroup .addBtn {
+  flex: 1;
+  min-width: 0;
+}
+
+.addBtnCut {
+  border-color: rgba(220, 50, 50, 0.35) !important;
+  color: #fca5a5 !important;
+}
+
+.addBtnCut:hover {
+  background: rgba(220, 50, 50, 0.16) !important;
+}
+
+.addBtnPatch {
+  border-color: rgba(50, 180, 50, 0.35) !important;
+  color: #86efac !important;
+}
+
+.addBtnPatch:hover {
+  background: rgba(50, 180, 50, 0.16) !important;
+}
+
+/* ── Save button ────────────────────────────────────────────────────────────── */
+
+.saveButton {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  border-radius: 30px;
+  padding: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: 0.3s;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: #7bff00;
+  color: #111827;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.5);
+}
+
+.saveButton:disabled {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.12);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ── Window tabs ─────────────────────────────────────────────────────────────── */
+
+.tabsRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.tabItem {
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 30px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.tabItem:hover {
+  border-color: rgba(123, 255, 0, 0.3);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.tabItemActive {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #ffffff;
+}
+
+.tabItemDisabled {
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 30px;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: not-allowed;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* ── Canvas ──────────────────────────────────────────────────────────────────── */
+
+.canvasWrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  background: transparent;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────────── */
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+}

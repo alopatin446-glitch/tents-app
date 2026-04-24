@@ -1,13 +1,13 @@
 'use client';
 
 /**
- * Оркестратор расчёта (Client Component).
+ * Calculation orchestrator (Client Component).
  *
- * Изменения для модуля крепежа:
- *   - activeWindowId поднят из ItemsStep в этот компонент (lifted state).
- *     Теперь вкладки ИЗДЕЛИЯ и КРЕПЁЖ синхронно помнят выбранное окно.
- *   - FastenersStep получает windows, activeWindowId, onWindowsChange, onSave.
- *   - handleWindowsSave переименован — используется обеими вкладками.
+ * Changes vs. previous version:
+ *   - Added 'extras' step backed by ExtrasStep.
+ *   - Step type extended to include 'extras'.
+ *   - handleExtrasChange from useCalculationState wired to ExtrasStep.
+ *   - handleWindowsSave reused for ExtrasStep.onSave.
  *
  * @module src/components/calculation/CalculationClient.tsx
  */
@@ -24,10 +24,11 @@ import { logger } from '@/lib/logger';
 import ClientStep from '@/components/calculation/ClientStep';
 import ItemsStep from '@/components/calculation/ItemsStep';
 import FastenersStep from '@/components/calculation/FastenersStep';
+import ExtrasStep from '@/components/calculation/ExtrasStep';
 
 import styles from './CalculationClient.module.css';
 
-type Step = 'client' | 'items' | 'fasteners';
+type Step = 'client' | 'items' | 'fasteners' | 'extras';
 
 interface CalculationClientProps {
   clientId: string;
@@ -46,11 +47,6 @@ export default function CalculationClient({
   const [activeStep, setActiveStep] = useState<Step>('client');
   const [isSaving, setIsSaving] = useState(false);
 
-  /**
-   * Активное окно — shared state между вкладками ИЗДЕЛИЯ и КРЕПЁЖ.
-   * Инициализируется первым окном; при добавлении/удалении обновляется
-   * через onActiveWindowChange, который передаётся в ItemsStep и FastenersStep.
-   */
   const [activeWindowId, setActiveWindowId] = useState<number>(
     () => initialWindows[0]?.id ?? Date.now(),
   );
@@ -62,9 +58,10 @@ export default function CalculationClient({
     totalAreaWithKant,
     handleWindowsChange,
     handleClientDataChange,
+    handleExtrasChange,
   } = useCalculationState(initialClientData, initialWindows);
 
-  // ─── Сохранение данных клиента ────────────────────────────────────────────
+  // ── Save client data ──────────────────────────────────────────────────────
 
   const handleSave = useCallback(
     async (formData: ClientFormData): Promise<void> => {
@@ -85,7 +82,6 @@ export default function CalculationClient({
           installDate: formData.installDate,
           managerComment: formData.managerComment ?? '',
           engineerComment: formData.engineerComment ?? '',
-          // Сохраняем windows текущего состояния (включая fasteners)
           items: windows,
         };
 
@@ -93,7 +89,7 @@ export default function CalculationClient({
 
         if (result.success) {
           const returnedId = 'clientId' in result ? result.clientId : null;
-          logger.info('[CalculationClient] Сохранено', {
+          logger.info('[CalculationClient] Saved', {
             clientId: returnedId || clientId,
             windowsCount: windows.length,
             totalAreaMaterial,
@@ -106,11 +102,11 @@ export default function CalculationClient({
           alert('Данные успешно сохранены');
         } else {
           const errorMsg = 'error' in result ? result.error : 'Неизвестная ошибка';
-          logger.error('[CalculationClient] Ошибка сохранения', { clientId, error: errorMsg });
+          logger.error('[CalculationClient] Save error', { clientId, error: errorMsg });
           alert('Ошибка сохранения: ' + errorMsg);
         }
       } catch (err) {
-        logger.error('[CalculationClient] Исключение при сохранении', err);
+        logger.error('[CalculationClient] Save exception', err);
         alert('Критическая ошибка при сохранении');
       } finally {
         setIsSaving(false);
@@ -119,7 +115,7 @@ export default function CalculationClient({
     [clientId, isReadOnly, router, windows, totalAreaMaterial],
   );
 
-  // ─── Сохранение windows (используется обеими вкладками) ──────────────────
+  // ── Save windows (shared by Items / Fasteners / Extras) ──────────────────
 
   const handleWindowsSave = useCallback(
     async (updatedWindows: WindowItem[]): Promise<void> => {
@@ -129,17 +125,17 @@ export default function CalculationClient({
       try {
         const result = await updateClientAction(clientId, { items: updatedWindows });
         if (result.success) {
-          logger.info('[CalculationClient] Изделия/крепёж сохранены', {
+          logger.info('[CalculationClient] Windows/extras saved', {
             clientId,
             count: updatedWindows.length,
           });
           router.refresh();
         } else {
-          logger.error('[CalculationClient] Ошибка сохранения изделий', { error: result.error });
+          logger.error('[CalculationClient] Windows save error', { error: result.error });
           alert('Ошибка сохранения: ' + result.error);
         }
       } catch (err) {
-        logger.error('[CalculationClient] Исключение при сохранении изделий', err);
+        logger.error('[CalculationClient] Windows save exception', err);
       } finally {
         setIsSaving(false);
       }
@@ -147,19 +143,19 @@ export default function CalculationClient({
     [clientId, isReadOnly, router, handleWindowsChange],
   );
 
-  // ─── Шаги навигации ───────────────────────────────────────────────────────
+  // ── Step navigation ───────────────────────────────────────────────────────
 
   const steps: Array<{ id: Step; label: string }> = [
     { id: 'client',    label: 'Клиент' },
     { id: 'items',     label: 'Изделия' },
     { id: 'fasteners', label: 'Крепёж' },
+    { id: 'extras',    label: 'Допы' },
   ];
 
-  // ─── Рендер ───────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className={styles.wrapper}>
-      {/* Верхняя панель: табы + индикатор площади */}
       <div className={styles.topBar}>
         <nav className={styles.stepNav}>
           {steps.map((step) => (
@@ -183,7 +179,6 @@ export default function CalculationClient({
         </div>
       </div>
 
-      {/* Основной контент */}
       <main className={styles.mainContent}>
 
         {activeStep === 'client' && (
@@ -218,6 +213,18 @@ export default function CalculationClient({
             isReadOnly={isReadOnly}
           />
         )}
+
+        {activeStep === 'extras' && (
+          <ExtrasStep
+            windows={windows}
+            activeWindowId={activeWindowId}
+            onActiveWindowChange={setActiveWindowId}
+            onExtrasChange={handleExtrasChange}
+            onSave={handleWindowsSave}
+            isReadOnly={isReadOnly}
+          />
+        )}
+
       </main>
     </div>
   );

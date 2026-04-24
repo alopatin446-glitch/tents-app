@@ -5,13 +5,20 @@
 
 /* ── Общий layout ────────────────────────────────────────────────────────── */
 
-.fastenersLayout {
+/* Утилитарный класс для всего макета шага */
+.fastenersLayout { /* или .layout */
   display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 30px;
-  padding: 20px;
+  /* ИЗМЕНЕНО: Сузили левую колонку с 320px до 280px, 
+     чтобы дать больше места правому полю. */
+  grid-template-columns: 280px 1fr; 
+  /* ИЗМЕНЕНО: Уменьшили зазор между панелями с 30px до 15px. */
+  gap: 15px; 
+  /* ИЗМЕНЕНО: Уменьшили внешние отступы всего макета. */
+  padding: 10px; 
   height: 100%;
   align-items: stretch;
+  /* ДОБАВЛЕНО: Гарантируем, что макет не выйдет за пределы экрана. */
+  overflow: hidden; 
 }
 
 /* ── Левая панель ────────────────────────────────────────────────────────── */
@@ -101,7 +108,8 @@
   background: #242D3E;
   border: 1px solid rgba(123, 255, 0, 0.2);
   border-radius: 20px;
-  padding: 24px;
+  /* ИЗМЕНЕНО: Уменьшили внутренний паддинг с 24px до 15px. */
+  padding: 15px; 
   display: flex;
   flex-direction: column;
   overflow: hidden;
