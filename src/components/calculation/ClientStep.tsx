@@ -59,6 +59,7 @@ export interface ClientFormData {
   photoMeasurement?: File | null;
   photoContract?: File | null;
   items?: WindowItem[] | null;
+  mountingConfig?: any; // Добавили поддержку данных монтажа
 }
 
 type OpenSections = {
@@ -91,7 +92,7 @@ export default function ClientStep({
   const [clientData, setClientData] = useState<ClientFormData>(initialData);
 
   const [openSections, setOpenSections] = useState<OpenSections>({
-    data: true, // По умолчанию открываем первую
+    data: false, // По умолчанию не открываем первую
     media: false,
     payments: false,
     results: false,

@@ -20,6 +20,7 @@ import { parseWindowItems } from '@/types';
 import { logger } from '@/lib/logger';
 import CalculationClient from '@/components/calculation/CalculationClient';
 import type { ClientFormData } from '@/components/calculation/ClientStep';
+import type { MountingConfig } from '@/types/mounting';
 
 // Страница всегда серверная и динамическая —
 // данные клиента могут меняться между запросами.
@@ -78,11 +79,12 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
       installDate: '',
       managerComment: '',
       engineerComment: '',
+      mountingConfig: null,
     };
 
     return (
       <CalculationClient
-        clientId="" 
+        clientId=""
         initialClientData={emptyClientData}
         initialWindows={[]}
         isReadOnly={false}
@@ -123,6 +125,7 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
     installDate: formatDateForInput(client.installDate),
     managerComment: client.managerComment,
     engineerComment: client.engineerComment,
+    mountingConfig: (client.mountingConfig ?? null) as MountingConfig | null,
   };
 
   return (

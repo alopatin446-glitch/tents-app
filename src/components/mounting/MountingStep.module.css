@@ -1,0 +1,489 @@
+/**
+ * Стили формы монтажа (MountingStep)
+ * Используется внутри /dashboard/new-calculation → вкладка «Монтаж»
+ * Тема: Cyberpunk Dark
+ */
+
+/* ─── Корневой контейнер ─────────────────────────────────────────────────── */
+
+.mountingRoot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  font-family: 'Montserrat', sans-serif;
+}
+
+@media (max-width: 960px) {
+  .mountingRoot {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Панель (карточка-секция) ───────────────────────────────────────────── */
+
+.panel {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(123, 255, 0, 0.12);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.panelTitle {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--neon-green);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(123, 255, 0, 0.1);
+}
+
+/* ─── Строки формы ───────────────────────────────────────────────────────── */
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.formRowInline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Инпуты и селекты ───────────────────────────────────────────────────── */
+
+.input,
+.select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  border-radius: 8px;
+  color: var(--text-white);
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  font-family: 'Montserrat', sans-serif;
+  outline: none;
+  width: 100%;
+  transition: 0.2s;
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--neon-green);
+  box-shadow: 0 0 12px rgba(123, 255, 0, 0.15);
+}
+
+.select option {
+  background: #182234;
+}
+
+/* Ручная цена — подсветка оранжевым если отличается от системной */
+.inputManualOverride {
+  border-color: rgba(255, 140, 0, 0.6) !important;
+  background: rgba(255, 140, 0, 0.06) !important;
+  color: #FF8C00 !important;
+}
+
+/* ─── Переключатель (toggle) ─────────────────────────────────────────────── */
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.toggleLabel {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+}
+
+.toggle {
+  width: 42px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 11px;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: 0.25s;
+}
+
+.toggle::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  top: 2px;
+  left: 2px;
+  transition: 0.25s;
+}
+
+.toggleActive {
+  background: rgba(123, 255, 0, 0.15);
+  border-color: var(--neon-green);
+}
+
+.toggleActive::after {
+  background: var(--neon-green);
+  left: 22px;
+  box-shadow: 0 0 8px rgba(123, 255, 0, 0.5);
+}
+
+/* ─── Список с кнопкой добавления (основания, балки) ────────────────────── */
+
+.listSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.listSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.listSectionTitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.addBtn {
+  background: transparent;
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  color: var(--neon-green);
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: 0.2s;
+  font-family: 'Montserrat', sans-serif;
+}
+.addBtn:hover {
+  background: rgba(123, 255, 0, 0.1);
+  border-color: var(--neon-green);
+}
+
+/* Одна строка балки / основания */
+.listItem {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.6rem;
+}
+
+.listItemField {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.listItemFieldSmall {
+  width: 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.listItemLabel {
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.removeBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 77, 77, 0.5);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 4px;
+  align-self: flex-end;
+  padding-bottom: 7px;
+  transition: 0.2s;
+  line-height: 1;
+}
+.removeBtn:hover {
+  color: #FF4D4D;
+}
+
+/* Чекбокс «Покрасить» */
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  align-self: flex-end;
+  padding-bottom: 8px;
+}
+
+.checkboxLabel {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.checkbox {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+.checkbox:checked {
+  background: var(--neon-green);
+  border-color: var(--neon-green);
+}
+.checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  color: #182234;
+  font-size: 9px;
+  font-weight: 900;
+  top: -1px;
+  left: 2px;
+}
+
+/* ─── Блок итогов ────────────────────────────────────────────────────────── */
+
+.resultsPanel {
+  background: rgba(123, 255, 0, 0.04);
+  border: 1px solid rgba(123, 255, 0, 0.18);
+  border-radius: 12px;
+  padding: 1.25rem;
+  grid-column: 1 / -1; /* растягивается на обе колонки */
+}
+
+.resultsTitle {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--neon-green);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.resultsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.resultItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.resultLabel {
+  font-size: 0.63rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.resultValue {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-white);
+}
+
+.resultValueAccent {
+  color: var(--neon-green);
+  text-shadow: 0 0 8px rgba(123, 255, 0, 0.35);
+}
+
+.resultValueLoss {
+  color: #FF4D4D;
+  text-shadow: 0 0 8px rgba(255, 77, 77, 0.35);
+}
+
+.resultValueWarning {
+  color: #FF8C00;
+}
+
+.minimumBadge {
+  font-size: 0.6rem;
+  background: rgba(255, 214, 0, 0.12);
+  border: 1px solid rgba(255, 214, 0, 0.3);
+  color: #FFD600;
+  padding: 2px 7px;
+  border-radius: 50px;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+}
+
+/* ─── Баннер ошибки прайса ─────────────────────────────────────────────────── */
+
+.priceErrorBanner {
+  background: rgba(255, 77, 77, 0.1);
+  border: 1px solid rgba(255, 77, 77, 0.4);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+}
+
+.priceErrorTitle {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #FF4D4D;
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.5px;
+}
+
+.priceErrorList {
+  font-size: 0.7rem;
+  color: rgba(255, 100, 100, 0.8);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.priceErrorList li::before {
+  content: '• ';
+}
+
+/* ─── Баннер убыточности ──────────────────────────────────────────────────── */
+
+.lossBanner {
+  background: rgba(255, 77, 77, 0.06);
+  border: 1px solid rgba(255, 77, 77, 0.25);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+}
+
+.lossBannerTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #FF4D4D;
+  margin-bottom: 0.5rem;
+}
+
+/* ─── Кнопки действий ────────────────────────────────────────────────────── */
+
+.actionsRow {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.saveBtn {
+  background: var(--neon-green);
+  border: 1px solid var(--neon-green);
+  color: var(--bg-main);
+  padding: 10px 28px;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: 0.25s;
+  font-family: 'Montserrat', sans-serif;
+}
+.saveBtn:hover:not(:disabled) {
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.4);
+  transform: translateY(-1px);
+}
+.saveBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.updatePricesBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 140, 0, 0.4);
+  color: #FF8C00;
+  padding: 10px 20px;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.25s;
+  font-family: 'Montserrat', sans-serif;
+}
+.updatePricesBtn:hover {
+  background: rgba(255, 140, 0, 0.08);
+  border-color: #FF8C00;
+}
+
+/* ─── Снимок прайса ──────────────────────────────────────────────────────── */
+
+.snapshotBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 50px;
+  padding: 3px 10px;
+  font-size: 0.65rem;
+  color: #00E5FF;
+  font-weight: 600;
+}
+
+/* ─── Статус-строка ──────────────────────────────────────────────────────── */
+
+.statusSelect {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  border-radius: 8px;
+  color: var(--text-white);
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  font-family: 'Montserrat', sans-serif;
+  outline: none;
+  width: 100%;
+  transition: 0.2s;
+  cursor: pointer;
+}
+.statusSelect:focus {
+  border-color: var(--neon-green);
+}
+.statusSelect option {
+  background: #182234;
+}

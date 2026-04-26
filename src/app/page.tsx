@@ -5,7 +5,6 @@ export default function Home() {
   return (
     <main className={styles.container}>
       <div className={styles.homeGrid}>
-        
         {/* ЛЕВАЯ КОЛОНКА */}
         <div className={styles.homeColumn}>
           <div className={styles.videoBlock}>Здесь будет видео</div>

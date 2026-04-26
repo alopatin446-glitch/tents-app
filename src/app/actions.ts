@@ -7,6 +7,7 @@ import { normalizeStatus } from '@/lib/logic/statusDictionary';
 import { toFinancialNumber, calculateClientBalance } from '@/lib/logic/financialCalculations';
 import { parseWindowItems } from '@/types';
 import { logger } from '@/lib/logger';
+import { MountingConfig } from '@/types/mounting';
 
 // ---------------------------------------------------------------------------
 // Локальные утилиты нормализации (серверная граница)
@@ -61,6 +62,7 @@ type UpdateClientPayload = {
   items?: unknown;
   managerComment?: unknown;
   engineerComment?: unknown;
+  mountingConfig?: MountingConfig; // Установили строгий тип вместо unknown
 };
 
 function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknown> {
@@ -101,6 +103,7 @@ function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknow
   if (data.measurementDate !== undefined) out.measurementDate = toNullableDate(data.measurementDate);
   if (data.installDate !== undefined) out.installDate = toNullableDate(data.installDate);
   if (data.items !== undefined) out.items = toJsonItems(data.items);
+  if (data.mountingConfig !== undefined) out.mountingConfig = data.mountingConfig;
 
   return out;
 }
@@ -120,7 +123,6 @@ function revalidateClientPaths(): void {
 // Публичные экшены
 // ---------------------------------------------------------------------------
 
-
 export async function updateClientAction(
   id: string,
   data: UpdateClientPayload
@@ -129,7 +131,6 @@ export async function updateClientAction(
     let finalId: string;
 
     if (!id || id.trim() === '') {
-      // СОЗДАНИЕ: Принудительно приводим типы (as string / as number), чтобы заткнуть TS
       const newClient = await prisma.client.create({
         data: {
           fio: (data.fio as string) || 'Новый клиент',
@@ -144,6 +145,7 @@ export async function updateClientAction(
           managerComment: (data.managerComment as string) || '',
           engineerComment: (data.engineerComment as string) || '',
           items: data.items ? (data.items as any) : [],
+          mountingConfig: data.mountingConfig ? (data.mountingConfig as any) : Prisma.JsonNull,
           measurementDate: data.measurementDate ? new Date(data.measurementDate as any) : null,
           installDate: data.installDate ? new Date(data.installDate as any) : null,
         },
@@ -151,7 +153,6 @@ export async function updateClientAction(
       finalId = newClient.id;
       logger.info('[updateClientAction] Создан новый клиент', { id: finalId });
     } else {
-      // ОБНОВЛЕНИЕ
       const prismaData = buildUpdateClientData(data);
       const updatedClient = await prisma.client.update({
         where: { id },
@@ -214,29 +215,83 @@ export async function getArchiveOrdersCount(): Promise<
   }
 }
 
-/**
- * Удаляет клиента из базы данных
- */
 export async function deleteClientAction(
   id: string
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
-    if (!id) {
-      return { success: false, error: 'ID не предоставлен' };
-    }
-
-    await prisma.client.delete({
-      where: { id },
-    });
-
+    if (!id) return { success: false, error: 'ID не предоставлен' };
+    await prisma.client.delete({ where: { id } });
     logger.info('[deleteClientAction] Клиент удален', { id });
-    
-    // Инвалидируем пути, чтобы список клиентов обновился везде
     revalidateClientPaths();
-    
     return { success: true };
   } catch (error) {
     logger.error('[deleteClientAction] Ошибка при удалении', error);
     return { success: false, error: 'Не удалось удалить клиента' };
   }
+}
+
+// --- Добавь это в конец файла src/app/actions.ts ---
+
+import { cookies } from 'next/headers';
+import { verifyPassword } from '@/lib/auth/crypto';
+import {
+  generateSessionToken,
+  getSessionExpiry,
+  hashSessionToken,
+} from '@/lib/auth/session';
+import { SESSION_COOKIE_NAME } from '@/lib/auth/constants';
+
+export async function loginAction(
+  email: string,
+  password: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete(SESSION_COOKIE_NAME);
+
+    const user = await prisma.user.findUnique({
+      where: { email: email.trim().toLowerCase() },
+    });
+
+    if (!user || user.status !== 'ACTIVE') {
+      return { success: false, error: 'Неверный email или аккаунт заблокирован' };
+    }
+
+    const isValid = await verifyPassword(password, user.passwordHash);
+    if (!isValid) return { success: false, error: 'Неверный пароль' };
+
+    const token = generateSessionToken();
+    const expiresAt = getSessionExpiry();
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashSessionToken(token),
+        expiresAt,
+      },
+    });
+
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      expires: expiresAt,
+      path: '/',
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Login error:', error);
+    return { success: false, error: 'Ошибка сервера' };
+  }
+}
+
+export async function logoutAction(): Promise<void> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  if (token) {
+    await prisma.session.deleteMany({
+      where: { tokenHash: hashSessionToken(token) },
+    });
+  }
+  cookieStore.delete(SESSION_COOKIE_NAME);
 }
