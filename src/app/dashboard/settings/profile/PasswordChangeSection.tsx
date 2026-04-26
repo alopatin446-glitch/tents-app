@@ -48,7 +48,7 @@ export default function PasswordChangeSection() {
         setNewPwd('');
         setConfirmPwd('');
       } else {
-        setError(result.error);
+        setError(result.error || 'Произошла неизвестная ошибка');
       }
     });
   }
