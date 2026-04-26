@@ -100,10 +100,10 @@ export default function ProfileClient({ user }: Props) {
     startTransition(async () => {
       const result = await uploadAvatarAction(formData);
       if (result.success) {
-        setAvatarUrl(result.avatarUrl);
+        setAvatarUrl(result.avatarUrl ?? '');
         setAvatarMsg('Аватар обновлён');
       } else {
-        setAvatarError(result.error);
+        setAvatarError(result.error ?? 'Ошибка загрузки');
       }
     });
   }
