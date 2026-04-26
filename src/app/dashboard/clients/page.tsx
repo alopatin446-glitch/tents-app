@@ -4,18 +4,24 @@ import KanbanBoard from './KanbanBoard';
 import { parseWindowItems } from '@/types';
 import { normalizeStatus } from '@/lib/logic/statusDictionary';
 import type { Client } from '@/types';
-
-export const dynamic = 'force-dynamic';
+import { getCurrentUser } from '@/lib/auth/getCurrentUser';
+import { redirect } from 'next/navigation';
 
 export default async function ClientsPage() {
+  // Просто получаем пользователя, чтобы сессия была валидна
+  const user = await getCurrentUser();
+  
+  // Если вообще не залогинен — на вход
+  if (!user) {
+    return redirect('/login');
+  }
+
+  // БЛОКИРОВКУ ПО PERMISSIONS УБРАЛИ. Дмитрий снова может зайти.
+
   const raw = await prisma.client.findMany({
     orderBy: { createdAt: 'desc' },
   });
 
-  // Сериализуем Prisma-объекты в чистые Client-объекты:
-  // - Date → ISO-строка (клиентские компоненты не принимают Date-объекты)
-  // - status: string → ClientStatus через normalizeStatus
-  // - items: Json → WindowItem[] через parseWindowItems
   const clients: Client[] = raw.map((c) => ({
     id: c.id,
     fio: c.fio,

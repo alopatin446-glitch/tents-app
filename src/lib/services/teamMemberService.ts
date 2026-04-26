@@ -90,25 +90,20 @@ export async function getActiveTeamMembers(): Promise<TeamMemberConfig[]> {
       orderBy: { createdAt: 'asc' },
     });
 
-    // Правило 2: таблица пуста — используем статику
-    if (allRecords.length === 0) {
-      logger.info('[teamMemberService] Таблица TeamMember пуста → используется статический TEAM_MEMBERS');
-      return TEAM_MEMBERS as TeamMemberConfig[];
-    }
+    // УДАЛЯЕМ ПРОВЕРКУ НА allRecords.length === 0 СО СТАТИКОЙ
 
+    // Оставляем только фильтрацию по активным
     const activeRecords = allRecords.filter((r) => r.status === 'active');
 
-    // Правило 3: таблица не пуста, но все inactive → пустой список
     if (activeRecords.length === 0) {
-      logger.info('[teamMemberService] В таблице TeamMember нет активных записей → возвращается пустой список');
-      return [];
+      logger.info('[teamMemberService] Активные монтажники не найдены');
+      return []; // Возвращаем пустой массив, а не статику!
     }
 
-    // Правило 1: используем активные из БД
-    logger.info('[teamMemberService] Загружено активных монтажников из БД', { count: activeRecords.length });
+    logger.info('[teamMemberService] Загружено из БД', { count: activeRecords.length });
     return activeRecords.map(mapDbRecordToConfig);
   } catch (error) {
-    logger.error('[teamMemberService] Ошибка получения монтажников из БД', error);
+    logger.error('[teamMemberService] Ошибка получения монтажников', error);
     throw error;
   }
 }

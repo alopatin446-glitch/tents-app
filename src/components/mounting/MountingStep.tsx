@@ -334,9 +334,16 @@ export default function MountingStep({
    * Пустой массив от пропа или API означает «нет активных» — НЕ fallback.
    */
   const effectiveMembers: TeamMemberConfig[] = useMemo(() => {
+    // 1. Если проп передан — это приоритет (серверные данные)
     if (teamMembersFromProp !== undefined) return teamMembersFromProp;
+    
+    // 2. Если API вернул данные (даже пустой массив []) — используем их
     if (fetchedMembers !== null) return fetchedMembers;
-    return TEAM_MEMBERS as TeamMemberConfig[];
+    
+    // 3. Пока идет загрузка (fetchedMembers === null) — возвращаем ПУСТОЙ список,
+    // чтобы не было мерцания старых данных. 
+    // Статика TEAM_MEMBERS тут больше не нужна, если мы перешли на БД.
+    return []; 
   }, [teamMembersFromProp, fetchedMembers]);
 
   // SSOT: все цифры расчёта берём только из calculateMounting().

@@ -8,13 +8,10 @@ import { getArchiveOrdersCount } from '@/app/actions';
 
 export default function DashboardPage() {
   const router = useRouter();
-  
-  // Достаем всё из хука (теперь isLoading тут точно есть)
-  const { userName, userOrg, logout, checkAuth, isLoading } = useAuth();
+  const { userName, userOrg, logout, checkAuth, isLoading, role, permissions } = useAuth();
   const [archiveCount, setArchiveCount] = useState<number>(0);
 
   useEffect(() => {
-    // Редирект только если загрузка закончена и пользователя нет
     if (!isLoading && !checkAuth()) {
       router.push('/login');
     }
@@ -24,7 +21,7 @@ export default function DashboardPage() {
       try {
         const result = await getArchiveOrdersCount();
         if (result && typeof result === 'object' && 'success' in result && result.success) {
-          setArchiveCount(Number(result.count) || 0);
+          setArchiveCount(Number((result as any).count) || 0);
         }
       } catch (error) {
         console.error('Ошибка загрузки счётчика:', error);
@@ -33,7 +30,33 @@ export default function DashboardPage() {
     loadArchiveCount();
   }, [checkAuth, router, isLoading]);
 
-  // Пока проверяем сессию — черный экран загрузки в твоем стиле
+  // Улучшенная функция проверки доступа
+  const canAccess = (perm: string): boolean => {
+    const userRole = String(role || '').toUpperCase();
+
+    // 1. АДМИНУ можно всё
+    if (userRole === 'ADMIN') return true;
+
+    // 2. ЕСЛИ ПРАВА ЕСТЬ В МАССИВЕ (из базы)
+    if (permissions && Array.isArray(permissions) && permissions.length > 0) {
+      const searchKey = perm.split(':')[0].toLowerCase();
+      const hasDirectPerm = permissions.some(p => {
+        const lp = String(p).toLowerCase();
+        return lp === perm.toLowerCase() || lp === searchKey || lp.includes(searchKey);
+      });
+      if (hasDirectPerm) return true;
+    }
+
+    // 3. ЗАПАСНОЙ ВАРИАНТ (по роли)
+    // Если массив прав пуст, но юзер — сотрудник (USER/ENGINEER), открываем базу
+    if (userRole === 'USER' || userRole === 'ENGINEER') {
+      const standardPaths = ['calculations:write', 'clients:read', 'archive:read', 'calendar:read'];
+      return standardPaths.includes(perm);
+    }
+
+    return false;
+  };
+
   if (isLoading) {
     return (
       <div style={{ 
@@ -51,13 +74,15 @@ export default function DashboardPage() {
       <header className={styles.dashboardHeader}>
         <div className={styles.headerTitle}>EASY MO CORE | ПАНЕЛЬ УПРАВЛЕНИЯ</div>
         <div className={styles.headerActions}>
-          <div 
-            className={styles.settingsIcon} 
-            onClick={() => router.push('/dashboard/settings/team')}
-            style={{ cursor: 'pointer' }}
-          >
-            ⚙️
-          </div>
+          {String(role).toUpperCase() === 'ADMIN' && (
+            <div 
+              className={styles.settingsIcon} 
+              onClick={() => router.push('/dashboard/settings/team')}
+              style={{ cursor: 'pointer' }}
+            >
+              ⚙️
+            </div>
+          )}
           
           <div 
             className={styles.userAvatar}
@@ -65,7 +90,7 @@ export default function DashboardPage() {
             style={{ cursor: 'pointer' }}
           >
             <div style={{ color: '#7BFF00', fontSize: '10px', textAlign: 'center', marginTop: '10px' }}>
-              {String(userName).charAt(0).toUpperCase()}
+              {String(userName || 'U').charAt(0).toUpperCase()}
             </div>
           </div>
           <button onClick={logout} className={styles.heroButton}>
@@ -76,14 +101,19 @@ export default function DashboardPage() {
 
       <div className={styles.column} style={{ marginTop: '90px' }}>
         <h2 className={styles.neonTitle} style={{ marginBottom: '2rem', textAlign: 'center' }}>
-          С ВОЗВРАЩЕНИЕМ, {String(userName).toUpperCase()} ИЗ &quot;{String(userOrg).toUpperCase()}&quot;.
+          С ВОЗВРАЩЕНИЕМ, {String(userName || 'ПОЛЬЗОВАТЕЛЬ').toUpperCase()} ИЗ &quot;{String(userOrg || 'ОРГАНИЗАЦИЯ').toUpperCase()}&quot;.
         </h2>
 
         <div className={styles.dashboardGrid} style={{ minHeight: '500px', gap: '20px' }}>
+          {/* Кнопка Расчетов */}
           <div
             className={styles.mainActionCard}
-            onClick={() => router.push('/dashboard/new-calculation')}
-            style={{ cursor: 'pointer', padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+            onClick={() => canAccess('calculations:write') ? router.push('/dashboard/new-calculation') : null}
+            style={{ 
+              cursor: canAccess('calculations:write') ? 'pointer' : 'not-allowed',
+              opacity: canAccess('calculations:write') ? 1 : 0.4,
+              padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' 
+            }}
           >
             <div className={styles.neonIcon} style={{ transform: 'scale(1.2)', marginBottom: '2rem' }}>
               <svg viewBox="0 0 24 24" width="70" height="70" fill="none" stroke="#7BFF00" strokeWidth="1.5">
@@ -94,30 +124,67 @@ export default function DashboardPage() {
                 <path d="M10 20L12 22L14 20" />
               </svg>
             </div>
-            <div className={styles.rocketButton}>СОЗДАТЬ НОВЫЙ РАСЧЕТ</div>
+            <div className={styles.rocketButton}>
+              {canAccess('calculations:write') ? 'СОЗДАТЬ НОВЫЙ РАСЧЕТ' : 'ДОСТУП ЗАКРЫТ'}
+            </div>
           </div>
 
           <div className={styles.statsWrapper} style={{ gap: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: '1fr 1fr' }}>
-            <div className={styles.mainActionCard} onClick={() => router.push('/dashboard/archive')} style={{ padding: '1.5rem', cursor: 'pointer', textAlign: 'center' }}>
+            {/* Готовые заказы (Архив) */}
+            <div 
+              className={styles.mainActionCard} 
+              onClick={() => canAccess('archive:read') ? router.push('/dashboard/archive') : null} 
+              style={{ 
+                padding: '1.5rem', 
+                cursor: canAccess('archive:read') ? 'pointer' : 'not-allowed',
+                opacity: canAccess('archive:read') ? 1 : 0.5,
+                textAlign: 'center' 
+              }}
+            >
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>ГОТОВЫЕ ЗАКАЗЫ</p>
-              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>{archiveCount}</p>
+              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>{canAccess('archive:read') ? archiveCount : '🔒'}</p>
             </div>
+
             <div className={styles.mainActionCard} style={{ padding: '1.5rem', textAlign: 'center' }}>
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>СРЕДНИЙ ЧЕК</p>
               <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>87,500 ₽</p>
             </div>
+
             <div className={styles.mainActionCard} style={{ padding: '1.5rem', textAlign: 'center' }}>
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>СУММА ЗА МЕСЯЦ</p>
               <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>2,450,000 ₽</p>
             </div>
-            <div className={styles.mainActionCard} onClick={() => router.push('/dashboard/clients')} style={{ padding: '1.5rem', cursor: 'pointer', textAlign: 'center' }}>
+
+            {/* Клиенты */}
+            <div 
+              className={styles.mainActionCard} 
+              onClick={() => canAccess('clients:read') ? router.push('/dashboard/clients') : null} 
+              style={{ 
+                padding: '1.5rem', 
+                cursor: canAccess('clients:read') ? 'pointer' : 'not-allowed',
+                opacity: canAccess('clients:read') ? 1 : 0.5,
+                textAlign: 'center' 
+              }}
+            >
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>КЛИЕНТЫ</p>
-              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>124</p>
+              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>{canAccess('clients:read') ? '124' : '🔒'}</p>
             </div>
-            <div className={styles.mainActionCard} onClick={() => router.push('/dashboard/calendar')} style={{ padding: '1.5rem', cursor: 'pointer', textAlign: 'center' }}>
+
+            {/* Календарь */}
+            <div 
+              className={styles.mainActionCard} 
+              onClick={() => canAccess('calendar:read') ? router.push('/dashboard/calendar') : null} 
+              style={{ 
+                padding: '1.5rem', 
+                cursor: canAccess('calendar:read') ? 'pointer' : 'not-allowed',
+                opacity: canAccess('calendar:read') ? 1 : 0.5,
+                textAlign: 'center' 
+              }}
+            >
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>КАЛЕНДАРЬ МОНТАЖЕЙ</p>
-              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>📅 ОТКРЫТЬ</p>
+              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>{canAccess('calendar:read') ? '📅 ОТКРЫТЬ' : '🔒'}</p>
             </div>
+
             <div className={styles.mainActionCard} style={{ padding: '1.5rem', textAlign: 'center' }}>
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>ПРОГРЕСС ЦЕЛИ</p>
               <div style={{ color: '#7BFF00', fontWeight: 'bold' }}>75%</div>

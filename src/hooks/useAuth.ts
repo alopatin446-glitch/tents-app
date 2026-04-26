@@ -9,18 +9,14 @@ export const useAuth = () => {
   const router = useRouter();
   const { user, isLoading } = useAuthContext();
 
-  const login = useCallback(
-    async (email: string, pass: string) => {
-      const result = await loginAction(email, pass);
-      if (result.success) {
-        // Используем редирект через window, чтобы гарантированно обновить состояние сессии
-        window.location.href = '/dashboard';
-        return true;
-      }
-      return false;
-    },
-    []
-  );
+  const login = useCallback(async (email: string, pass: string) => {
+    const result = await loginAction(email, pass);
+    if (result.success) {
+      window.location.href = '/dashboard';
+      return true;
+    }
+    return false;
+  }, []);
 
   const logout = useCallback(async () => {
     await logoutAction();
@@ -28,7 +24,6 @@ export const useAuth = () => {
   }, []);
 
   const checkAuth = useCallback(() => {
-    // Если загрузка завершена, а пользователя нет — значит не авторизован
     return !isLoading && !!user;
   }, [user, isLoading]);
 
@@ -39,5 +34,8 @@ export const useAuth = () => {
     isLoading,
     userName: user?.name || 'Пользователь',
     userOrg: user?.organizationName || 'EASY MO',
+    // ВОТ ЭТО ОБЯЗАТЕЛЬНО ДОЛЖНО БЫТЬ ТУТ:
+    role: (user as any)?.role || 'USER',
+    permissions: (user as any)?.permissions || [],
   };
 };
