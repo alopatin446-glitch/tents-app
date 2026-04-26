@@ -229,7 +229,7 @@ export default function TeamClient({
         closeModal();
         router.refresh();
       } else {
-        setModalError(result.error);
+        setModalError(result.error || 'Ошибка при сохранении пользователя');
       }
     });
   }
@@ -247,7 +247,7 @@ export default function TeamClient({
         closeModal();
         router.refresh();
       } else {
-        setModalError(result.error);
+        setModalError(result.error || 'Ошибка при выполнении операции');
       }
     });
   }
@@ -276,7 +276,7 @@ export default function TeamClient({
           router.refresh();
         }, 800);
       } else {
-        setModalError(result.error);
+        setModalError(result.error || 'Ошибка доступа');
       }
     });
   }
@@ -293,7 +293,7 @@ export default function TeamClient({
         setModalSuccess('Пароль успешно сброшен');
         setTimeout(() => closeModal(), 1000);
       } else {
-        setModalError(result.error);
+        setModalError(result.error || 'Не удалось обновить статус');
       }
     });
   }
@@ -310,7 +310,7 @@ export default function TeamClient({
           router.refresh();
         }, 1000);
       } else {
-        setModalError(result.error);
+        setModalError(result.error || 'Ошибка при удалении');
       }
     });
   }
