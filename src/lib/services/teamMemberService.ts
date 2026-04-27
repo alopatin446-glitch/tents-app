@@ -145,11 +145,12 @@ export async function ensureTeamMemberForEngineer(
 
     await prisma.teamMember.create({
       data: {
+        organizationId: 'default_org_id', // <--- ДОБАВЬ ЭТО
         name,
         category: DEFAULT_CATEGORY,
         color: DEFAULT_COLOR,
-        status: 'active',
-        userId,
+        status: 'ACTIVE',
+        userId: userId,
       },
     });
 
