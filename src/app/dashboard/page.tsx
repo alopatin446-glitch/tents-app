@@ -59,10 +59,10 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div style={{ 
-        background: '#000', height: '100vh', color: '#7BFF00', 
-        display: 'flex', alignItems: 'center', justifyContent: 'center', 
-        fontFamily: 'monospace' 
+      <div style={{
+        background: '#000', height: '100vh', color: '#7BFF00',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'monospace'
       }}>
         СИНХРОНИЗАЦИЯ...
       </div>
@@ -75,16 +75,32 @@ export default function DashboardPage() {
         <div className={styles.headerTitle}>EASY MO CORE | ПАНЕЛЬ УПРАВЛЕНИЯ</div>
         <div className={styles.headerActions}>
           {String(role).toUpperCase() === 'ADMIN' && (
-            <div 
-              className={styles.settingsIcon} 
+            <div
+              className={styles.settingsIcon}
               onClick={() => router.push('/dashboard/settings/team')}
               style={{ cursor: 'pointer' }}
             >
               ⚙️
             </div>
           )}
-          
-          <div 
+
+          {/* Внутри секции headerActions */}
+          <div className={styles.headerActions}>
+            {/* Доступ к прайсу только Админу */}
+            {role === 'ADMIN' && (
+              <button
+                onClick={() => router.push('/dashboard/prices')}
+                className={styles.heroButton}
+                style={{ marginRight: '15px', border: '1px solid #7BFF00', background: 'transparent' }}
+              >
+                ПРАЙС-ЛИСТ
+              </button>
+            )}
+
+            {/* ... остальной код (шестеренка, аватар, выйти) */}
+          </div>
+
+          <div
             className={styles.userAvatar}
             onClick={() => router.push('/dashboard/settings/profile')}
             style={{ cursor: 'pointer' }}
@@ -109,10 +125,10 @@ export default function DashboardPage() {
           <div
             className={styles.mainActionCard}
             onClick={() => canAccess('calculations:write') ? router.push('/dashboard/new-calculation') : null}
-            style={{ 
+            style={{
               cursor: canAccess('calculations:write') ? 'pointer' : 'not-allowed',
               opacity: canAccess('calculations:write') ? 1 : 0.4,
-              padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' 
+              padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'
             }}
           >
             <div className={styles.neonIcon} style={{ transform: 'scale(1.2)', marginBottom: '2rem' }}>
@@ -131,14 +147,14 @@ export default function DashboardPage() {
 
           <div className={styles.statsWrapper} style={{ gap: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: '1fr 1fr' }}>
             {/* Готовые заказы (Архив) */}
-            <div 
-              className={styles.mainActionCard} 
-              onClick={() => canAccess('archive:read') ? router.push('/dashboard/archive') : null} 
-              style={{ 
-                padding: '1.5rem', 
+            <div
+              className={styles.mainActionCard}
+              onClick={() => canAccess('archive:read') ? router.push('/dashboard/archive') : null}
+              style={{
+                padding: '1.5rem',
                 cursor: canAccess('archive:read') ? 'pointer' : 'not-allowed',
                 opacity: canAccess('archive:read') ? 1 : 0.5,
-                textAlign: 'center' 
+                textAlign: 'center'
               }}
             >
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>ГОТОВЫЕ ЗАКАЗЫ</p>
@@ -156,14 +172,14 @@ export default function DashboardPage() {
             </div>
 
             {/* Клиенты */}
-            <div 
-              className={styles.mainActionCard} 
-              onClick={() => canAccess('clients:read') ? router.push('/dashboard/clients') : null} 
-              style={{ 
-                padding: '1.5rem', 
+            <div
+              className={styles.mainActionCard}
+              onClick={() => canAccess('clients:read') ? router.push('/dashboard/clients') : null}
+              style={{
+                padding: '1.5rem',
                 cursor: canAccess('clients:read') ? 'pointer' : 'not-allowed',
                 opacity: canAccess('clients:read') ? 1 : 0.5,
-                textAlign: 'center' 
+                textAlign: 'center'
               }}
             >
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>КЛИЕНТЫ</p>
@@ -171,14 +187,14 @@ export default function DashboardPage() {
             </div>
 
             {/* Календарь */}
-            <div 
-              className={styles.mainActionCard} 
-              onClick={() => canAccess('calendar:read') ? router.push('/dashboard/calendar') : null} 
-              style={{ 
-                padding: '1.5rem', 
+            <div
+              className={styles.mainActionCard}
+              onClick={() => canAccess('calendar:read') ? router.push('/dashboard/calendar') : null}
+              style={{
+                padding: '1.5rem',
                 cursor: canAccess('calendar:read') ? 'pointer' : 'not-allowed',
                 opacity: canAccess('calendar:read') ? 1 : 0.5,
-                textAlign: 'center' 
+                textAlign: 'center'
               }}
             >
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>КАЛЕНДАРЬ МОНТАЖЕЙ</p>

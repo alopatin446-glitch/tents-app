@@ -37,14 +37,12 @@ async function main(): Promise<void> {
     });
   }
 
-  // ── Разрешения (полный список, соответствует PERMISSION_GROUPS) ────────
+  // ── Разрешения (полный список) ────────────────────────────────────────
   const permissions = [
-    // Заказы
-    { key: 'orders:read',           description: 'Просмотр заказов' },
-    { key: 'orders:write',          description: 'Управление заказами' },
     // Клиенты
-    { key: 'clients:read',          description: 'Просмотр клиентов' },
+    { key: 'clients:read',          description: 'Просмотр списка клиентов' },
     { key: 'clients:write',         description: 'Создание и редактирование клиентов' },
+    { key: 'clients:delete',        description: 'Удаление клиентов' },
     // Расчёты
     { key: 'calculations:read',     description: 'Просмотр расчётов' },
     { key: 'calculations:write',    description: 'Создание и редактирование расчётов' },
@@ -74,12 +72,46 @@ async function main(): Promise<void> {
     });
   }
 
-  console.log(`Seeded ${permissions.length} permissions.`);
+  // ── Цены (Справочник: Эталонные значения) ───────────────────────────
+  const defaultPrices = [
+    // Изделия (Розница)
+    { slug: 'pvc_700', name: 'ПВХ 700 микрон', value: 750, unit: 'м2', category: 'retail_products' },
+    { slug: 'pvc_500', name: 'ПВХ 500 микрон', value: 600, unit: 'м2', category: 'retail_products' },
+    
+    // Крепеж (Розница)
+    { slug: 'eyelet_10', name: 'Люверс 10мм', value: 15, unit: 'шт', category: 'retail_fasteners' },
+    { slug: 'bracket_fixed', name: 'Скоба поворотная', value: 45, unit: 'шт', category: 'retail_fasteners' },
+    
+    // Допы (Розница)
+    { slug: 'zipper_5', name: 'Молния #5', value: 150, unit: 'пог.м', category: 'retail_addons' },
+    
+    // Монтаж (Розница)
+    { slug: 'mont_std', name: 'Монтаж стандартный', value: 350, unit: 'м2', category: 'retail_install' },
+    
+    // Себестоимость (Пример)
+    { slug: 'cost_pvc_700', name: 'Закупка ПВХ 700', value: 320, unit: 'м2', category: 'cost_products' },
+  ];
+
+  console.log('Заполнение справочника цен...');
+  for (const price of defaultPrices) {
+    await prisma.price.upsert({
+      where: { slug: price.slug },
+      update: {
+        name: price.name,
+        value: price.value,
+        unit: price.unit,
+        category: price.category,
+      },
+      create: price,
+    });
+  }
+
+  console.log('Seed завершен успешно.');
 }
 
 main()
-  .catch((error: unknown) => {
-    console.error('Seed error:', error);
+  .catch((e) => {
+    console.error(e);
     process.exit(1);
   })
   .finally(async () => {
