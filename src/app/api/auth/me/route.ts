@@ -8,7 +8,7 @@ export async function GET() {
   return NextResponse.json({
     user: {
       name: user.name,
-      organizationName: user.organizationName,
+      organizationName: "Главный Офис",
       role: user.role
     }
   });
