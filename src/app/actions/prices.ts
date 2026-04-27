@@ -12,6 +12,7 @@ export async function updatePrices(pricesList: any[], category: string) {
     if (pricesList.length > 0) {
       await prisma.price.createMany({
         data: pricesList.map((item) => ({
+          organizationId: 'default_org_id', // <--- КАЖДОЙ ЦЕНЕ НУЖЕН ЭТОТ ID
           slug: item.slug || '',      // ТЕПЕРЬ СОХРАНЯЕМ СЛАГ
           name: item.name || '',
           value: parseFloat(item.value) || 0,

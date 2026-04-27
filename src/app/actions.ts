@@ -133,6 +133,7 @@ export async function updateClientAction(
     if (!id || id.trim() === '') {
       const newClient = await prisma.client.create({
         data: {
+          organizationId: 'default_org_id', // <--- ДОБАВЬ ЭТУ СТРОКУ
           fio: (data.fio as string) || 'Новый клиент',
           phone: (data.phone as string) || '',
           address: (data.address as string) || '',
@@ -190,7 +191,10 @@ export async function createClientAction(data: {
     const balance = calculateClientBalance(totalPrice, advance);
 
     const created = await prisma.client.create({
-      data: { fio, phone, address, source, status, totalPrice, advance, balance },
+      data: {
+        organizationId: 'default_org_id', // <--- ПРИВЯЗКА К ТВОЕЙ ОРГАНИЗАЦИИ
+        fio, phone, address, source, status, totalPrice, advance, balance
+      },
     });
 
     revalidateClientPaths();
