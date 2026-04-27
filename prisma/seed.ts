@@ -5,6 +5,9 @@ import { promisify } from 'util';
 const prisma = new PrismaClient();
 const scryptAsync = promisify(scrypt);
 
+// Константа для ID нашей основной организации
+const DEFAULT_ORG_ID = 'default_org_id';
+
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(32).toString('hex');
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
@@ -12,7 +15,20 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  // ── Администратор-владелец ────────────────────────────────────────────
+  console.log('Начало инициализации базы данных...');
+
+  // ── 0. Создаем или находим базовую организацию ────────────────────────
+  const org = await prisma.organization.upsert({
+    where: { id: DEFAULT_ORG_ID },
+    update: { name: 'Tents App (Главный Офис)' },
+    create: {
+      id: DEFAULT_ORG_ID,
+      name: 'Tents App (Главный Офис)',
+    },
+  });
+  console.log('Организация готова.');
+
+  // ── 1. Администратор-владелец ────────────────────────────────────────────
   const existingOwnerAdmin = await prisma.user.findFirst({
     where: { isOwnerAdmin: true },
   });
@@ -29,39 +45,32 @@ async function main(): Promise<void> {
         email: 'admin@test.com',
         passwordHash,
         name: 'Администратор',
-        organizationName: 'Tents App',
         role: 'ADMIN',
         status: 'ACTIVE',
         isOwnerAdmin: existingOwnerAdmin ? false : true,
+        organizationId: org.id, // Привязываем к организации
       },
     });
+    console.log('Аккаунт администратора создан.');
   }
 
-  // ── Разрешения (полный список) ────────────────────────────────────────
+  // ── 2. Разрешения ────────────────────────────────────────────────────────
   const permissions = [
-    // Клиенты
-    { key: 'clients:read',          description: 'Просмотр списка клиентов' },
-    { key: 'clients:write',         description: 'Создание и редактирование клиентов' },
-    { key: 'clients:delete',        description: 'Удаление клиентов' },
-    // Расчёты
-    { key: 'calculations:read',     description: 'Просмотр расчётов' },
-    { key: 'calculations:write',    description: 'Создание и редактирование расчётов' },
-    // Монтаж
-    { key: 'mounting:read',         description: 'Просмотр монтажа' },
-    { key: 'mounting:write',        description: 'Управление монтажом' },
-    // Календарь
-    { key: 'calendar:read',         description: 'Просмотр календаря' },
-    { key: 'calendar:write',        description: 'Управление календарём' },
-    // Спецификация
-    { key: 'specification:read',    description: 'Просмотр спецификации' },
-    { key: 'specification:write',   description: 'Редактирование спецификации' },
-    // Цены
-    { key: 'prices:read',           description: 'Просмотр цен' },
-    { key: 'prices:write',          description: 'Редактирование цен' },
-    // Архив
-    { key: 'archive:read',          description: 'Просмотр архива' },
-    // Настройки
-    { key: 'team:manage',           description: 'Управление командой монтажников' },
+    { key: 'clients:read',      description: 'Просмотр списка клиентов' },
+    { key: 'clients:write',     description: 'Создание и редактирование клиентов' },
+    { key: 'clients:delete',    description: 'Удаление клиентов' },
+    { key: 'calculations:read',  description: 'Просмотр расчётов' },
+    { key: 'calculations:write', description: 'Создание и редактирование расчётов' },
+    { key: 'mounting:read',     description: 'Просмотр монтажа' },
+    { key: 'mounting:write',    description: 'Управление монтажом' },
+    { key: 'calendar:read',     description: 'Просмотр календаря' },
+    { key: 'calendar:write',    description: 'Управление календарём' },
+    { key: 'specification:read', description: 'Просмотр спецификации' },
+    { key: 'specification:write', description: 'Редактирование спецификации' },
+    { key: 'prices:read',       description: 'Просмотр цен' },
+    { key: 'prices:write',      description: 'Редактирование цен' },
+    { key: 'archive:read',      description: 'Просмотр архива' },
+    { key: 'team:manage',       description: 'Управление командой монтажников' },
   ];
 
   for (const permission of permissions) {
@@ -71,38 +80,39 @@ async function main(): Promise<void> {
       create: permission,
     });
   }
+  console.log('Разрешения обновлены.');
 
-  // ── Цены (Справочник: Эталонные значения) ───────────────────────────
+  // ── 3. Цены (Справочник: Эталонные значения) ───────────────────────────
   const defaultPrices = [
-    // Изделия (Розница)
     { slug: 'pvc_700', name: 'ПВХ 700 микрон', value: 750, unit: 'м2', category: 'retail_products' },
     { slug: 'pvc_500', name: 'ПВХ 500 микрон', value: 600, unit: 'м2', category: 'retail_products' },
-    
-    // Крепеж (Розница)
     { slug: 'eyelet_10', name: 'Люверс 10мм', value: 15, unit: 'шт', category: 'retail_fasteners' },
     { slug: 'bracket_fixed', name: 'Скоба поворотная', value: 45, unit: 'шт', category: 'retail_fasteners' },
-    
-    // Допы (Розница)
     { slug: 'zipper_5', name: 'Молния #5', value: 150, unit: 'пог.м', category: 'retail_addons' },
-    
-    // Монтаж (Розница)
     { slug: 'mont_std', name: 'Монтаж стандартный', value: 350, unit: 'м2', category: 'retail_install' },
-    
-    // Себестоимость (Пример)
     { slug: 'cost_pvc_700', name: 'Закупка ПВХ 700', value: 320, unit: 'м2', category: 'cost_products' },
   ];
 
   console.log('Заполнение справочника цен...');
   for (const price of defaultPrices) {
     await prisma.price.upsert({
-      where: { slug: price.slug },
+      // Теперь уникальный ключ составной: slug + organizationId
+      where: {
+        slug_organizationId: {
+          slug: price.slug,
+          organizationId: org.id,
+        }
+      },
       update: {
         name: price.name,
         value: price.value,
         unit: price.unit,
         category: price.category,
       },
-      create: price,
+      create: {
+        ...price,
+        organizationId: org.id,
+      },
     });
   }
 
@@ -111,7 +121,7 @@ async function main(): Promise<void> {
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error('Ошибка при выполнении seed:', e);
     process.exit(1);
   })
   .finally(async () => {
