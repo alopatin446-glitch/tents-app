@@ -121,9 +121,17 @@ export default function ItemsStep({
   activeWindowId,
   onActiveWindowChange,
 }: ItemsStepProps) {
-  const [localWindows, setLocalWindows] = useState<WindowItemDraft[]>(
-    () => windows.map(toWindowItemDraft),
-  );
+  const [localWindows, setLocalWindows] = useState<WindowItemDraft[]>(() => {
+    if (windows && windows.length > 0) {
+      return windows.map(toWindowItemDraft);
+    }
+
+    if (isReadOnly) {
+      return [];
+    }
+
+    return [toWindowItemDraft(createDefaultWindowItem(Date.now(), 1))];
+  });
 
   // Синхронизация при внешнем обновлении windows (например, после сохранения)
   useEffect(() => {
@@ -131,6 +139,16 @@ export default function ItemsStep({
       setLocalWindows(windows.map(toWindowItemDraft));
     }
   }, [windows]);
+
+  useEffect(() => {
+    if (localWindows.length === 0 || isReadOnly) return;
+
+    const hasActiveWindow = localWindows.some((w) => w.id === activeWindowId);
+
+    if (!hasActiveWindow) {
+      onActiveWindowChange(localWindows[0].id);
+    }
+  }, [localWindows, activeWindowId, onActiveWindowChange, isReadOnly]);
 
   const activeItem: WindowItemDraft | undefined =
     localWindows.find((w) => w.id === activeWindowId) ?? localWindows[0];

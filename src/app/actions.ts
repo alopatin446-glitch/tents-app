@@ -8,6 +8,16 @@ import { toFinancialNumber, calculateClientBalance } from '@/lib/logic/financial
 import { parseWindowItems } from '@/types';
 import { logger } from '@/lib/logger';
 import { MountingConfig } from '@/types/mounting';
+import { requireAuth } from '@/lib/auth/requireAuth'; // ПРОВЕРКА АВТОРИЗАЦИИ
+
+import { cookies } from 'next/headers';
+import { verifyPassword } from '@/lib/auth/crypto';
+import {
+  generateSessionToken,
+  getSessionExpiry,
+  hashSessionToken,
+} from '@/lib/auth/session';
+import { SESSION_COOKIE_NAME } from '@/lib/auth/constants';
 
 // ---------------------------------------------------------------------------
 // Локальные утилиты нормализации (серверная граница)
@@ -62,7 +72,7 @@ type UpdateClientPayload = {
   items?: unknown;
   managerComment?: unknown;
   engineerComment?: unknown;
-  mountingConfig?: MountingConfig; // Установили строгий тип вместо unknown
+  mountingConfig?: MountingConfig;
 };
 
 function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknown> {
@@ -128,12 +138,14 @@ export async function updateClientAction(
   data: UpdateClientPayload
 ): Promise<{ success: true; clientId?: string } | { success: false; error: string }> {
   try {
+    const user = await requireAuth(); // Получаем данные пользователя из сессии
     let finalId: string;
 
     if (!id || id.trim() === '') {
+      // СОЗДАНИЕ НОВОГО КЛИЕНТА
       const newClient = await prisma.client.create({
         data: {
-          organizationId: 'default_org_id', // <--- ДОБАВЬ ЭТУ СТРОКУ
+          organizationId: user.organizationId, // Привязываем к реальной организации
           fio: (data.fio as string) || 'Новый клиент',
           phone: (data.phone as string) || '',
           address: (data.address as string) || '',
@@ -152,11 +164,16 @@ export async function updateClientAction(
         },
       });
       finalId = newClient.id;
-      logger.info('[updateClientAction] Создан новый клиент', { id: finalId });
+      logger.info('[updateClientAction] Создан новый клиент', { id: finalId, orgId: user.organizationId });
     } else {
+      // ОБНОВЛЕНИЕ СУЩЕСТВУЮЩЕГО КЛИЕНТА
+      // Добавляем проверку, что клиент принадлежит организации пользователя
       const prismaData = buildUpdateClientData(data);
       const updatedClient = await prisma.client.update({
-        where: { id },
+        where: { 
+          id,
+          organizationId: user.organizationId // Безопасность: обновляем только своего
+        },
         data: prismaData,
       });
       finalId = updatedClient.id;
@@ -181,6 +198,8 @@ export async function createClientAction(data: {
   status?: unknown;
 }): Promise<{ success: true; id: string } | { success: false; error: string }> {
   try {
+    const user = await requireAuth();
+    
     const fio = toRequiredString(data.fio, 'Без имени');
     const phone = toRequiredString(data.phone, '');
     const address = toNullableString(data.address);
@@ -192,7 +211,7 @@ export async function createClientAction(data: {
 
     const created = await prisma.client.create({
       data: {
-        organizationId: 'default_org_id', // <--- ПРИВЯЗКА К ТВОЕЙ ОРГАНИЗАЦИИ
+        organizationId: user.organizationId, // Привязка к организации
         fio, phone, address, source, status, totalPrice, advance, balance
       },
     });
@@ -209,8 +228,12 @@ export async function getArchiveOrdersCount(): Promise<
   { success: true; count: number } | { success: false; error: string }
 > {
   try {
+    const user = await requireAuth();
     const count = await prisma.client.count({
-      where: { status: { in: ['completed', 'rejected'] } },
+      where: { 
+        status: { in: ['completed', 'rejected'] },
+        organizationId: user.organizationId // Считаем только своих
+      },
     });
     return { success: true, count };
   } catch (error) {
@@ -224,8 +247,17 @@ export async function deleteClientAction(
 ): Promise<{ success: true } | { success: false; error: string }> {
   try {
     if (!id) return { success: false, error: 'ID не предоставлен' };
-    await prisma.client.delete({ where: { id } });
-    logger.info('[deleteClientAction] Клиент удален', { id });
+    const user = await requireAuth();
+
+    // Удаляем только если клиент принадлежит нашей организации
+    await prisma.client.delete({ 
+      where: { 
+        id,
+        organizationId: user.organizationId 
+      } 
+    });
+
+    logger.info('[deleteClientAction] Клиент удален', { id, orgId: user.organizationId });
     revalidateClientPaths();
     return { success: true };
   } catch (error) {
@@ -233,17 +265,6 @@ export async function deleteClientAction(
     return { success: false, error: 'Не удалось удалить клиента' };
   }
 }
-
-// --- Добавь это в конец файла src/app/actions.ts ---
-
-import { cookies } from 'next/headers';
-import { verifyPassword } from '@/lib/auth/crypto';
-import {
-  generateSessionToken,
-  getSessionExpiry,
-  hashSessionToken,
-} from '@/lib/auth/session';
-import { SESSION_COOKIE_NAME } from '@/lib/auth/constants';
 
 export async function loginAction(
   email: string,

@@ -5,16 +5,16 @@ import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { getCurrentUser } from './getCurrentUser';
 
-export type AuthenticatedUser = User;
+export type AuthenticatedUser = User & { organizationId: string }; // Добавляем ID организации в тип
 
 export async function requireAuth(): Promise<AuthenticatedUser> {
   const user = await getCurrentUser();
 
-  if (!user) {
+  if (!user || !user.organizationId) { // Проверяем и пользователя, и его привязку
     redirect('/login');
   }
 
-  return user;
+  return user as AuthenticatedUser;
 }
 
 export async function requireRole(

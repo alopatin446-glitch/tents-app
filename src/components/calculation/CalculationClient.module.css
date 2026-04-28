@@ -108,7 +108,8 @@
 
 .mainContent {
   flex: 1;
-  display: flex; /* Это позволит ItemsStep растянуться */
-  overflow: hidden;
+  display: flex;
+  overflow-y: auto;   /* разрешаем вертикальный скролл */
+  overflow-x: hidden; /* горизонтальный запрещаем */
   position: relative;
 }

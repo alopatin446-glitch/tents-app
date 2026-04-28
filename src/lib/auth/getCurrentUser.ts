@@ -7,11 +7,11 @@ import { SESSION_COOKIE_NAME } from './constants';
 import { hashSessionToken } from './session';
 
 /**
- * Расширенный тип пользователя, включающий массив разрешений.
- * Используем его везде, где нужна проверка прав.
+ * Расширяем тип: теперь пользователь ОБЯЗАТЕЛЬНО несет в себе organizationId
  */
 export type AuthenticatedUser = User & {
   permissions: string[];
+  organizationId: string; // <--- Теперь это поле официально существует для TS
 };
 
 export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
@@ -23,7 +23,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 
     const tokenHash = hashSessionToken(token);
 
-    // Находим сессию и подтягиваем связанные данные пользователя
+    // Находим сессию и подтягиваем пользователя
     const session = await prisma.session.findUnique({
       where: { tokenHash },
       include: { 
@@ -31,9 +31,9 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
       },
     });
 
-    if (!session) return null;
+    if (!session || !session.user) return null;
 
-    // 1. Проверка на "протухшую" сессию
+    // 1. Проверка на просроченную сессию
     if (session.expiresAt < new Date()) {
       await prisma.session.delete({ where: { id: session.id } }).catch((error) => {
         logger.error('[getCurrentUser] Не удалось удалить просроченную сессию', error);
@@ -41,22 +41,21 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
       return null;
     }
 
-    // 2. Проверка статуса пользователя (блокировка)
+    // 2. Проверка блокировки
     if (session.user.status !== 'ACTIVE') {
-      logger.warn('[getCurrentUser] Попытка входа заблокированного пользователя', {
-        userId: session.user.id,
-        status: session.user.status,
-      });
+      logger.warn('[getCurrentUser] Вход заблокирован', { userId: session.user.id });
       return null;
     }
 
-    /**
-     * Возвращаем пользователя, принудительно приводя к AuthenticatedUser.
-     * Prisma вытягивает все поля из таблицы User (включая массив permissions).
-     */
+    // 3. Проверка наличия организации (КРИТИЧНО для безопасности)
+    if (!session.user.organizationId) {
+      logger.error('[getCurrentUser] У пользователя не привязана организация', { userId: session.user.id });
+      return null;
+    }
+
     return session.user as AuthenticatedUser;
   } catch (error) {
-    logger.error('[getCurrentUser] Критическая ошибка получения пользователя', error);
+    logger.error('[getCurrentUser] Ошибка получения пользователя', error);
     return null;
   }
 }

@@ -549,7 +549,25 @@ export default function ExtrasStep({
           <div className={styles.errorBlock}>
             <strong>ОШИБКИ:</strong>
             <ul className={styles.errorList}>
-              {validationResult.errors.map((err) => <li key={err}>{err}</li>)}
+              {validationResult.errors.map((err) => {
+                const translateError = (text: string): string => {
+                  switch (text) {
+                    case 'Skirt is enabled but skirtWidth is missing or zero':
+                      return 'Включена юбка, но не задана её ширина';
+
+                    case 'Invalid skirt width':
+                      return 'Некорректная ширина юбки';
+
+                    case 'Invalid input values':
+                      return 'Некорректные значения параметров';
+
+                    default:
+                      return text;
+                  }
+                };
+
+                return <li key={err}>{translateError(err)}</li>;
+              })}
             </ul>
           </div>
         )}
@@ -558,7 +576,31 @@ export default function ExtrasStep({
           <div className={styles.warnBlock}>
             <strong>ПРЕДУПРЕЖДЕНИЯ ({collisionWarnings.length}):</strong>
             <ul className={styles.warnList}>
-              {collisionWarnings.map((w, i) => <li key={i}>{w.message}</li>)}
+              {collisionWarnings.map((w, i) => {
+                const translateWarning = (text: string): string => {
+                  switch (text) {
+                    case 'Skirt overlaps with bottom fasteners':
+                      return 'Юбка пересекается с нижними креплениями';
+
+                    case 'Zipper overlaps with fasteners':
+                      return 'Молния пересекается с креплениями';
+
+                    case 'Separator overlaps with fasteners':
+                      return 'Разделитель пересекается с креплениями';
+
+                    case 'Cutout overlaps with fasteners':
+                      return 'Вырез пересекается с креплениями';
+
+                    case 'Patch overlaps with fasteners':
+                      return 'Заплатка пересекается с креплениями';
+
+                    default:
+                      return text;
+                  }
+                };
+
+                return <li key={i}>{translateWarning(w.message)}</li>;
+              })}
             </ul>
           </div>
         )}

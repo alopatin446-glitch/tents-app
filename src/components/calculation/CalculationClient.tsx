@@ -23,6 +23,7 @@ import FastenersStep from '@/components/calculation/FastenersStep';
 import ExtrasStep from '@/components/calculation/ExtrasStep';
 import MountingStep from '@/components/mounting/MountingStep';
 import styles from './CalculationClient.module.css';
+import ProductionStep from '@/components/calculation/ProductionStep';
 
 type Step =
   | 'client'
@@ -349,7 +350,11 @@ export default function CalculationClient({
         )}
 
         {activeStep === 'production' && (
-          <DevelopmentPlaceholder title="Для производства" />
+          <ProductionStep
+            windows={windows}
+            activeWindowId={activeWindowId}
+            onActiveWindowChange={setActiveWindowId}
+          />
         )}
       </main>
     </div>

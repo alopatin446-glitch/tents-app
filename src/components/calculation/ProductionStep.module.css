@@ -1,0 +1,38 @@
+.productionGrid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 30px;
+  align-items: stretch;
+  padding: 20px;
+  height: 95vh;
+}
+
+/* Копия твоей левой панели */
+.inputPanelWrapper {
+  background: #242D3E !important;
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Та самая обертка для чертежа "лист на листе" */
+.drawingWrapper {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  border-radius: 20px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bottomInfoBar {
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(123, 255, 0, 0.2);
+  padding: 12px 20px;
+  display: flex;
+  gap: 30px;
+}

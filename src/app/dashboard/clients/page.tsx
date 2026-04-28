@@ -4,21 +4,18 @@ import KanbanBoard from './KanbanBoard';
 import { parseWindowItems } from '@/types';
 import { normalizeStatus } from '@/lib/logic/statusDictionary';
 import type { Client } from '@/types';
-import { getCurrentUser } from '@/lib/auth/getCurrentUser';
+import { requireAuth } from '@/lib/auth/requireAuth'; // Используем requireAuth для гарантии организации
 import { redirect } from 'next/navigation';
 
 export default async function ClientsPage() {
-  // Просто получаем пользователя, чтобы сессия была валидна
-  const user = await getCurrentUser();
-  
-  // Если вообще не залогинен — на вход
-  if (!user) {
-    return redirect('/login');
-  }
+  // 1. Получаем авторизованного пользователя с его organizationId
+  const user = await requireAuth();
 
-  // БЛОКИРОВКУ ПО PERMISSIONS УБРАЛИ. Дмитрий снова может зайти.
-
+  // 2. Запрашиваем клиентов ТОЛЬКО этой организации
   const raw = await prisma.client.findMany({
+    where: {
+      organizationId: user.organizationId,
+    },
     orderBy: { createdAt: 'desc' },
   });
 

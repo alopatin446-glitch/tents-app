@@ -1,19 +1,24 @@
 .mainContainer {
   display: flex;
-  min-height: 100vh;
+  height: calc(100vh - 56px);
+  min-height: calc(100vh - 56px);
   background-color: var(--bg-main);
   color: var(--text-white);
+  overflow: hidden;
 }
 
-/* ЛЕВАЯ КОЛОННА (SIDEBAR) — ТЕПЕРЬ ОВАЛЬНАЯ */
+
+/* ЛЕВАЯ КОЛОННА */
 .sidebar {
   width: 280px;
+  min-height: 100vh;
   background: rgba(255, 255, 255, 0.02);
   border-right: 1px solid rgba(123, 255, 0, 0.1);
   padding: 2rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  flex-shrink: 0;
 }
 
 .orderBadge {
@@ -22,21 +27,21 @@
   text-align: center;
   padding: 10px;
   border: 1px solid var(--neon-green);
-  border-radius: 50px; /* Капсула заказа */
+  border-radius: 50px;
   box-shadow: 0 0 15px rgba(123, 255, 0, 0.2);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
 
-.navMenu { 
-  display: flex; 
-  flex-direction: column; 
-  gap: 18px; /* Больше воздуха между капсулами */
+.navMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .navButton {
   background: transparent;
-  border: 1px solid rgba(123, 255, 0, 0.2); 
+  border: 1px solid rgba(123, 255, 0, 0.2);
   color: rgba(255, 255, 255, 0.6);
   text-align: left;
   padding: 14px 30px;
@@ -49,61 +54,104 @@
   outline: none;
 }
 
-/* СОСТОЯНИЕ: ВЫБРАНО (Активная вкладка) */
 .navButton.active {
   background: transparent;
-  color: var(--neon-green); 
-  border: 2px solid var(--neon-green); 
-  box-shadow: 0 0 15px rgba(123, 255, 0, 0.3); 
+  color: var(--neon-green);
+  border: 2px solid var(--neon-green);
+  box-shadow: 0 0 15px rgba(123, 255, 0, 0.3);
   font-weight: 800;
 }
 
-/* СОСТОЯНИЕ: НАВЕДЕНИЕ (Для всех кнопок, включая активную) */
 .navButton:hover {
-  background: var(--neon-green); 
-  color: #fff !important; /* Текст теперь БЕЛЫЙ при наведении */
+  background: var(--neon-green);
+  color: #fff !important;
   border-color: var(--neon-green);
   box-shadow: 0 0 25px rgba(123, 255, 0, 0.5);
 }
 
 /* ОСНОВНАЯ ОБЛАСТЬ */
-.contentArea { 
-  flex: 1; 
-  padding: 2rem 3rem; 
+.contentArea {
+  flex: 1;
+  padding: 2rem 3rem;
   display: flex;
   flex-direction: column;
-  /* УБИРАЕМ overflow-y: hidden; */
-  overflow: visible; 
+  min-width: 0;
+
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .tabContent {
   flex: 1;
-  overflow-y: visible;
-  margin-bottom: 20px;
+  overflow: visible;
+  margin-bottom: 80px;
+  padding-bottom: 80px;
 }
 
-/* Формы и Инпуты — тоже подтягиваем под овалы */
-.neonInput, .neonSelect, .neonTextarea {
-  background: rgba(0,0,0,0.3); 
-  border: 1px solid rgba(255,255,255,0.1);
-  padding: 12px 20px; 
-  border-radius: 30px; /* Мягкие инпуты */
-  color: #fff; 
+/* Формы и инпуты */
+.neonInput,
+.neonSelect,
+.neonTextarea {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px 20px;
+  border-radius: 30px;
+  color: #fff;
   outline: none;
 }
 
-/* ТЕХНИЧЕСКИЙ БЛОК (ЧЕРТЕЖ) — НЕ УДАЛЯТЬ */
-.workspace { display: grid; grid-template-columns: 320px 1fr; gap: 3rem; }
-.blueprintContainer { background: #0a0a0a; border: 1px solid rgba(123, 255, 0, 0.1); height: 450px; border-radius: 20px; display: flex; align-items: center; justify-content: center; position: relative; }
-.windowDrawing { width: var(--draw-width, 200px); height: var(--draw-height, 200px); border: 4px solid #4a3427; background: rgba(135, 206, 235, 0.05); position: relative; transition: 0.3s; }
-.dimW, .dimH { position: absolute; color: var(--neon-green); font-size: 0.75rem; font-family: monospace; background: #0a0a0a; padding: 2px 6px; }
-.dimW { bottom: -30px; left: 50%; transform: translateX(-50%); }
-.dimH { right: -60px; top: 50%; transform: translateY(-50%); }
+/* ТЕХНИЧЕСКИЙ БЛОК — НЕ УДАЛЯТЬ */
+.workspace {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 3rem;
+}
 
-/* Добавь в src/app/dashboard/new-calculation/calculation.module.css */
+.blueprintContainer {
+  background: #0a0a0a;
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  height: 450px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.windowDrawing {
+  width: var(--draw-width, 200px);
+  height: var(--draw-height, 200px);
+  border: 4px solid #4a3427;
+  background: rgba(135, 206, 235, 0.05);
+  position: relative;
+  transition: 0.3s;
+}
+
+.dimW,
+.dimH {
+  position: absolute;
+  color: var(--neon-green);
+  font-size: 0.75rem;
+  font-family: monospace;
+  background: #0a0a0a;
+  padding: 2px 6px;
+}
+
+.dimW {
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.dimH {
+  right: -60px;
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 .exitButton {
-  margin-top: auto; /* Прижмет кнопку к низу сайдбара */
+  margin-top: auto;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #94a3b8;
@@ -118,28 +166,12 @@
 }
 
 .exitButton:hover {
-  background: rgba(255, 68, 68, 0.1); /* Слегка красный при наведении */
+  background: rgba(255, 68, 68, 0.1);
   border-color: rgba(255, 68, 68, 0.3);
   color: #ff4444;
 }
 
-/* Специальный режим для технических вкладок (Изделия, Каркас и т.д.) */
 .wideContent {
-  padding: 1.5rem !important; /* Уменьшаем боковые отступы с 3rem до 1.5rem */
+  padding: 2rem 1rem !important;
   max-width: 100% !important;
-}
-
-/* На всякий случай убедись, что в .contentArea нет жесткой ширины */
-.contentArea { 
-  flex: 1; 
-  padding: 2rem 3rem; 
-  display: flex;
-  flex-direction: column;
-  overflow: visible; 
-  min-width: 0; /* Позволяет контейнеру сжиматься/расширяться корректно внутри flex */
-}
-
-/* Специальный класс для расширения зоны изделий */
-.wideContent {
-  padding: 2rem 1rem !important; /* Уменьшаем боковые отступы с 3rem до 1rem */
 }
