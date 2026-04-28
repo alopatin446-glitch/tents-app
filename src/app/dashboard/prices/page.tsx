@@ -14,85 +14,94 @@ const CATEGORIES = [
   { id: 'cost_fasteners', label: '6) Себес крепежей' },
   { id: 'cost_addons', label: '7) Себес допов' },
   { id: 'cost_install', label: '8) Себес монтажа' },
+  { id: 'cost_production', label: '9) Себес изготовления' },
 ];
 
 export default function PricesPage() {
   const router = useRouter();
+
   const [activeTab, setActiveTab] = useState('retail_products');
   const [loading, setLoading] = useState(true);
   const [allPrices, setAllPrices] = useState<any[]>([]);
 
-  // 1. Загрузка цен из базы
   useEffect(() => {
     async function load() {
       const res = await getPrices();
+
       if (res.success) {
-        setAllPrices(res.data || []);
+        setAllPrices(res.data ?? []);
       }
+
       setLoading(false);
     }
+
     load();
   }, []);
 
-  // 2. Обработка изменений в инпутах
   const handleInputChange = (id: string, field: string, value: string) => {
-    setAllPrices(prev => prev.map(item =>
-      item.id === id ? { ...item, [field]: value } : item
-    ));
+    setAllPrices((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
+    );
   };
 
-  // 3. Добавление новой строки
   const addNewPrice = () => {
-    // 1. Считаем, сколько товаров ВСЕГО в этой категории сейчас в стейте
-    const categoryItems = allPrices.filter(p => p.category === activeTab);
+    const categoryItems = allPrices.filter((p) => p.category === activeTab);
     const nextNumber = categoryItems.length + 1;
 
-    // 2. Формируем короткий префикс на основе категории
-    // retail_products -> prod
-    // retail_fasteners -> fast
-    // cost_products -> cost_prod и т.д.
-    const prefix = activeTab.replace('retail_', '').replace('cost_', 'c_').slice(0, 4);
-    
+    const prefix = activeTab.replace('retail_', '').replace('cost_', 'c_').slice(0, 8);
     const newSlug = `${prefix}_${nextNumber}`;
 
     const newItem = {
       id: `new-${Date.now()}`,
-      slug: newSlug, // Теперь будет красиво: prod_3, fast_5, c_pro_1
+      slug: newSlug,
       name: '',
       value: 0,
       unit: 'м2',
-      category: activeTab
+      category: activeTab,
     };
-    setAllPrices([...allPrices, newItem]);
+
+    setAllPrices((prev) => [...prev, newItem]);
   };
 
-  // 4. Удаление строки из списка (локально)
   const deleteRow = (id: string) => {
-    setAllPrices(prev => prev.filter(item => item.id !== id));
+    setAllPrices((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // 5. Сохранение в базу
   const saveToDb = async () => {
-    const categoryData = allPrices.filter(p => p.category === activeTab);
+    const categoryData = allPrices.filter((p) => p.category === activeTab);
     const res = await updatePrices(categoryData, activeTab);
 
     if (res.success) {
       alert('Данные раздела успешно сохранены!');
+
       const updated = await getPrices();
-      if (updated.success) setAllPrices(updated.data);
+
+      if (updated.success) {
+        setAllPrices(updated.data ?? []);
+      }
     } else {
       alert('Ошибка при сохранении: ' + res.error);
     }
   };
 
-  const currentItems = allPrices.filter(p => p.category === activeTab);
+  const currentItems = allPrices.filter((p) => p.category === activeTab);
 
-  if (loading) return <div className={styles.container} style={{ justifyContent: 'center', alignItems: 'center' }}>ЗАГРУЗКА ДАННЫХ...</div>;
+  if (loading) {
+    return (
+      <div
+        className={styles.container}
+        style={{ justifyContent: 'center', alignItems: 'center' }}
+      >
+        ЗАГРУЗКА ДАННЫХ...
+      </div>
+    );
+  }
 
   return (
     <main className={styles.container}>
       <aside className={styles.sidebar}>
         <div className={styles.sidebarTitle}>РАЗДЕЛЫ ПРАЙСА</div>
+
         {CATEGORIES.map((cat) => (
           <button
             key={cat.id}
@@ -102,7 +111,12 @@ export default function PricesPage() {
             {cat.label}
           </button>
         ))}
-        <button onClick={() => router.push('/dashboard')} className={styles.backButton} style={{ marginTop: 'auto' }}>
+
+        <button
+          onClick={() => router.push('/dashboard')}
+          className={styles.backButton}
+          style={{ marginTop: 'auto' }}
+        >
           ← В ПАНЕЛЬ УПРАВЛЕНИЯ
         </button>
       </aside>
@@ -110,16 +124,19 @@ export default function PricesPage() {
       <section className={styles.mainArea}>
         <header className={styles.header}>
           <h1 className={styles.sectionTitle}>
-            {CATEGORIES.find(c => c.id === activeTab)?.label}
+            {CATEGORIES.find((c) => c.id === activeTab)?.label}
           </h1>
+
           <button className={styles.saveButton} onClick={saveToDb}>
             СОХРАНИТЬ ИЗМЕНЕНИЯ
           </button>
         </header>
 
         <div className={styles.priceGrid}>
-          {/* ОБНОВЛЕННЫЙ ЗАГОЛОВОК: Добавили 150px под артикул */}
-          <div className={styles.gridHeader} style={{ gridTemplateColumns: '150px 2fr 1fr 100px 40px' }}>
+          <div
+            className={styles.gridHeader}
+            style={{ gridTemplateColumns: '150px 2fr 1fr 100px 40px' }}
+          >
             <span>АРТИКУЛ</span>
             <span>Наименование позиции</span>
             <span style={{ textAlign: 'right', paddingRight: '20px' }}>Цена</span>
@@ -128,48 +145,62 @@ export default function PricesPage() {
           </div>
 
           {currentItems.map((item) => (
-            /* ОБНОВЛЕННАЯ СТРОКА: gridTemplateColumns должен совпадать с заголовком */
-            <div key={item.id} className={styles.priceRow} style={{ gridTemplateColumns: '150px 2fr 1fr 100px 40px' }}>
-              {/* ПОЛЕ АРТИКУЛА */}
+            <div
+              key={item.id}
+              className={styles.priceRow}
+              style={{ gridTemplateColumns: '150px 2fr 1fr 100px 40px' }}
+            >
               <input
                 type="text"
-                value={item.slug}
+                value={item.slug ?? ''}
                 onChange={(e) => handleInputChange(item.id, 'slug', e.target.value)}
-                className={styles.inputSlug}
-                placeholder="ID (slug)"
-                /* ЗАЩИТА: Если ID не начинается на "new-", значит строка из базы и менять её нельзя */
+                className={styles.inputName}
+                placeholder="ID / артикул"
                 disabled={!item.id.toString().startsWith('new-')}
-                title={item.id.toString().startsWith('new-') ? "Можно изменить только при создании" : "Системный ID менять нельзя"}
+                title={
+                  item.id.toString().startsWith('new-')
+                    ? 'Можно изменить только при создании'
+                    : 'Системный ID менять нельзя'
+                }
                 style={{
                   opacity: item.id.toString().startsWith('new-') ? 1 : 0.5,
                   cursor: item.id.toString().startsWith('new-') ? 'text' : 'not-allowed',
-                  width: '150px' /* Можешь подправить ширину под себя */
+                  width: '150px',
                 }}
               />
 
               <input
                 type="text"
-                value={item.name}
+                value={item.name ?? ''}
                 onChange={(e) => handleInputChange(item.id, 'name', e.target.value)}
                 className={styles.inputName}
                 placeholder="Введите название..."
               />
+
               <input
                 type="number"
-                value={item.value}
+                value={item.value ?? 0}
                 onChange={(e) => handleInputChange(item.id, 'value', e.target.value)}
                 className={styles.inputPrice}
               />
+
               <input
                 type="text"
-                value={item.unit}
+                value={item.unit ?? 'м2'}
                 onChange={(e) => handleInputChange(item.id, 'unit', e.target.value)}
                 className={styles.inputName}
                 style={{ textAlign: 'center' }}
               />
+
               <button
                 onClick={() => deleteRow(item.id)}
-                style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '1.2rem' }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ff4444',
+                  cursor: 'pointer',
+                  fontSize: '1.2rem',
+                }}
                 title="Удалить строку"
               >
                 ×
@@ -179,7 +210,12 @@ export default function PricesPage() {
 
           <button
             className={styles.tab}
-            style={{ marginTop: '20px', borderStyle: 'dashed', textAlign: 'center', background: 'rgba(123, 255, 0, 0.02)' }}
+            style={{
+              marginTop: '20px',
+              borderStyle: 'dashed',
+              textAlign: 'center',
+              background: 'rgba(123, 255, 0, 0.02)',
+            }}
             onClick={addNewPrice}
           >
             + ДОБАВИТЬ НОВУЮ СТРОКУ
