@@ -150,6 +150,13 @@ export default function ItemsStep({
     }
   }, [localWindows, activeWindowId, onActiveWindowChange, isReadOnly]);
 
+  useEffect(() => {
+  if (localWindows.length === 0 || isReadOnly) return;
+  if (windows && windows.length > 0) return;
+
+  onDraftChange?.(localWindows.map(resolveDraftToWindowItem));
+}, [localWindows.length, windows, onDraftChange, isReadOnly]);
+
   const activeItem: WindowItemDraft | undefined =
     localWindows.find((w) => w.id === activeWindowId) ?? localWindows[0];
 
