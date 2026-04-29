@@ -147,7 +147,11 @@ function buildMonthGrid(year: number, month: number): Date[][] {
 }
 
 function toDateStr(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
 
 function normalizeDateValue(value: string | Date | null | undefined): string {
@@ -392,6 +396,7 @@ interface DayCell {
 interface DroppableDayCellProps extends DayCell {
   targetMemberId: string | null;
   onEventClick: (event: CalendarEventView) => void;
+  onDayClick: (date: string) => void;
   members: TeamMemberConfig[];
 }
 
@@ -403,6 +408,7 @@ function DroppableDayCell({
   events,
   targetMemberId,
   onEventClick,
+  onDayClick,
   members,
 }: DroppableDayCellProps) {
   const dateStr = toDateStr(date);
@@ -421,6 +427,7 @@ function DroppableDayCell({
   return (
     <div
       ref={setNodeRef}
+      onClick={() => onDayClick(dateStr)}
       className={`
         ${styles.dayCell}
         ${isToday ? styles.dayCellToday : ''}
@@ -1021,11 +1028,18 @@ export default function CalendarClient({
     });
   }, [events]);
 
-  const openCreateEvent = (type: NewCalendarEventType) => {
+  const openCreateEvent = (
+    type: NewCalendarEventType,
+    selectedDate?: string,
+  ) => {
     const currentMonthDate = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
-    const defaultDate = viewYear === today.getFullYear() && viewMonth === today.getMonth()
-      ? toDateStr(today)
-      : currentMonthDate;
+
+    const defaultDate =
+      selectedDate ||
+      (viewYear === today.getFullYear() && viewMonth === today.getMonth()
+        ? toDateStr(today)
+        : currentMonthDate);
+
     setEventForm(createDefaultFormState(type, defaultDate, effectiveMembers));
   };
 
@@ -1064,8 +1078,8 @@ export default function CalendarClient({
       });
 
       if (!res.ok) {
-        const errorText = await res.text().catch(() => "");
-        throw new Error(`HTTP : `);
+        const errorText = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
       }
 
       const created = await res.json();
@@ -1084,7 +1098,9 @@ export default function CalendarClient({
       logger.info('[CalendarClient] Событие календаря создано', payload);
     } catch (error) {
       addToast('error', 'Не удалось создать событие календаря');
-      logger.error('[CalendarClient] Ошибка создания события календаря', error);
+      logger.error('[CalendarClient] Ошибка создания события календаря', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setIsSavingEvent(false);
     }
@@ -1349,6 +1365,7 @@ export default function CalendarClient({
                 events={dayEvents}
                 targetMemberId={selectedMemberId === 'all' ? null : selectedMemberId}
                 onEventClick={setSelectedEvent}
+                onDayClick={(dateValue) => openCreateEvent('personal', dateValue)}
                 members={effectiveMembers}
               />
             );

@@ -21,6 +21,7 @@ import { logger } from '@/lib/logger';
 import CalculationClient from '@/components/calculation/CalculationClient';
 import type { ClientFormData } from '@/components/calculation/ClientStep';
 import type { MountingConfig } from '@/types/mounting';
+import { requireAuth } from '@/lib/auth/requireAuth';
 
 // Страница всегда серверная и динамическая —
 // данные клиента могут меняться между запросами.
@@ -59,6 +60,7 @@ function formatDateForInput(value: Date | null | undefined): string {
 // ---------------------------------------------------------------------------
 
 export default async function NewCalculationPage({ searchParams }: PageProps) {
+  const user = await requireAuth();
   const resolved = searchParams ? await searchParams : {};
   const clientId = resolved?.id?.trim();
   const isReadOnly = resolved?.mode === 'archive';
@@ -87,6 +89,7 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
         clientId=""
         initialClientData={emptyClientData}
         initialWindows={[]}
+        currentUserId={user.id}
         isReadOnly={false}
       />
     );
@@ -133,6 +136,7 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
       clientId={clientId}
       initialClientData={initialClientData}
       initialWindows={initialWindows}
+      currentUserId={user.id}
       isReadOnly={isReadOnly}
     />
   );

@@ -16,7 +16,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { TEAM_MEMBERS, type TeamMemberConfig } from '@/constants/pricing';
+import { type TeamMemberConfig } from '@/constants/pricing';
 import { logger } from '@/lib/logger';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,9 +77,14 @@ function mapDbRecordToConfig(record: {
  *
  * Ошибки БД: НЕ скрываются, логируются и пробрасываются наверх.
  */
-export async function getActiveTeamMembers(): Promise<TeamMemberConfig[]> {
+export async function getActiveTeamMembers(
+  organizationId: string,
+): Promise<TeamMemberConfig[]> {
   try {
     const allRecords = await prisma.teamMember.findMany({
+      where: {
+        organizationId,
+      },
       select: {
         id: true,
         name: true,
@@ -90,20 +95,24 @@ export async function getActiveTeamMembers(): Promise<TeamMemberConfig[]> {
       orderBy: { createdAt: 'asc' },
     });
 
-    // УДАЛЯЕМ ПРОВЕРКУ НА allRecords.length === 0 СО СТАТИКОЙ
-
-    // Оставляем только фильтрацию по активным
     const activeRecords = allRecords.filter((r) => r.status === 'active');
 
     if (activeRecords.length === 0) {
-      logger.info('[teamMemberService] Активные монтажники не найдены');
-      return []; // Возвращаем пустой массив, а не статику!
+      logger.info('[teamMemberService] Активные монтажники не найдены', { organizationId });
+      return [];
     }
 
-    logger.info('[teamMemberService] Загружено из БД', { count: activeRecords.length });
+    logger.info('[teamMemberService] Загружено из БД', {
+      organizationId,
+      count: activeRecords.length,
+    });
+
     return activeRecords.map(mapDbRecordToConfig);
   } catch (error) {
-    logger.error('[teamMemberService] Ошибка получения монтажников', error);
+    logger.error('[teamMemberService] Ошибка получения монтажников', {
+      organizationId,
+      error,
+    });
     throw error;
   }
 }
@@ -122,9 +131,10 @@ export async function getActiveTeamMembers(): Promise<TeamMemberConfig[]> {
  * @param userId - ID пользователя из таблицы User
  * @param name   - Имя (берётся из User.name)
  */
-export async function ensureTeamMemberForEngineer(
+export async function ensureTeamMemberForStaff(
   userId: string,
   name: string,
+  organizationId: string,
 ): Promise<void> {
   try {
     const existing = await prisma.teamMember.findUnique({
@@ -145,18 +155,18 @@ export async function ensureTeamMemberForEngineer(
 
     await prisma.teamMember.create({
       data: {
-        organizationId: 'default_org_id', // <--- ДОБАВЬ ЭТО
+        organizationId,
         name,
         category: DEFAULT_CATEGORY,
         color: DEFAULT_COLOR,
-        status: 'ACTIVE',
-        userId: userId,
+        status: 'active',
+        userId,
       },
     });
 
     logger.info('[teamMemberService] TeamMember создан для инженера', { userId, name });
   } catch (error) {
-    logger.error('[teamMemberService] Ошибка ensureTeamMemberForEngineer', { userId, error });
+    logger.error('[teamMemberService] Ошибка ensureTeamMemberForStaff', { userId, error });
     throw error;
   }
 }
@@ -192,6 +202,52 @@ export async function setTeamMemberStatusByUserId(
     logger.info('[teamMemberService] Статус TeamMember обновлён', { userId, status });
   } catch (error) {
     logger.error('[teamMemberService] Ошибка setTeamMemberStatusByUserId', { userId, status, error });
+    throw error;
+  }
+}
+
+export type CreateExternalTeamMemberInput = {
+  organizationId: string;
+  name: string;
+  phone?: string | null;
+  category?: TeamCategory;
+  color?: string | null;
+};
+
+export async function createExternalTeamMember(
+  input: CreateExternalTeamMemberInput,
+): Promise<TeamMemberConfig> {
+  try {
+    const record = await prisma.teamMember.create({
+      data: {
+        organizationId: input.organizationId,
+        name: input.name.trim(),
+        phone: input.phone?.trim() || null,
+        category: input.category ?? DEFAULT_CATEGORY,
+        color: input.color || DEFAULT_COLOR,
+        status: 'active',
+        userId: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        color: true,
+      },
+    });
+
+    logger.info('[teamMemberService] Внешний монтажник создан', {
+      organizationId: input.organizationId,
+      teamMemberId: record.id,
+    });
+
+    return mapDbRecordToConfig(record);
+  } catch (error) {
+    logger.error('[teamMemberService] Ошибка createExternalTeamMember', {
+      organizationId: input.organizationId,
+      error,
+    });
+
     throw error;
   }
 }

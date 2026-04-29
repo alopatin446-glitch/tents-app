@@ -11,6 +11,7 @@ enum UserRole {
   ADMIN
   MANAGER
   ENGINEER
+  INSTALLER
 }
 
 enum UserStatus {
@@ -19,39 +20,40 @@ enum UserStatus {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String       @id @default(cuid())
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  clientFiles ClientFile[]
 
-  users     User[]
-  clients   Client[]
-  prices    Price[]
-  teams     TeamMember[]
-  events    CalendarEvent[]
+  users   User[]
+  clients Client[]
+  prices  Price[]
+  teams   TeamMember[]
+  events  CalendarEvent[]
 }
 
 model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  passwordHash      String
-  name              String
-  phone             String?
-  telegramId        String?
-  avatarUrl         String?
-  lastLoginAt       DateTime?
-  role              UserRole  @default(MANAGER)
-  status            UserStatus @default(ACTIVE)
-  isOwnerAdmin      Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  phone        String?
+  telegramId   String?
+  avatarUrl    String?
+  lastLoginAt  DateTime?
+  role         UserRole   @default(MANAGER)
+  status       UserStatus @default(ACTIVE)
+  isOwnerAdmin Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  organizationId    String?
-  organization      Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 
-  sessions          Session[]
-  permissions       UserPermission[]
-  teamMember        TeamMember?
+  sessions    Session[]
+  permissions UserPermission[]
+  teamMember  TeamMember?
 }
 
 model Session {
@@ -88,6 +90,7 @@ model UserPermission {
 model TeamMember {
   id        String   @id @default(cuid())
   name      String
+  phone     String?
   category  String
   color     String
   status    String   @default("active")
@@ -101,73 +104,102 @@ model TeamMember {
 }
 
 model Client {
-  id              String    @id @default(cuid())
-  fio             String
-  phone           String
-  address         String?
-  source          String?
-  status          String    @default("negotiation")
+  id      String  @id @default(cuid())
+  fio     String
+  phone   String
+  address String?
+  source  String?
+  status  String  @default("negotiation")
 
-  totalPrice      Float     @default(0)
-  advance         Float     @default(0)
-  balance         Float     @default(0)
-  preliminaryPrice Float?    @default(0)
-  costPrice        Float?    @default(0)
-  overspending     Float?    @default(0)
-  productionCost   Float?    @default(0)
-  mountingCost     Float?    @default(0)
-  paymentType     String?
+  totalPrice       Float   @default(0)
+  advance          Float   @default(0)
+  balance          Float   @default(0)
+  preliminaryPrice Float?  @default(0)
+  costPrice        Float?  @default(0)
+  overspending     Float?  @default(0)
+  productionCost   Float?  @default(0)
+  mountingCost     Float?  @default(0)
+  paymentType      String?
+
+  files ClientFile[]
 
   measurementDate DateTime?
   installDate     DateTime?
 
-  items           Json?
-  mountingConfig  Json?
+  items          Json?
+  mountingConfig Json?
 
   managerComment  String?
   engineerComment String?
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  organizationId  String
-  organization    Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
 }
 
 model CalendarEvent {
-  id            String   @id @default(cuid())
-  type          String
-  title         String?
-  description   String?
+  id          String  @id @default(cuid())
+  type        String
+  title       String?
+  description String?
 
-  date          DateTime
-  startTime     String?
-  endTime       String?
+  date      DateTime
+  startTime String?
+  endTime   String?
 
-  durationDays  Int      @default(1)
+  durationDays Int @default(1)
 
-  isGlobal      Boolean  @default(false)
-  memberId      String?
+  isGlobal Boolean @default(false)
+  memberId String?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 }
 
 model Price {
-  id             String   @id @default(cuid())
-  slug           String   @default("")
-  name           String   
-  value          Float    
-  unit           String   
-  category       String   
-  metadata       Json?    
-  updatedAt      DateTime @updatedAt
+  id        String   @id @default(cuid())
+  slug      String   @default("")
+  name      String
+  value     Float
+  unit      String
+  category  String
+  metadata  Json?
+  updatedAt DateTime @updatedAt
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  @@unique([slug, organizationId]) 
+  @@unique([slug, organizationId])
+}
+
+model ClientFile {
+  id String @id @default(cuid())
+
+  clientId       String
+  organizationId String
+
+  url      String
+  key      String
+  fileName String
+  mimeType String
+  size     Int
+
+  category  String?
+  sortOrder Int       @default(0)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([clientId])
+  @@index([organizationId])
+  @@index([clientId, sortOrder])
 }

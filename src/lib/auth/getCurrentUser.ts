@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { SESSION_COOKIE_NAME } from './constants';
 import { hashSessionToken } from './session';
+import { cache } from 'react';
 
 /**
  * Расширяем тип: теперь пользователь ОБЯЗАТЕЛЬНО несет в себе organizationId
@@ -14,7 +15,7 @@ export type AuthenticatedUser = User & {
   organizationId: string; // <--- Теперь это поле официально существует для TS
 };
 
-export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
+export const getCurrentUser = cache(async (): Promise<AuthenticatedUser | null> => {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -26,8 +27,8 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     // Находим сессию и подтягиваем пользователя
     const session = await prisma.session.findUnique({
       where: { tokenHash },
-      include: { 
-        user: true 
+      include: {
+        user: true
       },
     });
 
@@ -58,4 +59,4 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     logger.error('[getCurrentUser] Ошибка получения пользователя', error);
     return null;
   }
-}
+});

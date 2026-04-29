@@ -10,7 +10,6 @@ import TeamClient from './TeamClient';
 
 export const dynamic = 'force-dynamic';
 
-// Описываем форму данных, которую мы вытягиваем из Prisma
 interface UserWithPermissions {
   id: string;
   name: string;
@@ -27,14 +26,22 @@ interface UserWithPermissions {
 }
 
 export default async function TeamPage() {
-  // Проверка роли — вернет пользователя или редиректнет
   const currentUser = await requireRole(['ADMIN']);
 
   let users: UserWithPermissions[] = [];
+  let teamMembers: {
+    id: string;
+    name: string;
+    phone: string | null;
+    category: string;
+    userId: string | null;
+  }[] = [];
 
   try {
-    // Явно указываем тип возвращаемых данных через as any (или через интерфейс ниже)
     const rawUsers = await prisma.user.findMany({
+      where: {
+        organizationId: currentUser.organizationId,
+      },
       orderBy: [
         { isOwnerAdmin: 'desc' },
         { role: 'asc' },
@@ -57,15 +64,32 @@ export default async function TeamPage() {
         },
       },
     });
-    
+
+    const rawTeamMembers = await prisma.teamMember.findMany({
+      where: {
+        organizationId: currentUser.organizationId,
+        status: 'active',
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        category: true,
+        userId: true,
+      },
+    });
+
     users = rawUsers as unknown as UserWithPermissions[];
-    
+    teamMembers = rawTeamMembers;
   } catch (error) {
-    logger.error('[TeamPage] Ошибка загрузки пользователей', error);
+    logger.error('[TeamPage] Ошибка загрузки команды', error);
     users = [];
+    teamMembers = [];
   }
 
-  // Трансформируем данные для клиента, убирая вложенность permissions
   const userRows = users.map((u) => ({
     id: u.id,
     name: u.name,
@@ -74,13 +98,13 @@ export default async function TeamPage() {
     status: u.status,
     isOwnerAdmin: u.isOwnerAdmin,
     lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
-    // Теперь TS видит, что p.permission.key существует
     permissions: u.permissions.map((p) => p.permission.key),
   }));
 
   return (
     <TeamClient
       users={userRows}
+      teamMembers={teamMembers}
       currentUserId={currentUser.id}
       currentUserIsOwnerAdmin={currentUser.isOwnerAdmin}
     />

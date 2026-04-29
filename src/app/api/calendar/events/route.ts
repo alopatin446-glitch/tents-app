@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth/getCurrentUser';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,14 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const date = normalizeDate(body.date);
+    const user = await getCurrentUser();
+
+    if (!user || user.status !== 'ACTIVE' || !user.organizationId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 },
+      );
+    }
 
     if (!date) {
       return NextResponse.json(
@@ -63,6 +72,7 @@ export async function POST(req: Request) {
         durationDays: Math.max(1, Number(body.durationDays || 1)),
         isGlobal,
         memberId,
+        organizationId: user.organizationId,
       },
     });
 

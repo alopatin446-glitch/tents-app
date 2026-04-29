@@ -28,7 +28,7 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const members = await getActiveTeamMembers();
+    const members = await getActiveTeamMembers(user.organizationId);
 
     return NextResponse.json(members);
   } catch (error) {

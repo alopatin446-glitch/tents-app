@@ -32,6 +32,7 @@ interface CalculationClientProps {
   clientId: string;
   initialClientData: ClientFormData;
   initialWindows: WindowItem[];
+  currentUserId: string;
   isReadOnly?: boolean;
   teamMembers?: TeamMemberConfig[];
 }
@@ -48,6 +49,7 @@ export default function CalculationClient({
   clientId,
   initialClientData,
   initialWindows,
+  currentUserId,
   isReadOnly = false,
   teamMembers,
 }: CalculationClientProps) {
@@ -209,7 +211,7 @@ export default function CalculationClient({
             clientId={clientId}
             value={clientDataWithArea.mountingConfig ?? {}}
             totalAreaM2={totalAreaMaterial}
-            currentUserId="system"
+            currentUserId={currentUserId}
             onChange={handleMountingChange}
             onSave={handleSaveAll}
             isReadOnly={isReadOnly}

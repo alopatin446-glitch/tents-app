@@ -25,9 +25,12 @@ import {
   updateUserPermissionsAction,
   resetEmployeePasswordAction,
   transferOwnerAdminAction,
+  createExternalTeamMemberAction,
+   deactivateTeamMemberAction,
 } from '../actions';
 import { PERMISSION_GROUPS } from '@/lib/permissionGroups';
 import styles from './team.module.css';
+import type { TeamMemberConfig } from '@/constants/pricing';
 
 // ---------------------------------------------------------------------------
 // Типы
@@ -44,8 +47,17 @@ interface UserRow {
   permissions: string[];
 }
 
+interface TeamMemberRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  category: string;
+  userId: string | null;
+}
+
 interface Props {
   users: UserRow[];
+  teamMembers: TeamMemberRow[];
   currentUserId: string;
   currentUserIsOwnerAdmin: boolean;
 }
@@ -62,6 +74,7 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Администратор',
   MANAGER: 'Менеджер',
   ENGINEER: 'Инженер',
+  INSTALLER: 'Монтажник',
 };
 
 // ---------------------------------------------------------------------------
@@ -87,7 +100,9 @@ function getRoleBadgeClass(
 ): string {
   if (role === 'ADMIN') return `${stylesObj.badge} ${stylesObj.badgeAdmin}`;
   if (role === 'MANAGER') return `${stylesObj.badge} ${stylesObj.badgeManager}`;
-  return `${stylesObj.badge} ${stylesObj.badgeEngineer}`;
+  if (role === 'ENGINEER') return `${stylesObj.badge} ${stylesObj.badgeEngineer}`;
+  if (role === 'INSTALLER') return `${stylesObj.badge} ${stylesObj.badgeEngineer}`;
+  return `${stylesObj.badge}`;
 }
 
 function getStatusBadgeClass(
@@ -104,6 +119,7 @@ function getStatusBadgeClass(
 
 export default function TeamClient({
   users,
+  teamMembers,
   currentUserId,
   currentUserIsOwnerAdmin,
 }: Props) {
@@ -119,6 +135,11 @@ export default function TeamClient({
   const [createEmail, setCreateEmail] = useState('');
   const [createPassword, setCreatePassword] = useState('');
   const [createRole, setCreateRole] = useState('MANAGER');
+
+  // ── Форма внешнего монтажника ─────────────────────────────────────────
+  const [externalName, setExternalName] = useState('');
+  const [externalPhone, setExternalPhone] = useState('');
+  const [externalCategory, setExternalCategory] = useState<'pro' | 'mid' | 'junior'>('mid');
 
   // ── Форма редактирования ──────────────────────────────────────────────
   const [editName, setEditName] = useState('');
@@ -215,6 +236,38 @@ export default function TeamClient({
   }
 
   // ── Server Action вызовы ───────────────────────────────────────────────
+
+  function handleCreateExternalTeamMember(): void {
+    if (!externalName.trim()) return;
+
+    startTransition(async () => {
+      const result = await createExternalTeamMemberAction({
+        name: externalName,
+        phone: externalPhone,
+        category: externalCategory,
+      });
+
+      if (result.success) {
+        setExternalName('');
+        setExternalPhone('');
+        router.refresh();
+      } else {
+        alert(result.error || 'Ошибка создания монтажника');
+      }
+    });
+  }
+
+  function handleDeleteTeamMember(id: string): void {
+  startTransition(async () => {
+    const result = await deactivateTeamMemberAction(id);
+
+    if (result.success) {
+      router.refresh();
+    } else {
+      alert(result.error || 'Ошибка удаления');
+    }
+  });
+}
 
   function handleCreate(): void {
     setModalError('');
@@ -348,7 +401,128 @@ export default function TeamClient({
       </header>
 
       {/* Таблица */}
+      {/* Таблица */}
       <div className={styles.content}>
+        <div
+          style={{
+            marginBottom: '20px',
+            padding: '20px',
+            border: '1px solid rgba(123, 255, 0, 0.2)',
+            borderRadius: '20px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            display: 'flex',
+            gap: '12px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <strong style={{ color: '#7BFF00', textTransform: 'uppercase' }}>
+            Внешний монтажник
+          </strong>
+
+          <input
+            className={styles.input}
+            placeholder="ФИО"
+            value={externalName}
+            onChange={(e) => setExternalName(e.target.value)}
+            style={{ maxWidth: '260px' }}
+          />
+
+          <input
+            className={styles.input}
+            placeholder="Телефон"
+            value={externalPhone}
+            onChange={(e) => setExternalPhone(e.target.value)}
+            style={{ maxWidth: '220px' }}
+          />
+
+          <select
+            className={styles.select}
+            value={externalCategory}
+            onChange={(e) => setExternalCategory(e.target.value as 'pro' | 'mid' | 'junior')}
+            style={{ maxWidth: '210px' }}
+          >
+            <option value="junior">Бригада Эконом</option>
+            <option value="mid">Бригада Стандарт</option>
+            <option value="pro">Бригада Про</option>
+          </select>
+
+          <button
+            className={styles.addBtn}
+            onClick={handleCreateExternalTeamMember}
+            disabled={isPending || !externalName.trim()}
+          >
+            {isPending ? 'Создание...' : '+ Добавить монтажника'}
+          </button>
+        </div>
+
+        <div
+          style={{
+            marginBottom: '20px',
+            padding: '20px',
+            border: '1px solid rgba(123, 255, 0, 0.2)',
+            borderRadius: '20px',
+            background: 'rgba(255, 255, 255, 0.03)',
+          }}
+        >
+          <strong style={{ color: '#7BFF00', textTransform: 'uppercase' }}>
+            Монтажники
+          </strong>
+
+          {teamMembers.length === 0 ? (
+            <div style={{ marginTop: '12px', opacity: 0.6 }}>
+              Монтажники пока не добавлены
+            </div>
+          ) : (
+            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {teamMembers.map((member) => (
+                <div
+                  key={member.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    padding: '10px 14px',
+                    borderRadius: '16px',
+                    background: 'rgba(15, 23, 42, 0.45)',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{member.name}</div>
+                    <div style={{ fontSize: '12px', opacity: 0.6 }}>
+                      {member.phone || 'Телефон не указан'} ·{' '}
+                      {member.category === 'pro'
+                        ? 'Бригада Про'
+                        : member.category === 'junior'
+                          ? 'Бригада Эконом'
+                          : 'Бригада Стандарт'}
+                      {member.userId ? ' · сотрудник CRM' : ' · внешний монтажник'}
+                    </div>
+                  </div>
+
+                  {!member.userId && (
+                    <button
+                      type="button"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#ff4d4d',
+                        cursor: 'pointer',
+                        fontSize: '18px',
+                      }}
+                      onClick={() => handleDeleteTeamMember(member.id)}
+                      title="Удалить монтажника"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className={styles.tableWrap}>
           {users.length === 0 ? (
             <div className={styles.emptyState}>Сотрудников нет</div>
@@ -429,11 +603,10 @@ export default function TeamClient({
                         {/* Блокировка / разблокировка */}
                         {!user.isOwnerAdmin && user.id !== currentUserId && (
                           <button
-                            className={`${styles.actionBtn} ${
-                              user.status === 'ACTIVE'
-                                ? styles.actionBtnDanger
-                                : styles.actionBtnUnblock
-                            }`}
+                            className={`${styles.actionBtn} ${user.status === 'ACTIVE'
+                              ? styles.actionBtnDanger
+                              : styles.actionBtnUnblock
+                              }`}
                             onClick={() => handleToggleStatus(user)}
                             disabled={isPending}
                           >
@@ -457,9 +630,8 @@ export default function TeamClient({
       {modalMode !== null && (
         <div className={styles.overlay} onClick={closeModal}>
           <div
-            className={`${styles.modal} ${
-              modalMode === 'permissions' ? styles.modalLarge : ''
-            }`}
+            className={`${styles.modal} ${modalMode === 'permissions' ? styles.modalLarge : ''
+              }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* ── Создание ── */}
@@ -509,6 +681,7 @@ export default function TeamClient({
                   >
                     <option value="MANAGER">Менеджер</option>
                     <option value="ENGINEER">Инженер</option>
+                    <option value="INSTALLER">Монтажник</option>
                     {currentUserIsOwnerAdmin && (
                       <option value="ADMIN">Администратор</option>
                     )}
@@ -569,6 +742,7 @@ export default function TeamClient({
                   >
                     <option value="MANAGER">Менеджер</option>
                     <option value="ENGINEER">Инженер</option>
+                    <option value="INSTALLER">Монтажник</option>
                     {currentUserIsOwnerAdmin && (
                       <option value="ADMIN">Администратор</option>
                     )}
@@ -623,9 +797,8 @@ export default function TeamClient({
                           )}
                         </span>
                         <span
-                          className={`${styles.permGroupChevron} ${
-                            isOpen ? styles.permGroupChevronOpen : ''
-                          }`}
+                          className={`${styles.permGroupChevron} ${isOpen ? styles.permGroupChevronOpen : ''
+                            }`}
                         >
                           ▼
                         </span>
