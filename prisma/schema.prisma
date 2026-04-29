@@ -111,6 +111,11 @@ model Client {
   totalPrice      Float     @default(0)
   advance         Float     @default(0)
   balance         Float     @default(0)
+  preliminaryPrice Float?    @default(0)
+  costPrice        Float?    @default(0)
+  overspending     Float?    @default(0)
+  productionCost   Float?    @default(0)
+  mountingCost     Float?    @default(0)
   paymentType     String?
 
   measurementDate DateTime?

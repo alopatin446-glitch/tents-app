@@ -56,8 +56,8 @@ function resolveDraftToWindowItem(draft: WindowItemDraft): WindowItem {
     kantColor: draft.kantColor,
     material: draft.material,
     isTrapezoid: draft.isTrapezoid,
-    // Сохраняем fasteners как есть — они не редактируются в ItemsStep
     fasteners: draft.fasteners,
+    additionalElements: draft.additionalElements, // ← добавить эту строку
     widthTop: resolveNumericField(draft.widthTop),
     heightRight: resolveNumericField(draft.heightRight),
     widthBottom: resolveNumericField(draft.widthBottom),

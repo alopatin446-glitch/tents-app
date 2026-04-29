@@ -1,11 +1,5 @@
 'use client';
 
-/**
- * Calculation orchestrator (Client Component).
- *
- * @module src/components/calculation/CalculationClient.tsx
- */
-
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -39,64 +33,13 @@ interface CalculationClientProps {
   initialClientData: ClientFormData;
   initialWindows: WindowItem[];
   isReadOnly?: boolean;
-  /**
-   * Список активных монтажников, предзагруженный на сервере.
-   * Если не передан — MountingStep самостоятельно запросит /api/team-members.
-   * Backward compatible: передача не обязательна.
-   */
   teamMembers?: TeamMemberConfig[];
 }
 
 function DevelopmentPlaceholder({ title }: { title: string }) {
   return (
-    <section
-      style={{
-        minHeight: 'calc(100vh - 150px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-main)',
-        color: 'var(--text-white)',
-      }}
-    >
-      <div
-        style={{
-          width: 'min(720px, 92vw)',
-          minHeight: '260px',
-          border: '1px solid var(--neon-green)',
-          borderRadius: '32px',
-          background: 'rgba(123, 255, 0, 0.04)',
-          boxShadow: '0 0 24px rgba(123, 255, 0, 0.12)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '18px',
-          textAlign: 'center',
-          padding: '32px',
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            color: 'var(--neon-green)',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-          }}
-        >
-          {title}
-        </h2>
-        <p
-          style={{
-            margin: 0,
-            fontSize: '22px',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-          }}
-        >
-          На стадии разработки
-        </p>
-      </div>
+    <section style={{ minHeight: 'calc(100vh - 150px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <h2>{title} — В разработке</h2>
     </section>
   );
 }
@@ -126,64 +69,42 @@ export default function CalculationClient({
     handleExtrasChange,
   } = useCalculationState(initialClientData, initialWindows);
 
-  const handleSave = useCallback(
-    async (formData: ClientFormData): Promise<void> => {
-      if (isReadOnly) return;
+  /**
+   * 🔥 ЕДИНОЕ СОХРАНЕНИЕ ВСЕГО ЗАКАЗА
+   */
+  const handleSaveAll = useCallback(async () => {
+    if (isReadOnly) return;
 
-      setIsSaving(true);
+    setIsSaving(true);
 
-      try {
-        const payload = {
-          fio: formData.fio ?? '',
-          phone: formData.phone ?? '',
-          address: formData.address ?? '',
-          source: formData.source ?? '',
-          status: formData.status ?? '',
-          totalPrice: formData.totalPrice,
-          advance: formData.advance,
-          balance: formData.balance,
-          paymentType: formData.paymentType ?? '',
-          measurementDate: formData.measurementDate,
-          installDate: formData.installDate,
-          managerComment: formData.managerComment ?? '',
-          engineerComment: formData.engineerComment ?? '',
-          items: windows,
-          mountingConfig: formData.mountingConfig,
-        };
+    try {
+      const payload = {
+        ...clientDataWithArea,
+        items: windows,
+        mountingConfig: clientDataWithArea.mountingConfig,
+      };
 
-        const result = await updateClientAction(clientId, payload);
+      const result = await updateClientAction(clientId, payload);
 
-        if (result.success) {
-          const returnedId = 'clientId' in result ? result.clientId : null;
+      if (result.success) {
+        logger.info('[CalculationClient] FULL SAVE', {
+          clientId,
+          windowsCount: windows.length,
+        });
 
-          logger.info('[CalculationClient] Saved', {
-            clientId: returnedId || clientId,
-            windowsCount: windows.length,
-            totalAreaMaterial,
-          });
-
-          if (!clientId && returnedId) {
-            router.replace(`/dashboard/new-calculation?id=${returnedId}`);
-          } else {
-            router.refresh();
-          }
-
-          alert('Данные успешно сохранены');
-          return;
-        }
-
-        const errorMsg = 'error' in result ? result.error : 'Неизвестная ошибка';
-        logger.error('[CalculationClient] Save error', { clientId, error: errorMsg });
-        alert('Ошибка сохранения: ' + errorMsg);
-      } catch (err) {
-        logger.error('[CalculationClient] Save exception', err);
-        alert('Критическая ошибка при сохранении');
-      } finally {
-        setIsSaving(false);
+        router.refresh();
+        alert('Сохранено');
+        return;
       }
-    },
-    [clientId, isReadOnly, router, windows, totalAreaMaterial],
-  );
+
+      alert('Ошибка: ' + result.error);
+    } catch (e) {
+      console.error(e);
+      alert('Ошибка сохранения');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [clientId, clientDataWithArea, windows, router, isReadOnly]);
 
   const handleMountingChange = useCallback(
     (newConfig: MountingConfig): void => {
@@ -193,63 +114,6 @@ export default function CalculationClient({
       });
     },
     [clientDataWithArea, handleClientDataChange],
-  );
-
-  const handleMountingSave = useCallback(
-    async (mountingData: MountingConfig): Promise<void> => {
-      if (isReadOnly) return;
-
-      setIsSaving(true);
-
-      try {
-        const result = await updateClientAction(clientId, { mountingConfig: mountingData });
-
-        if (result.success) {
-          logger.info('[CalculationClient] Mounting saved', { clientId });
-          router.refresh();
-          return;
-        }
-
-        alert('Ошибка сохранения монтажа: ' + result.error);
-      } catch (err) {
-        logger.error('[CalculationClient] Mounting save exception', err);
-        alert('Критическая ошибка при сохранении монтажа');
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [clientId, isReadOnly, router],
-  );
-
-  const handleWindowsSave = useCallback(
-    async (updatedWindows: WindowItem[]): Promise<void> => {
-      if (isReadOnly) return;
-
-      handleWindowsChange(updatedWindows);
-      setIsSaving(true);
-
-      try {
-        const result = await updateClientAction(clientId, { items: updatedWindows });
-
-        if (result.success) {
-          logger.info('[CalculationClient] Windows/extras saved', {
-            clientId,
-            count: updatedWindows.length,
-          });
-          router.refresh();
-          return;
-        }
-
-        logger.error('[CalculationClient] Windows save error', { error: result.error });
-        alert('Ошибка сохранения: ' + result.error);
-      } catch (err) {
-        logger.error('[CalculationClient] Windows save exception', err);
-        alert('Критическая ошибка при сохранении изделий');
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [clientId, isReadOnly, router, handleWindowsChange],
   );
 
   const steps: Array<{ id: Step; label: string }> = [
@@ -265,6 +129,7 @@ export default function CalculationClient({
   return (
     <div className={styles.wrapper}>
       <div className={styles.topBar}>
+
         <nav className={styles.stepNav}>
           {steps.map((step) => (
             <button
@@ -278,20 +143,27 @@ export default function CalculationClient({
           ))}
         </nav>
 
+        <button
+          type="button"
+          onClick={() => router.push('/dashboard')}
+          className={styles.exitBtn}
+        >
+          Выйти
+        </button>
+
         <div className={styles.areaIndicator}>
-          <span className={styles.areaLabel}>Площадь полотна:</span>
-          <strong className={styles.areaValue}>{totalAreaMaterial.toFixed(2)} м²</strong>
-          <span className={styles.areaLabel}>С кантом:</span>
-          <strong className={styles.areaValue}>{totalAreaWithKant.toFixed(2)} м²</strong>
-          {isSaving && <span className={styles.savingIndicator}>Сохранение…</span>}
+          <strong>{totalAreaMaterial.toFixed(2)} м²</strong>
+          <strong>{totalAreaWithKant.toFixed(2)} м²</strong>
+          {isSaving && <span>Сохранение…</span>}
         </div>
+
       </div>
 
       <main className={styles.mainContent}>
         {activeStep === 'client' && (
           <ClientStep
             initialData={clientDataWithArea}
-            onSave={handleSave}
+            onSave={handleSaveAll}
             onDraftChange={handleClientDataChange}
             onClose={() => router.back()}
             isReadOnly={isReadOnly}
@@ -302,7 +174,7 @@ export default function CalculationClient({
           <ItemsStep
             windows={windows}
             onDraftChange={handleWindowsChange}
-            onSave={handleWindowsSave}
+            onSave={handleSaveAll}
             clientId={clientId}
             isReadOnly={isReadOnly}
             activeWindowId={activeWindowId}
@@ -316,7 +188,7 @@ export default function CalculationClient({
             activeWindowId={activeWindowId}
             onActiveWindowChange={setActiveWindowId}
             onWindowsChange={handleWindowsChange}
-            onSave={handleWindowsSave}
+            onSave={handleSaveAll}
             isReadOnly={isReadOnly}
           />
         )}
@@ -327,7 +199,7 @@ export default function CalculationClient({
             activeWindowId={activeWindowId}
             onActiveWindowChange={setActiveWindowId}
             onExtrasChange={handleExtrasChange}
-            onSave={handleWindowsSave}
+            onSave={handleSaveAll}
             isReadOnly={isReadOnly}
           />
         )}
@@ -335,11 +207,11 @@ export default function CalculationClient({
         {activeStep === 'mounting' && (
           <MountingStep
             clientId={clientId}
-            value={clientDataWithArea.mountingConfig ?? initialClientData.mountingConfig ?? {}}
+            value={clientDataWithArea.mountingConfig ?? {}}
             totalAreaM2={totalAreaMaterial}
             currentUserId="system"
             onChange={handleMountingChange}
-            onSave={handleMountingSave}
+            onSave={handleSaveAll}
             isReadOnly={isReadOnly}
             teamMembers={teamMembers}
           />

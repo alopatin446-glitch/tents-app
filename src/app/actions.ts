@@ -73,6 +73,11 @@ type UpdateClientPayload = {
   managerComment?: unknown;
   engineerComment?: unknown;
   mountingConfig?: MountingConfig;
+  preliminaryPrice?: unknown;
+  costPrice?: unknown;
+  overspending?: unknown;
+  productionCost?: unknown;
+  mountingCost?: unknown;
 };
 
 function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknown> {
@@ -114,6 +119,11 @@ function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknow
   if (data.installDate !== undefined) out.installDate = toNullableDate(data.installDate);
   if (data.items !== undefined) out.items = toJsonItems(data.items);
   if (data.mountingConfig !== undefined) out.mountingConfig = data.mountingConfig;
+  if (data.preliminaryPrice !== undefined) out.preliminaryPrice = toFinancialNumber(data.preliminaryPrice as string | number | null | undefined, 0);
+  if (data.costPrice !== undefined) out.costPrice = toFinancialNumber(data.costPrice as string | number | null | undefined, 0);
+  if (data.overspending !== undefined) out.overspending = toFinancialNumber(data.overspending as string | number | null | undefined, 0);
+  if (data.productionCost !== undefined) out.productionCost = toFinancialNumber(data.productionCost as string | number | null | undefined, 0);
+  if (data.mountingCost !== undefined) out.mountingCost = toFinancialNumber(data.mountingCost as string | number | null | undefined, 0);
 
   return out;
 }
@@ -170,7 +180,7 @@ export async function updateClientAction(
       // Добавляем проверку, что клиент принадлежит организации пользователя
       const prismaData = buildUpdateClientData(data);
       const updatedClient = await prisma.client.update({
-        where: { 
+        where: {
           id,
           organizationId: user.organizationId // Безопасность: обновляем только своего
         },
@@ -199,7 +209,7 @@ export async function createClientAction(data: {
 }): Promise<{ success: true; id: string } | { success: false; error: string }> {
   try {
     const user = await requireAuth();
-    
+
     const fio = toRequiredString(data.fio, 'Без имени');
     const phone = toRequiredString(data.phone, '');
     const address = toNullableString(data.address);
@@ -230,7 +240,7 @@ export async function getArchiveOrdersCount(): Promise<
   try {
     const user = await requireAuth();
     const count = await prisma.client.count({
-      where: { 
+      where: {
         status: { in: ['completed', 'rejected'] },
         organizationId: user.organizationId // Считаем только своих
       },
@@ -250,11 +260,11 @@ export async function deleteClientAction(
     const user = await requireAuth();
 
     // Удаляем только если клиент принадлежит нашей организации
-    await prisma.client.delete({ 
-      where: { 
+    await prisma.client.delete({
+      where: {
         id,
-        organizationId: user.organizationId 
-      } 
+        organizationId: user.organizationId
+      }
     });
 
     logger.info('[deleteClientAction] Клиент удален', { id, orgId: user.organizationId });
