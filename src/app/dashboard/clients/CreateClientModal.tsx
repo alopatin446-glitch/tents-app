@@ -6,6 +6,7 @@ import { createClientAction } from '@/app/actions';
 import { useClients } from './ClientContext';
 import ClientStep, { type ClientFormData } from '@/components/calculation/ClientStep';
 import styles from './KanbanBoard.module.css';
+import { notifyError, notifySuccess } from '@/lib/notify';
 
 export default function CreateClientModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -46,11 +47,11 @@ export default function CreateClientModal({ onClose }: { onClose: () => void }) 
         onClose();
         router.refresh();
       } else {
-        alert(result.error || 'Ошибка при сохранении карточки');
+        notifyError(result.error || 'Ошибка при сохранении карточки');
       }
     } catch (err) {
       console.error('[CreateClientModal] Ошибка:', err);
-      alert('Ошибка при сохранении карточки');
+      notifyError('Ошибка при сохранении карточки');
     }
   };
 

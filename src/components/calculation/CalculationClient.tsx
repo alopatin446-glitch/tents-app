@@ -18,6 +18,8 @@ import ExtrasStep from '@/components/calculation/ExtrasStep';
 import MountingStep from '@/components/mounting/MountingStep';
 import styles from './CalculationClient.module.css';
 import ProductionStep from '@/components/calculation/ProductionStep';
+import { notifyError, notifySuccess } from '@/lib/notify';
+import { calculateMounting } from '@/lib/logic/mountingCalculations';
 
 type Step =
   | 'client'
@@ -46,7 +48,7 @@ function DevelopmentPlaceholder({ title }: { title: string }) {
 }
 
 export default function CalculationClient({
-  clientId,
+  clientId: initialClientId,
   initialClientData,
   initialWindows,
   currentUserId,
@@ -54,6 +56,7 @@ export default function CalculationClient({
   teamMembers,
 }: CalculationClientProps) {
   const router = useRouter();
+  const [clientId, setClientId] = useState<string>(initialClientId);
   const [activeStep, setActiveStep] = useState<Step>('client');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -89,20 +92,30 @@ export default function CalculationClient({
       const result = await updateClientAction(clientId, payload);
 
       if (result.success) {
+        const savedClientId = result.clientId ?? clientId;
+
+        if (savedClientId && savedClientId !== clientId) {
+          setClientId(savedClientId);
+          handleClientDataChange({
+            ...clientDataWithArea,
+            id: savedClientId,
+          });
+        }
+
         logger.info('[CalculationClient] FULL SAVE', {
-          clientId,
+          clientId: savedClientId,
           windowsCount: windows.length,
         });
 
         router.refresh();
-        alert('Сохранено');
+        notifySuccess('Сохранено');
         return;
       }
 
-      alert('Ошибка: ' + result.error);
+      notifyError('Ошибка: ' + result.error);
     } catch (e) {
       console.error(e);
-      alert('Ошибка сохранения');
+      notifyError('Ошибка сохранения');
     } finally {
       setIsSaving(false);
     }
@@ -110,12 +123,18 @@ export default function CalculationClient({
 
   const handleMountingChange = useCallback(
     (newConfig: MountingConfig): void => {
+      const mountingCalc = calculateMounting(newConfig, totalAreaMaterial);
+
+      const mountingCostValue =
+        newConfig.manualPrice ?? mountingCalc.retailFinal ?? 0;
+
       handleClientDataChange({
         ...clientDataWithArea,
         mountingConfig: newConfig,
+        mountingCost: mountingCostValue, // ← ВОТ ЭТО КЛЮЧ
       });
     },
-    [clientDataWithArea, handleClientDataChange],
+    [clientDataWithArea, handleClientDataChange, totalAreaMaterial],
   );
 
   const steps: Array<{ id: Step; label: string }> = [

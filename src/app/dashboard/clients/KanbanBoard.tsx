@@ -22,6 +22,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
+import { notifyError, notifySuccess } from '@/lib/notify';
 
 // Серверные экшены
 import { updateClientAction, deleteClientAction } from './actions';
@@ -175,12 +176,12 @@ export default function KanbanBoard() {
       router.refresh();
 
       if (failedIds.length > 0) {
-        alert(
+        notifyError(
           `Удаление завершено частично.\n\nУдалено: ${deletedIds.length}\nНе удалось: ${failedIds.length}`
         );
       }
     } catch {
-      alert('Произошла ошибка при удалении из базы данных');
+      notifyError('Произошла ошибка при удалении из базы данных');
     }
   };
 
@@ -245,7 +246,7 @@ export default function KanbanBoard() {
     if (!result.success) {
       // Откат при ошибке сервера
       updateClient(activeClientId, { status: previousStatus });
-      alert('Ошибка сохранения статуса. Изменения отменены.');
+      notifyError('Ошибка сохранения статуса. Изменения отменены.');
       return;
     }
 

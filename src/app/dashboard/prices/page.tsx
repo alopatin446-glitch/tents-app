@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPrices, updatePrices } from '@/app/actions/prices';
 import styles from './prices.module.css';
+import { notifyError, notifySuccess } from '@/lib/notify';
 
 const CATEGORIES = [
   { id: 'retail_products', label: '1) Розница изделий' },
@@ -72,7 +73,7 @@ export default function PricesPage() {
     const res = await updatePrices(categoryData, activeTab);
 
     if (res.success) {
-      alert('Данные раздела успешно сохранены!');
+      notifySuccess('Данные раздела успешно сохранены!');
 
       const updated = await getPrices();
 
@@ -80,7 +81,7 @@ export default function PricesPage() {
         setAllPrices(updated.data ?? []);
       }
     } else {
-      alert('Ошибка при сохранении: ' + res.error);
+      notifySuccess('Ошибка при сохранении: ' + res.error);
     }
   };
 

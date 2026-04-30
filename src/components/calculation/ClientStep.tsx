@@ -9,6 +9,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import styles from './ClientStep.module.css';
@@ -232,6 +233,7 @@ export default function ClientStep({
   const [fileActionError, setFileActionError] = useState<string | null>(null);
   const [uploadingCategory, setUploadingCategory] = useState<string | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [openSections, setOpenSections] = useState<OpenSections>({
     data: false,
@@ -242,12 +244,39 @@ export default function ClientStep({
 
   const clientId = typeof clientData.id === 'string' ? clientData.id : '';
 
+  const scheduleAutosave = useCallback(
+    (nextData: ClientFormData): void => {
+      if (isReadOnly) return;
+      if (!nextData.id) return;
+
+      if (autosaveTimeoutRef.current) {
+        clearTimeout(autosaveTimeoutRef.current);
+      }
+
+      autosaveTimeoutRef.current = setTimeout(() => {
+        onSave({
+          ...nextData,
+          status: nextData.status ?? '',
+          balance:
+            toFinancialNumber(nextData.totalPrice) -
+            toFinancialNumber(nextData.advance),
+        });
+      }, 1200);
+    },
+    [isReadOnly, onSave]
+  );
+
   useEffect(() => {
     setClientData(initialData);
-    // Синхронизация нужна только при смене карточки клиента.
-    // Нельзя зависеть от всего объекта initialData: он может пересоздаваться
-    // и вызывать бесконечный цикл setState -> render -> setState.
   }, [initialData.id]);
+
+  useEffect(() => {
+    return () => {
+      if (autosaveTimeoutRef.current) {
+        clearTimeout(autosaveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isReadOnly) {
@@ -350,12 +379,18 @@ export default function ClientStep({
 
       const { name, value } = e.target;
 
-      setClientData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      setClientData((prev) => {
+        const nextData = {
+          ...prev,
+          [name]: value,
+        };
+
+        scheduleAutosave(nextData);
+
+        return nextData;
+      });
     },
-    [isReadOnly]
+    [isReadOnly, scheduleAutosave]
   );
 
   const handleFileUpload = useCallback(

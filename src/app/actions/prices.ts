@@ -33,26 +33,30 @@ export async function updatePrices(data: any[], category: string) {
     const orgId = user.organizationId;
 
     // удаляем только внутри организации
-    await prisma.price.deleteMany({
-      where: {
-        category,
-        organizationId: orgId,
-      },
-    });
-
-    if (data.length > 0) {
-      await prisma.price.createMany({
-        data: data.map((item) => ({
-          organizationId: orgId,
-          name: item.name || '',
-          value: Number(item.value) || 0,
-          unit: item.unit || '',
+    await prisma.$transaction([
+      prisma.price.deleteMany({
+        where: {
           category,
-          slug: item.slug || '',
-          metadata: item.metadata ?? undefined,
-        })),
-      });
-    }
+          organizationId: orgId,
+        },
+      }),
+
+      ...(data.length > 0
+        ? [
+          prisma.price.createMany({
+            data: data.map((item) => ({
+              organizationId: orgId,
+              name: item.name || '',
+              value: Number(item.value) || 0,
+              unit: item.unit || '',
+              category,
+              slug: item.slug || '',
+              metadata: item.metadata ?? undefined,
+            })),
+          }),
+        ]
+        : []),
+    ]);
 
     revalidatePath('/dashboard/prices');
 

@@ -41,6 +41,9 @@ import type {
   TeamCategory,
 } from '@/types/mounting';
 
+import { parseWindowItems } from '@/types';
+import { calculateTotalArea } from '@/lib/logic/windowCalculations';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Константы
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,7 +148,7 @@ function priceError(field: string): PriceResult {
 function calcBaseFoundationRetail(baseFoundation: FoundationType): PriceResult {
   const rate =
     MOUNTING_PRICES.BASE_FOUNDATION_SURCHARGE[
-      baseFoundation as keyof typeof MOUNTING_PRICES.BASE_FOUNDATION_SURCHARGE
+    baseFoundation as keyof typeof MOUNTING_PRICES.BASE_FOUNDATION_SURCHARGE
     ] ?? PRICE_ERROR_SENTINEL;
 
   if (isPriceError(rate)) {
@@ -450,6 +453,7 @@ export interface RawClientCalendarData {
   fio: string;
   address: string | null;
   mountingConfig: MountingConfig | null;
+  items?: unknown;
 }
 
 /**
@@ -477,7 +481,21 @@ export function buildCalendarEvents(
     const mountingConfig = client.mountingConfig!;
     const memberId = mountingConfig.team?.memberId ?? '';
     const member = TEAM_MEMBERS.find((item) => item.id === memberId);
-    const calcResult = calculateMounting(mountingConfig, 0);
+    const parsedItems = parseWindowItems(client.items ?? []);
+    const areaM2 = calculateTotalArea(parsedItems);
+
+    const calcResult = calculateMounting(mountingConfig, areaM2);
+    console.log('[buildCalendarEvents]', {
+      clientId: client.id,
+      clientName: client.fio,
+      rawItems: client.items,
+      parsedItemsCount: parsedItems.length,
+      areaM2,
+      manualPrice: mountingConfig.manualPrice,
+      calcRetailFinal: calcResult.retailFinal,
+      finalRetail: mountingConfig.manualPrice ?? calcResult.retailFinal,
+    });
+
 
     return {
       clientId: client.id,

@@ -145,6 +145,13 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
     advance: client.advance,
     balance: client.balance,
     paymentType: client.paymentType,
+
+    preliminaryPrice: client.preliminaryPrice,
+    costPrice: client.costPrice,
+    overspending: client.overspending,
+    productionCost: client.productionCost,
+    mountingCost: client.mountingCost,
+
     measurementDate: formatDateForInput(client.measurementDate),
     installDate: formatDateForInput(client.installDate),
     managerComment: client.managerComment,

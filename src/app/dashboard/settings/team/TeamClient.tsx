@@ -31,6 +31,7 @@ import {
 import { PERMISSION_GROUPS } from '@/lib/permissionGroups';
 import styles from './team.module.css';
 import type { TeamMemberConfig } from '@/constants/pricing';
+import { notifyError, notifySuccess } from '@/lib/notify';
 
 // ---------------------------------------------------------------------------
 // Типы
@@ -252,7 +253,7 @@ export default function TeamClient({
         setExternalPhone('');
         router.refresh();
       } else {
-        alert(result.error || 'Ошибка создания монтажника');
+        notifyError(result.error || 'Ошибка создания монтажника');
       }
     });
   }
@@ -264,7 +265,7 @@ export default function TeamClient({
     if (result.success) {
       router.refresh();
     } else {
-      alert(result.error || 'Ошибка удаления');
+      notifyError(result.error || 'Ошибка удаления');
     }
   });
 }

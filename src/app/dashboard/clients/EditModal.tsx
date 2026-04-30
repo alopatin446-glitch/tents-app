@@ -10,6 +10,7 @@ import ClientStep, {
 import { useClients } from './ClientContext';
 import { toFinancialNumber, calculateClientBalance } from '@/lib/logic/financialCalculations';
 import { type ClientStatus } from '@/lib/logic/statusDictionary';
+import { notifyError, notifySuccess } from '@/lib/notify';
 
 interface EditModalClient {
   id: string;
@@ -92,7 +93,7 @@ export default function EditModal({ client, onClose }: EditModalProps) {
       onClose();
       router.refresh();
     } else {
-      alert('Ошибка при сохранении: ' + result.error);
+      notifyError('Ошибка при сохранении: ' + result.error);
     }
   };
 

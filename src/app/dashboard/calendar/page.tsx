@@ -5,9 +5,13 @@
 
 import { prisma } from '@/lib/prisma';
 import { calculateMounting } from '@/lib/logic/mountingCalculations';
+import { parseWindowItems } from '@/types';
+import { calculateTotalArea } from '@/lib/logic/windowCalculations';
 import { logger } from '@/lib/logger';
 import CalendarClient from './CalendarClient';
 import type { MountingConfig, MountingStatus } from '@/types/mounting';
+import { requireAuth } from '@/lib/auth/requireAuth';
+import { getActiveTeamMembers } from '@/lib/services/teamMemberService';
 
 function normalizeDate(value: unknown): string {
   if (!value) return '';
@@ -21,14 +25,16 @@ function isMountingConfig(value: unknown): value is MountingConfig {
   return cfg.enabled === true && Boolean(cfg.mountingDate);
 }
 
-async function fetchCalendarEvents() {
+async function fetchCalendarEvents(organizationId: string) {
   try {
     const clients = await prisma.client.findMany({
+      where: { organizationId },
       select: {
         id: true,
         fio: true,
         address: true,
         mountingConfig: true,
+        items: true,
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -43,7 +49,9 @@ async function fetchCalendarEvents() {
       .filter((client) => isMountingConfig(client.mountingConfig))
       .map((client) => {
         const cfg = client.mountingConfig as unknown as MountingConfig;
-        const calculation = calculateMounting(cfg, 0);
+        const parsedItems = parseWindowItems(client.items ?? []);
+        const areaM2 = calculateTotalArea(parsedItems);
+        const calculation = calculateMounting(cfg, areaM2);
         const memberId = cfg.team?.memberId || '';
 
         return {
@@ -99,6 +107,12 @@ async function fetchCalendarEvents() {
 }
 
 export default async function CalendarPage() {
-  const events = await fetchCalendarEvents();
-  return <CalendarClient initialEvents={events} />;
+  const user = await requireAuth();
+
+  const [events, teamMembers] = await Promise.all([
+    fetchCalendarEvents(user.organizationId),
+    getActiveTeamMembers(user.organizationId),
+  ]);
+
+  return <CalendarClient initialEvents={events} teamMembers={teamMembers} />;
 }
