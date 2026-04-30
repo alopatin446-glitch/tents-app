@@ -48,6 +48,128 @@ interface ExtrasStepProps {
 
 type SectionKey = 'straps' | 'zippers' | 'dividers' | 'cutouts' | 'welding' | 'skirt';
 
+type CutoutPosition =
+  | 'tl'
+  | 'tc'
+  | 'tr'
+  | 'lc'
+  | 'rc'
+  | 'bl'
+  | 'bc'
+  | 'br';
+
+const CUTOUT_POSITIONS: Array<Array<{ value: CutoutPosition | null; label: string }>> = [
+  [
+    { value: 'tl', label: '↖' },
+    { value: 'tc', label: '↑' },
+    { value: 'tr', label: '↗' },
+  ],
+  [
+    { value: 'lc', label: '←' },
+    { value: null, label: '' },
+    { value: 'rc', label: '→' },
+  ],
+  [
+    { value: 'bl', label: '↙' },
+    { value: 'bc', label: '↓' },
+    { value: 'br', label: '↘' },
+  ],
+];
+
+function getInnerSize(item: WindowItem): { width: number; height: number } {
+  return {
+    width: Math.max(item.widthTop, item.widthBottom),
+    height: Math.max(item.heightLeft, item.heightRight),
+  };
+}
+
+function getCutoutPosition(cutout: CutoutItem, item: WindowItem): CutoutPosition {
+  const { width, height } = getInnerSize(item);
+  const epsilon = 0.01;
+
+  const touchesLeft = Math.abs(cutout.x) <= epsilon;
+  const touchesTop = Math.abs(cutout.y) <= epsilon;
+  const touchesRight = Math.abs(cutout.x + cutout.width - width) <= epsilon;
+  const touchesBottom = Math.abs(cutout.y + cutout.height - height) <= epsilon;
+
+  if (touchesTop && touchesLeft) return 'tl';
+  if (touchesTop && touchesRight) return 'tr';
+  if (touchesBottom && touchesLeft) return 'bl';
+  if (touchesBottom && touchesRight) return 'br';
+  if (touchesTop) return 'tc';
+  if (touchesBottom) return 'bc';
+  if (touchesLeft) return 'lc';
+  if (touchesRight) return 'rc';
+
+  return 'tc';
+}
+
+function getCutoutOffset(cutout: CutoutItem, item: WindowItem): number {
+  const position = getCutoutPosition(cutout, item);
+
+  if (position === 'lc' || position === 'rc') {
+    return cutout.y;
+  }
+
+  return cutout.x;
+}
+
+function getDefaultCutoutOffsetForPosition(
+  cutout: CutoutItem,
+  item: WindowItem,
+  position: CutoutPosition,
+): number {
+  const { width: itemWidth, height: itemHeight } = getInnerSize(item);
+
+  if (position === 'tc' || position === 'bc') {
+    return Math.max(0, (itemWidth - cutout.width) / 2);
+  }
+
+  if (position === 'lc' || position === 'rc') {
+    return Math.max(0, (itemHeight - cutout.height) / 2);
+  }
+
+  return 0;
+}
+
+function placeCutoutAtPosition(
+  cutout: CutoutItem,
+  item: WindowItem,
+  position: CutoutPosition,
+  offsetInput?: number,
+): CutoutItem {
+  const { width: itemWidth, height: itemHeight } = getInnerSize(item);
+  const width = Math.max(1, cutout.width);
+  const height = Math.max(1, cutout.height);
+  const maxX = Math.max(0, itemWidth - width);
+  const maxY = Math.max(0, itemHeight - height);
+  const offset = Math.max(0, offsetInput ?? getCutoutOffset(cutout, item));
+
+  const clampX = (value: number) => Math.min(maxX, Math.max(0, value));
+  const clampY = (value: number) => Math.min(maxY, Math.max(0, value));
+
+  switch (position) {
+    case 'tl':
+      return { ...cutout, x: 0, y: 0, width, height };
+    case 'tc':
+      return { ...cutout, x: clampX(offset), y: 0, width, height };
+    case 'tr':
+      return { ...cutout, x: maxX, y: 0, width, height };
+    case 'lc':
+      return { ...cutout, x: 0, y: clampY(offset), width, height };
+    case 'rc':
+      return { ...cutout, x: maxX, y: clampY(offset), width, height };
+    case 'bl':
+      return { ...cutout, x: 0, y: maxY, width, height };
+    case 'bc':
+      return { ...cutout, x: clampX(offset), y: maxY, width, height };
+    case 'br':
+      return { ...cutout, x: maxX, y: maxY, width, height };
+    default:
+      return cutout;
+  }
+}
+
 export default function ExtrasStep({
   windows,
   activeWindowId,
@@ -59,6 +181,8 @@ export default function ExtrasStep({
   const [openSections, setOpenSections] = useState<Set<SectionKey>>(
     () => new Set(['straps']),
   );
+
+  const [cutoutPositions, setCutoutPositions] = useState<Record<string, CutoutPosition>>({});
 
   const activeWindow = windows.find((w) => w.id === activeWindowId) ?? windows[0];
   const extras = activeWindow?.additionalElements;
@@ -378,21 +502,64 @@ export default function ExtrasStep({
 
   // ─── Секция: Вырезы и заплатки ──────────────────────────────────────────────
   const addCutout = (type: 'cut' | 'patch') => {
+    const baseCutout = {
+      id: newId(),
+      type,
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+    } satisfies CutoutItem;
+
     patch({
       cutouts: [
         ...extras.cutouts,
-        { id: newId(), type, x: 10, y: 10, width: 10, height: 10 } satisfies CutoutItem,
+        placeCutoutAtPosition(baseCutout, activeWindow, 'tl'),
       ],
     });
   };
 
-  const updateCutout = (id: string, update: Partial<CutoutItem>) => {
-    patch({ cutouts: extras.cutouts.map((c) => (c.id === id ? { ...c, ...update } : c)) });
+  const updateCutout = (
+    id: string,
+    update: Partial<CutoutItem>,
+    positionOverride?: CutoutPosition,
+    offsetOverride?: number,
+  ) => {
+    patch({
+      cutouts: extras.cutouts.map((c) => {
+        if (c.id !== id) return c;
+
+        const previousPosition =
+          cutoutPositions[id] ?? getCutoutPosition(c, activeWindow);
+
+        const position = positionOverride ?? previousPosition;
+
+        const merged = { ...c, ...update };
+
+        const offset =
+          offsetOverride ??
+          (position === 'lc' || position === 'rc' ? c.y : c.x);
+
+        return placeCutoutAtPosition(merged, activeWindow, position, offset);
+      }),
+    });
+
+    if (positionOverride) {
+      setCutoutPositions((prev) => ({
+        ...prev,
+        [id]: positionOverride,
+      }));
+    }
   };
 
   const removeCutout = (id: string, e: MouseEvent) => {
     e.stopPropagation();
     patch({ cutouts: extras.cutouts.filter((c) => c.id !== id) });
+    setCutoutPositions((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const cutoutsSection = (
@@ -400,51 +567,177 @@ export default function ExtrasStep({
       {renderSection('cutouts', 'Вырезы и заплатки', extras.cutouts.length)}
       {openSections.has('cutouts') && (
         <div className={styles.accordionBody}>
-          {extras.cutouts.map((c, idx) => (
-            <div key={c.id} className={`${styles.listCard} ${c.type === 'cut' ? styles.listCardCut : styles.listCardPatch}`}>
-              <div className={styles.listCardHeader}>
-                <span>{c.type === 'cut' ? 'Вырез' : 'Заплатка'} #{idx + 1}</span>
-                {!isReadOnly && (
-                  <button type="button" className={styles.removeBtn} onClick={(e) => removeCutout(c.id, e)}>✕</button>
-                )}
-              </div>
+          {extras.cutouts.map((c, idx) => {
+            const currentPosition = cutoutPositions[c.id] ?? getCutoutPosition(c, activeWindow);
 
-              <div className={styles.fieldRow}>
-                <span className={styles.fieldLabel}>Тип:</span>
-                <div className={styles.segmentedControl}>
-                  {(['cut', 'patch'] as const).map((t) => (
-                    <button key={t} type="button"
-                      className={`${styles.segBtn} ${c.type === t ? styles.segBtnActive : ''}`}
-                      disabled={isReadOnly}
-                      onClick={() => updateCutout(c.id, { type: t })}
-                    >{t === 'cut' ? 'Вырез' : 'Заплатка'}</button>
-                  ))}
+            return (
+              <div
+                key={c.id}
+                className={`${styles.listCard} ${c.type === 'cut' ? styles.listCardCut : styles.listCardPatch
+                  }`}
+              >
+                <div className={styles.listCardHeader}>
+                  <span>{c.type === 'cut' ? 'Вырез' : 'Заплатка'} #{idx + 1}</span>
+                  {!isReadOnly && (
+                    <button
+                      type="button"
+                      className={styles.removeBtn}
+                      onClick={(e) => removeCutout(c.id, e)}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className={styles.fieldRow}>
+                  <span className={styles.fieldLabel}>Тип:</span>
+                  <div className={styles.segmentedControl}>
+                    {(['cut', 'patch'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        className={`${styles.segBtn} ${c.type === t ? styles.segBtnActive : ''
+                          }`}
+                        disabled={isReadOnly}
+                        onClick={() => updateCutout(c.id, { type: t })}
+                      >
+                        {t === 'cut' ? 'Вырез' : 'Заплатка'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={styles.positionBlock}>
+                  <span className={styles.fieldLabel}>Позиция:</span>
+                  <div className={styles.positionGrid}>
+                    {CUTOUT_POSITIONS.map((row, rowIdx) => (
+                      <div key={rowIdx} className={styles.positionGridRow}>
+                        {row.map((cell, cellIdx) => {
+                          if (!cell.value) {
+                            return (
+                              <span
+                                key={`empty-${rowIdx}-${cellIdx}`}
+                                className={styles.positionGridEmpty}
+                              />
+                            );
+                          }
+
+                          return (
+                            <button
+                              key={cell.value}
+                              type="button"
+                              className={`${styles.positionBtn} ${currentPosition === cell.value
+                                ? styles.positionBtnActive
+                                : ''
+                                }`}
+                              disabled={isReadOnly}
+                              onClick={() => {
+                                if (cell.value === null) return;
+
+                                updateCutout(
+                                  c.id,
+                                  {},
+                                  cell.value,
+                                  getDefaultCutoutOffsetForPosition(c, activeWindow, cell.value),
+                                );
+                              }}
+                            >
+                              {cell.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={styles.fieldRow}>
+                  <label className={styles.fieldLabel}>Смещение (см):</label>
+                  <input
+                    type="number"
+                    className={styles.numInput}
+                    min={0}
+                    value={
+                      ['tl', 'tr', 'bl', 'br'].includes(currentPosition)
+                        ? 0
+                        : getCutoutOffset(c, activeWindow)
+                    }
+                    disabled={isReadOnly}
+                    onChange={(e) => {
+                      if (['tl', 'tr', 'bl', 'br'].includes(currentPosition)) {
+                        updateCutout(c.id, {}, currentPosition, 0);
+                        return;
+                      }
+
+                      updateCutout(
+                        c.id,
+                        {},
+                        currentPosition,
+                        parseFloat(e.target.value) || 0,
+                      );
+                    }}
+                  />
+                </div>
+
+                <div className={styles.fieldRow}>
+                  <label className={styles.fieldLabel}>Длина (см):</label>
+                  <input
+                    type="number"
+                    className={styles.numInput}
+                    min={1}
+                    value={c.width}
+                    disabled={isReadOnly}
+                    onChange={(e) =>
+                      updateCutout(
+                        c.id,
+                        {
+                          width: parseFloat(e.target.value) || 1,
+                        },
+                        currentPosition,
+                      )
+                    }
+                  />
+                </div>
+
+                <div className={styles.fieldRow}>
+                  <label className={styles.fieldLabel}>Глубина (см):</label>
+                  <input
+                    type="number"
+                    className={styles.numInput}
+                    min={1}
+                    value={c.height}
+                    disabled={isReadOnly}
+                    onChange={(e) =>
+                      updateCutout(
+                        c.id,
+                        {
+                          height: parseFloat(e.target.value) || 1,
+                        },
+                        currentPosition,
+                      )
+                    }
+                  />
                 </div>
               </div>
-
-              <div className={styles.fieldRow}><label className={styles.fieldLabel}>Позиция X:</label>
-                <input type="number" className={styles.numInput} value={c.x} disabled={isReadOnly}
-                  onChange={(e) => updateCutout(c.id, { x: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div className={styles.fieldRow}><label className={styles.fieldLabel}>Позиция Y:</label>
-                <input type="number" className={styles.numInput} value={c.y} disabled={isReadOnly}
-                  onChange={(e) => updateCutout(c.id, { y: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div className={styles.fieldRow}><label className={styles.fieldLabel}>Ширина:</label>
-                <input type="number" className={styles.numInput} value={c.width} disabled={isReadOnly}
-                  onChange={(e) => updateCutout(c.id, { width: parseFloat(e.target.value) || 1 })} />
-              </div>
-              <div className={styles.fieldRow}><label className={styles.fieldLabel}>Высота:</label>
-                <input type="number" className={styles.numInput} value={c.height} disabled={isReadOnly}
-                  onChange={(e) => updateCutout(c.id, { height: parseFloat(e.target.value) || 1 })} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {!isReadOnly && (
             <div className={styles.addGroup}>
-              <button type="button" className={`${styles.addBtn} ${styles.addBtnCut}`} onClick={() => addCutout('cut')}>+ Вырез</button>
-              <button type="button" className={`${styles.addBtn} ${styles.addBtnPatch}`} onClick={() => addCutout('patch')}>+ Заплатка</button>
+              <button
+                type="button"
+                className={`${styles.addBtn} ${styles.addBtnCut}`}
+                onClick={() => addCutout('cut')}
+              >
+                + Вырез
+              </button>
+              <button
+                type="button"
+                className={`${styles.addBtn} ${styles.addBtnPatch}`}
+                onClick={() => addCutout('patch')}
+              >
+                + Заплатка
+              </button>
             </div>
           )}
         </div>

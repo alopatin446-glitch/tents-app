@@ -366,14 +366,17 @@ function renderZipperItem(
 }
 
 /**
- * Renders a single cutout or patch rectangle on the material.
- * Uses bilinear windowToSvg for all 4 corners (trapezoid-safe).
+ * Renders a single patch overlay.
+ * Cutouts are rendered through SVG mask in the main component,
+ * so this function draws only patches as reinforcement plates.
  */
 function renderCutoutItem(
   c: CutoutItem,
   inner: QuadCorners,
   item: WindowItem,
 ): React.ReactNode {
+  if (c.type === 'cut') return null;
+
   const ptTL = windowToSvg(c.x, c.y, inner, item);
   const ptTR = windowToSvg(c.x + c.width, c.y, inner, item);
   const ptBR = windowToSvg(c.x + c.width, c.y + c.height, inner, item);
@@ -387,24 +390,97 @@ function renderCutoutItem(
     'Z',
   ].join(' ');
 
-  const isCut = c.type === 'cut';
   return (
-    <g key={`cutout-${c.id}`}>
+    <g key={`patch-${c.id}`}>
       <path
         d={d}
-        fill={isCut ? 'rgba(255,80,80,0.15)' : 'rgba(80,200,80,0.15)'}
-        stroke={isCut ? 'rgba(220,50,50,0.9)' : 'rgba(50,180,50,0.9)'}
-        strokeWidth="1.5"
-        strokeDasharray={isCut ? undefined : '5 3'}
+        fill="rgba(90, 220, 130, 0.22)"
+        stroke="rgba(80, 255, 150, 0.95)"
+        strokeWidth="2"
       />
-      {/* Crosshatch for cuts */}
-      {isCut && (
-        <>
-          <line x1={ptTL.x} y1={ptTL.y} x2={ptBR.x} y2={ptBR.y} stroke="rgba(220,50,50,0.4)" strokeWidth="1" />
-          <line x1={ptTR.x} y1={ptTR.y} x2={ptBL.x} y2={ptBL.y} stroke="rgba(220,50,50,0.4)" strokeWidth="1" />
-        </>
-      )}
+      <path
+        d={d}
+        fill="none"
+        stroke="rgba(20, 80, 40, 0.45)"
+        strokeWidth="1"
+        strokeDasharray="4 3"
+      />
     </g>
+  );
+}
+
+function renderCutoutMaskShapes(
+  cutouts: CutoutItem[],
+  inner: QuadCorners,
+  item: WindowItem,
+): React.ReactNode {
+  return cutouts
+    .filter((c) => c.type === 'cut')
+    .map((c) => {
+      const ptTL = windowToSvg(c.x, c.y, inner, item);
+      const ptTR = windowToSvg(c.x + c.width, c.y, inner, item);
+      const ptBR = windowToSvg(c.x + c.width, c.y + c.height, inner, item);
+      const ptBL = windowToSvg(c.x, c.y + c.height, inner, item);
+
+      const d = [
+        `M ${ptTL.x} ${ptTL.y}`,
+        `L ${ptTR.x} ${ptTR.y}`,
+        `L ${ptBR.x} ${ptBR.y}`,
+        `L ${ptBL.x} ${ptBL.y}`,
+        'Z',
+      ].join(' ');
+
+      return <path key={`cut-mask-${c.id}`} d={d} fill="black" />;
+    });
+}
+
+function renderCutoutKantEdges(
+  c: CutoutItem,
+  inner: QuadCorners,
+  item: WindowItem,
+  strokeColor: string,
+  scale: number,
+): React.ReactNode {
+  if (c.type !== 'cut') return null;
+
+  const itemWidth = Math.max(item.widthTop, item.widthBottom);
+  const itemHeight = Math.max(item.heightLeft, item.heightRight);
+  const epsilon = 0.01;
+
+  const touchesTop = Math.abs(c.y) <= epsilon;
+  const touchesBottom = Math.abs(c.y + c.height - itemHeight) <= epsilon;
+  const touchesLeft = Math.abs(c.x) <= epsilon;
+  const touchesRight = Math.abs(c.x + c.width - itemWidth) <= epsilon;
+
+  const ptTL = windowToSvg(c.x, c.y, inner, item);
+  const ptTR = windowToSvg(c.x + c.width, c.y, inner, item);
+  const ptBR = windowToSvg(c.x + c.width, c.y + c.height, inner, item);
+  const ptBL = windowToSvg(c.x, c.y + c.height, inner, item);
+
+  let d = '';
+
+  if (touchesTop) {
+    d = `M ${ptTL.x} ${ptTL.y} L ${ptBL.x} ${ptBL.y} L ${ptBR.x} ${ptBR.y} L ${ptTR.x} ${ptTR.y}`;
+  } else if (touchesBottom) {
+    d = `M ${ptBL.x} ${ptBL.y} L ${ptTL.x} ${ptTL.y} L ${ptTR.x} ${ptTR.y} L ${ptBR.x} ${ptBR.y}`;
+  } else if (touchesLeft) {
+    d = `M ${ptTL.x} ${ptTL.y} L ${ptTR.x} ${ptTR.y} L ${ptBR.x} ${ptBR.y} L ${ptBL.x} ${ptBL.y}`;
+  } else if (touchesRight) {
+    d = `M ${ptTR.x} ${ptTR.y} L ${ptTL.x} ${ptTL.y} L ${ptBL.x} ${ptBL.y} L ${ptBR.x} ${ptBR.y}`;
+  }
+
+  if (!d) return null;
+
+  return (
+    <path
+      key={`cut-kant-${c.id}`}
+      d={d}
+      fill="none"
+      stroke={strokeColor}
+      strokeWidth={Math.max(5, 5 * scale)}
+      strokeLinecap="square"
+      strokeLinejoin="miter"
+    />
   );
 }
 
@@ -474,10 +550,10 @@ export default function DrawingCanvas({
 }: DrawingCanvasProps) {
   const vbW = 600;
   const vbH = 500;
-  
+
   // Если показываем Допы, уменьшаем отступ до 10, чтобы окно раздулось на весь экран.
   // Если только Крепеж, оставляем 40 (или 30), чтобы подписи не вылезали за края.
-  const padding = showExtras ? 10 : 35; 
+  const padding = showExtras ? 10 : 35;
 
   const drawW = vbW - padding * 2;
   const drawH = vbH - padding * 2;
@@ -549,17 +625,19 @@ export default function DrawingCanvas({
   const circleR = Math.max(4, Math.min(9, Math.max(kantTop, kantRight, kantBottom, kantLeft) * scale * 0.4));
   const fasteners = item.fasteners || getInitialFastener();
 
-  const midTop1: Point    = { x: (x1 + outX1) / 2, y: (y1 + outY1) / 2 };
-  const midTop2: Point    = { x: (x2 + outX2) / 2, y: (y2 + outY2) / 2 };
-  const midRight2: Point  = { x: (x2 + outX2) / 2, y: (y2 + outY2) / 2 };
-  const midRight3: Point  = { x: (x3 + outX3) / 2, y: (y3 + outY3) / 2 };
+  const midTop1: Point = { x: (x1 + outX1) / 2, y: (y1 + outY1) / 2 };
+  const midTop2: Point = { x: (x2 + outX2) / 2, y: (y2 + outY2) / 2 };
+  const midRight2: Point = { x: (x2 + outX2) / 2, y: (y2 + outY2) / 2 };
+  const midRight3: Point = { x: (x3 + outX3) / 2, y: (y3 + outY3) / 2 };
   const midBottom3: Point = { x: (x3 + outX3) / 2, y: (y3 + outY3) / 2 };
   const midBottom4: Point = { x: (x4 + outX4) / 2, y: (y4 + outY4) / 2 };
-  const midLeft4: Point   = { x: (x4 + outX4) / 2, y: (y4 + outY4) / 2 };
-  const midLeft1: Point   = { x: (x1 + outX1) / 2, y: (y1 + outY1) / 2 };
+  const midLeft4: Point = { x: (x4 + outX4) / 2, y: (y4 + outY4) / 2 };
+  const midLeft1: Point = { x: (x1 + outX1) / 2, y: (y1 + outY1) / 2 };
 
   // ── Extras setup ─────────────────────────────────────────────────────────
   const extras = item.additionalElements;
+
+  const cutoutMaskId = `material-cutout-mask-${item.id ?? 'current'}`;
 
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -568,15 +646,116 @@ export default function DrawingCanvas({
         preserveAspectRatio="xMidYMid meet"
         style={{ width: '100%', height: '100%', maxHeight: '100%' }}
       >
+        <defs>
+          <linearGradient id="material-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#d8f2ff" />
+            <stop offset="55%" stopColor="#a9d8f4" />
+            <stop offset="100%" stopColor="#78b9e3" />
+          </linearGradient>
+
+          <filter id="soft-material-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="6" stdDeviation="5" floodColor="rgba(0,0,0,0.28)" />
+          </filter>
+
+          <mask id={cutoutMaskId}>
+            <rect x="0" y="0" width={vbW} height={vbH} fill="white" />
+            {showExtras && extras && renderCutoutMaskShapes(extras.cutouts, innerCorners, item)}
+          </mask>
+        </defs>
+
+        <mask id={`${cutoutMaskId}-outer`}>
+          <rect x="0" y="0" width={vbW} height={vbH} fill="white" />
+          {showExtras &&
+            extras &&
+            extras.cutouts
+              .filter((c) => c.type === 'cut')
+              .map((c) => {
+                const itemWidth = Math.max(item.widthTop, item.widthBottom);
+                const itemHeight = Math.max(item.heightLeft, item.heightRight);
+                const epsilon = 0.01;
+
+                const touchesTop = Math.abs(c.y) <= epsilon;
+                const touchesBottom = Math.abs(c.y + c.height - itemHeight) <= epsilon;
+                const touchesLeft = Math.abs(c.x) <= epsilon;
+                const touchesRight = Math.abs(c.x + c.width - itemWidth) <= epsilon;
+
+                const rectX = x1 + c.x * scale;
+                const rectY = y1 + c.y * scale;
+                const rectW = c.width * scale;
+                const rectH = c.height * scale;
+
+                if (touchesTop) {
+                  return (
+                    <rect
+                      key={`outer-cut-top-${c.id}`}
+                      x={rectX}
+                      y={outY1}
+                      width={rectW}
+                      height={rectH + kantTop * scale}
+                      fill="black"
+                    />
+                  );
+                }
+
+                if (touchesBottom) {
+                  return (
+                    <rect
+                      key={`outer-cut-bottom-${c.id}`}
+                      x={rectX}
+                      y={rectY}
+                      width={rectW}
+                      height={rectH + kantBottom * scale}
+                      fill="black"
+                    />
+                  );
+                }
+
+                if (touchesLeft) {
+                  return (
+                    <rect
+                      key={`outer-cut-left-${c.id}`}
+                      x={outX1}
+                      y={rectY}
+                      width={rectW + kantLeft * scale}
+                      height={rectH}
+                      fill="black"
+                    />
+                  );
+                }
+
+                if (touchesRight) {
+                  return (
+                    <rect
+                      key={`outer-cut-right-${c.id}`}
+                      x={rectX}
+                      y={rectY}
+                      width={rectW + kantRight * scale}
+                      height={rectH}
+                      fill="black"
+                    />
+                  );
+                }
+
+                return null;
+              })}
+        </mask>
+
         {/* ── Layer 1: Outer kant ─────────────────────────────────────────── */}
-        <path d={outerPath} fill={strokeColor} style={{ transition: 'fill 0.4s ease' }} />
+        <path
+          d={outerPath}
+          fill={strokeColor}
+          filter="url(#soft-material-shadow)"
+          mask={`url(#${cutoutMaskId}-outer)`}
+          style={{ transition: 'fill 0.4s ease' }}
+        />
 
         {/* ── Layer 2: Inner material ─────────────────────────────────────── */}
         <path
           d={innerPath}
-          fill="#aac7ee"
-          stroke="rgba(0,0,0,0.2)"
+          fill="url(#material-gradient)"
+          stroke="rgba(255,255,255,0.35)"
           strokeWidth="1"
+          mask={`url(#${cutoutMaskId})`}
           style={{ transition: 'all 0.3s ease' }}
         />
 
@@ -631,7 +810,10 @@ export default function DrawingCanvas({
             {/* 6e. Zippers */}
             {extras.zippers.map((z) => renderZipperItem(z, innerCorners, item, scale))}
 
-            {/* 6f. Cutouts & Patches */}
+            {/* 6f. Cutout kant edges + patches */}
+            {extras.cutouts.map((c) =>
+              renderCutoutKantEdges(c, innerCorners, item, strokeColor, scale),
+            )}
             {extras.cutouts.map((c) => renderCutoutItem(c, innerCorners, item))}
 
             {/* 6g. Straps */}

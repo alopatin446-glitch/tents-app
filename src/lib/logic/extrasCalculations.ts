@@ -81,6 +81,10 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
 
   const errors: string[] = [];
 
+  const EDGE_EPSILON_CM = 0.01;
+  const innerWidth = Math.max(item.widthTop, item.widthBottom);
+  const innerHeight = Math.max(item.heightLeft, item.heightRight);
+
   // ── Skirt ──────────────────────────────────────────────────────────────────
   if (extras.hasSkirt && extras.skirtWidth <= 0) {
     errors.push('Юбка включена, но ширина юбки не указана или равна нулю');
@@ -125,8 +129,10 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
   });
 
   // ── Cutouts & Patches ─────────────────────────────────────────────────────
+  // ── Cutouts & Patches ─────────────────────────────────────────────────────
   extras.cutouts.forEach((c, idx) => {
     const label = `${c.type === 'cut' ? 'Вырез' : 'Заплатка'} #${idx + 1}`;
+
     if (!Number.isFinite(c.x) || c.x < 0)
       errors.push(`${label}: координата X обязательна и должна быть ≥ 0`);
     if (!Number.isFinite(c.y) || c.y < 0)
@@ -135,6 +141,27 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
       errors.push(`${label}: ширина обязательна и должна быть больше 0`);
     if (!Number.isFinite(c.height) || c.height <= 0)
       errors.push(`${label}: высота обязательна и должна быть больше 0`);
+
+    const hasValidGeometry =
+      Number.isFinite(c.x) &&
+      Number.isFinite(c.y) &&
+      Number.isFinite(c.width) &&
+      Number.isFinite(c.height) &&
+      c.x >= 0 &&
+      c.y >= 0 &&
+      c.width > 0 &&
+      c.height > 0;
+
+    if (!hasValidGeometry) return;
+
+    const touchesLeft = Math.abs(c.x) <= EDGE_EPSILON_CM;
+    const touchesTop = Math.abs(c.y) <= EDGE_EPSILON_CM;
+    const touchesRight = Math.abs(c.x + c.width - innerWidth) <= EDGE_EPSILON_CM;
+    const touchesBottom = Math.abs(c.y + c.height - innerHeight) <= EDGE_EPSILON_CM;
+
+    if (!touchesLeft && !touchesTop && !touchesRight && !touchesBottom) {
+      errors.push(`${label}: должен примыкать к краю изделия`);
+    }
   });
 
   // ── Welding ───────────────────────────────────────────────────────────────
@@ -307,24 +334,24 @@ export function detectExtrasCollisions(item: WindowItem): CollisionWarning[] {
   extras.zippers.forEach((z) => {
     const dim = z.orientation === 'horizontal' ? maxH : maxW;
     if (z.positionFromStart < 0 || z.positionFromStart > dim) {
-      warnings.push({ kind: 'out_of_bounds', message: `Zipper "${z.id}" is out of bounds`, involvedIds: [z.id] });
+      warnings.push({ kind: 'out_of_bounds', message: `Молния "${z.id}" выходит за границы изделия`, involvedIds: [z.id] });
     }
   });
   extras.dividers.forEach((d) => {
     const dim = d.orientation === 'horizontal' ? maxH : maxW;
     if (d.position < 0 || d.position > dim) {
-      warnings.push({ kind: 'out_of_bounds', message: `Divider "${d.id}" is out of bounds`, involvedIds: [d.id] });
+      warnings.push({ kind: 'out_of_bounds', message: `Разделитель "${d.id}" выходит за границы изделия`, involvedIds: [d.id] });
     }
   });
   extras.welding.forEach((w) => {
     const dim = w.orientation === 'horizontal' ? maxH : maxW;
     if (w.position < 0 || w.position > dim) {
-      warnings.push({ kind: 'out_of_bounds', message: `Welding "${w.id}" is out of bounds`, involvedIds: [w.id] });
+      warnings.push({ kind: 'out_of_bounds', message: `Техпайка "${w.id}" выходит за границы изделия`, involvedIds: [w.id] });
     }
   });
   extras.cutouts.forEach((c) => {
     if (c.x < 0 || c.y < 0 || c.x + c.width > maxW || c.y + c.height > maxH) {
-      warnings.push({ kind: 'out_of_bounds', message: `${c.type === 'cut' ? 'Cutout' : 'Patch'} "${c.id}" is out of bounds`, involvedIds: [c.id] });
+      warnings.push({ kind: 'out_of_bounds', message: `${c.type === 'cut' ? 'Вырез' : 'Заплатка'} "${c.id}" выходит за границы изделия`, involvedIds: [c.id] });
     }
   });
 
@@ -350,7 +377,7 @@ export function detectExtrasCollisions(item: WindowItem): CollisionWarning[] {
             : 'line_line';
         warnings.push({
           kind,
-          message: `${a.label} and ${b.label} overlap or are too close`,
+          message: `Элементы "${a.label}" и "${b.label}" перекрываются или расположены слишком близко`,
           involvedIds: [a.id, b.id],
         });
       }
@@ -367,7 +394,7 @@ export function detectExtrasCollisions(item: WindowItem): CollisionWarning[] {
       if (segmentCrossesRect(seg, rect)) {
         warnings.push({
           kind: 'line_rect',
-          message: `${seg.label} intersects a cutout/patch area`,
+          message: `Элемент "${seg.label}" пересекает область выреза или заплатки`,
           involvedIds: [seg.id, id],
         });
       }
@@ -380,7 +407,7 @@ export function detectExtrasCollisions(item: WindowItem): CollisionWarning[] {
       if (rectsOverlap(cutoutRects[i].rect, cutoutRects[j].rect)) {
         warnings.push({
           kind: 'rect_rect',
-          message: 'Two cutout/patch areas overlap',
+          message: 'Два выреза или заплатки пересекаются',
           involvedIds: [cutoutRects[i].id, cutoutRects[j].id],
         });
       }

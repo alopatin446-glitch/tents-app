@@ -233,7 +233,10 @@ export default function ClientStep({
   const [fileActionError, setFileActionError] = useState<string | null>(null);
   const [uploadingCategory, setUploadingCategory] = useState<string | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingAutosaveDataRef = useRef<ClientFormData | null>(null);
+  const hasUnsavedChangesRef = useRef(false);
 
   const [openSections, setOpenSections] = useState<OpenSections>({
     data: false,
@@ -249,17 +252,30 @@ export default function ClientStep({
       if (isReadOnly) return;
       if (!nextData.id) return;
 
+      pendingAutosaveDataRef.current = nextData;
+      hasUnsavedChangesRef.current = true;
+      setHasUnsavedChanges(true);
+
       if (autosaveTimeoutRef.current) {
         clearTimeout(autosaveTimeoutRef.current);
       }
 
       autosaveTimeoutRef.current = setTimeout(() => {
-        onSave({
-          ...nextData,
-          status: nextData.status ?? '',
+        const pendingData = pendingAutosaveDataRef.current;
+
+        if (!pendingData?.id) return;
+
+        autosaveTimeoutRef.current = null;
+        pendingAutosaveDataRef.current = null;
+        hasUnsavedChangesRef.current = false;
+        setHasUnsavedChanges(false);
+
+        void onSave({
+          ...pendingData,
+          status: pendingData.status ?? '',
           balance:
-            toFinancialNumber(nextData.totalPrice) -
-            toFinancialNumber(nextData.advance),
+            toFinancialNumber(pendingData.totalPrice) -
+            toFinancialNumber(pendingData.advance),
         });
       }, 1200);
     },
@@ -271,9 +287,21 @@ export default function ClientStep({
   }, [initialData.id]);
 
   useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
+      if (!hasUnsavedChangesRef.current) return;
+
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+
       if (autosaveTimeoutRef.current) {
         clearTimeout(autosaveTimeoutRef.current);
+        autosaveTimeoutRef.current = null;
       }
     };
   }, []);
@@ -1234,6 +1262,12 @@ export default function ClientStep({
             <strong>{formatMoney(financials.retailPrice)}</strong>
           </div>
         </div>
+
+        {hasUnsavedChanges && (
+          <p style={{ marginTop: '12px', color: '#ffd166', fontSize: '13px' }}>
+            Есть несохранённые изменения
+          </p>
+        )}
 
         <div className={styles.actions}>
           <button className={styles.saveBtn} onClick={handleSaveClick} disabled={isReadOnly}>

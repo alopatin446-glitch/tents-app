@@ -223,7 +223,7 @@ export default function ItemsStep({
       <div className={styles.inputPanelWrapper}>
         <div className={styles.headerRow}>
           <h2 className={styles.sectionTitle}>
-            ПАРАМЕТРЫ {isReadOnly ? '(ARCHIVE)' : '(EDIT)'}
+            ПАРАМЕТРЫ {isReadOnly ? '(АРХИВ)' : '(РЕДАКТ.)'}
           </h2>
           <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>
             {activeItem?.name}
