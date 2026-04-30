@@ -43,8 +43,32 @@ const SOURCE_OPTIONS = [
 
 type SourceOption = (typeof SOURCE_OPTIONS)[number];
 
+type ClientFileItem = {
+  id: string;
+  clientId: string;
+  organizationId: string;
+  url: string;
+  key: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  category: string | null;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type ClientFilesResponse = {
+  ok: boolean;
+  files?: ClientFileItem[];
+  file?: ClientFileItem;
+  error?: string;
+};
+
 export interface ClientFormData {
   [key: string]: any;
+
+  id?: string | null;
 
   fio?: string | null;
   phone?: string | null;
@@ -108,6 +132,35 @@ function formatDateInputValue(value: any): string {
   return String(value);
 }
 
+function formatFileSize(size: number): string {
+  if (!Number.isFinite(size) || size <= 0) return '0 Б';
+
+  const kb = size / 1024;
+
+  if (kb < 1024) {
+    return `${kb.toFixed(1)} КБ`;
+  }
+
+  const mb = kb / 1024;
+
+  return `${mb.toFixed(1)} МБ`;
+}
+
+function getCategoryLabel(category: string | null): string {
+  switch (category) {
+    case 'object':
+      return 'Объект';
+    case 'measurement':
+      return 'Замер';
+    case 'contract':
+      return 'Договор';
+    case 'video':
+      return 'Видео';
+    default:
+      return 'Другое';
+  }
+}
+
 export default function ClientStep({
   initialData,
   onSave,
@@ -116,6 +169,11 @@ export default function ClientStep({
   isReadOnly = false,
 }: ClientStepProps) {
   const [clientData, setClientData] = useState<ClientFormData>(initialData);
+  const [clientFiles, setClientFiles] = useState<ClientFileItem[]>([]);
+  const [isFilesLoading, setIsFilesLoading] = useState(false);
+  const [fileActionError, setFileActionError] = useState<string | null>(null);
+  const [uploadingCategory, setUploadingCategory] = useState<string | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
 
   const [openSections, setOpenSections] = useState<OpenSections>({
     data: false,
@@ -124,11 +182,65 @@ export default function ClientStep({
     results: false,
   });
 
+  const clientId = typeof clientData.id === 'string' ? clientData.id : '';
+
+  useEffect(() => {
+    setClientData(initialData);
+  }, [initialData]);
+
   useEffect(() => {
     if (!isReadOnly) {
       onDraftChange?.(clientData);
     }
   }, [clientData, onDraftChange, isReadOnly]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadClientFiles() {
+      if (!clientId) {
+        setClientFiles([]);
+        return;
+      }
+
+      setIsFilesLoading(true);
+      setFileActionError(null);
+
+      try {
+        const response = await fetch(
+          `/api/client-files?clientId=${encodeURIComponent(clientId)}`
+        );
+
+        const result = (await response.json().catch(() => null)) as ClientFilesResponse | null;
+
+        if (!response.ok || !result?.ok) {
+          throw new Error(result?.error || 'Не удалось получить файлы заказа.');
+        }
+
+        if (isMounted) {
+          setClientFiles(result.files || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setFileActionError(
+            error instanceof Error
+              ? error.message
+              : 'Не удалось получить файлы заказа.'
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setIsFilesLoading(false);
+        }
+      }
+    }
+
+    loadClientFiles();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [clientId]);
 
   const financials = useMemo(() => {
     const retailPrice = toFinancialNumber(clientData.totalPrice);
@@ -185,17 +297,88 @@ export default function ClientStep({
     [isReadOnly]
   );
 
-  const handleFileChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>): void => {
+  const handleFileUpload = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>, category: string): Promise<void> => {
       if (isReadOnly) return;
 
-      const { name, files } = e.target;
-      const file = files?.[0] ?? null;
+      const files = Array.from(e.target.files || []);
 
-      setClientData((prev) => ({
-        ...prev,
-        [name]: file,
-      }));
+      if (files.length === 0) return;
+
+      if (!clientId) {
+        setFileActionError(
+          'Сначала сохраните карточку заказа, затем загрузите файлы.'
+        );
+        e.target.value = '';
+        return;
+      }
+
+      setUploadingCategory(category);
+      setFileActionError(null);
+
+      try {
+        for (const file of files) {
+          const formData = new FormData();
+
+          formData.append('clientId', clientId);
+          formData.append('category', category);
+          formData.append('file', file);
+
+          const response = await fetch('/api/client-files', {
+            method: 'POST',
+            body: formData,
+          });
+
+          const result = (await response.json().catch(() => null)) as ClientFilesResponse | null;
+
+          if (!response.ok || !result?.ok || !result.file) {
+            throw new Error(result?.error || 'Не удалось загрузить файл.');
+          }
+
+          setClientFiles((prev) => [...prev, result.file as ClientFileItem]);
+        }
+      } catch (error) {
+        setFileActionError(
+          error instanceof Error ? error.message : 'Не удалось загрузить файл.'
+        );
+      } finally {
+        setUploadingCategory(null);
+        e.target.value = '';
+      }
+    },
+    [clientId, isReadOnly]
+  );
+
+  const handleDeleteFile = useCallback(
+    async (fileId: string): Promise<void> => {
+      if (isReadOnly) return;
+
+      setDeletingFileId(fileId);
+      setFileActionError(null);
+
+      try {
+        const response = await fetch('/api/client-files', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fileId }),
+        });
+
+        const result = (await response.json().catch(() => null)) as ClientFilesResponse | null;
+
+        if (!response.ok || !result?.ok) {
+          throw new Error(result?.error || 'Не удалось удалить файл.');
+        }
+
+        setClientFiles((prev) => prev.filter((file) => file.id !== fileId));
+      } catch (error) {
+        setFileActionError(
+          error instanceof Error ? error.message : 'Не удалось удалить файл.'
+        );
+      } finally {
+        setDeletingFileId(null);
+      }
     },
     [isReadOnly]
   );
@@ -334,40 +517,418 @@ export default function ClientStep({
 
           {openSections.media && (
             <div className={styles.content}>
+              {!clientId && (
+                <div
+                  style={{
+                    color: '#ffcc66',
+                    fontSize: '0.85rem',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Чтобы файлы не потерялись, сначала сохраните карточку заказа.
+                  После сохранения можно загружать фото, видео и документы.
+                </div>
+              )}
+
+              {fileActionError && (
+                <div
+                  style={{
+                    color: '#ff4d4d',
+                    fontSize: '0.85rem',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {fileActionError}
+                </div>
+              )}
+
+                            {uploadingCategory && (
+                <div
+                  style={{
+                    color: '#a3ff00',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  Идёт загрузка: {getCategoryLabel(uploadingCategory)}...
+                </div>
+              )}
+
+              {isFilesLoading && (
+                <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>
+                  Загружаем список файлов...
+                </div>
+              )}
+
               <div className={styles.inputGroup}>
                 <label>Фото объекта</label>
                 <input
                   type="file"
-                  name="photoObject"
-                  accept="image/*"
-                  onChange={handleFileChange}
+                  accept="image/*,video/*"
+                  multiple
+                  onChange={(e) => handleFileUpload(e, 'object')}
                   className={styles.neonInput}
-                  disabled={isReadOnly}
+                  disabled={isReadOnly || !clientId || uploadingCategory !== null}
                 />
+
+                {!isFilesLoading && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                      gap: '12px',
+                      marginTop: '10px',
+                    }}
+                  >
+                    {clientFiles
+                      .filter((file) => file.category === 'object')
+                      .map((file) => (
+                        <div
+                          key={file.id}
+                          style={{
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '16px',
+                            background: 'rgba(255,255,255,0.03)',
+                            padding: '8px',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <a href={file.url} target="_blank" rel="noreferrer">
+                            {file.mimeType.startsWith('image/') ? (
+                              <img
+                                src={file.url}
+                                alt={file.fileName}
+                                style={{
+                                  width: '100%',
+                                  height: '90px',
+                                  objectFit: 'cover',
+                                  borderRadius: '12px',
+                                  display: 'block',
+                                }}
+                              />
+                            ) : file.mimeType.startsWith('video/') ? (
+                              <video
+                                src={file.url}
+                                style={{
+                                  width: '100%',
+                                  height: '90px',
+                                  objectFit: 'cover',
+                                  borderRadius: '12px',
+                                  display: 'block',
+                                }}
+                                muted
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  height: '90px',
+                                  borderRadius: '12px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: 'rgba(255,255,255,0.06)',
+                                  color: 'rgba(255,255,255,0.7)',
+                                  fontSize: '0.75rem',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                Файл
+                              </div>
+                            )}
+                          </a>
+
+                          <div
+                            style={{
+                              marginTop: '8px',
+                              color: '#fff',
+                              fontSize: '0.75rem',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {file.fileName}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: '3px',
+                              color: 'rgba(255,255,255,0.5)',
+                              fontSize: '0.7rem',
+                            }}
+                          >
+                            {formatFileSize(file.size)}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFile(file.id)}
+                            disabled={isReadOnly || deletingFileId === file.id}
+                            style={{
+                              marginTop: '8px',
+                              width: '100%',
+                              border: '1px solid rgba(255,77,77,0.35)',
+                              background: 'rgba(255,77,77,0.08)',
+                              color: '#ff7a7a',
+                              borderRadius: '14px',
+                              padding: '6px 8px',
+                              cursor: isReadOnly ? 'not-allowed' : 'pointer',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {deletingFileId === file.id ? '...' : 'Удалить'}
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
 
               <div className={styles.inputGroup}>
                 <label>Фото замера</label>
                 <input
                   type="file"
-                  name="photoMeasurement"
-                  accept="image/*"
-                  onChange={handleFileChange}
+                  accept="image/*,video/*"
+                  multiple
+                  onChange={(e) => handleFileUpload(e, 'measurement')}
                   className={styles.neonInput}
-                  disabled={isReadOnly}
+                  disabled={isReadOnly || !clientId || uploadingCategory !== null}
                 />
+
+                {!isFilesLoading && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                      gap: '12px',
+                      marginTop: '10px',
+                    }}
+                  >
+                    {clientFiles
+                      .filter((file) => file.category === 'measurement')
+                      .map((file) => (
+                        <div
+                          key={file.id}
+                          style={{
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '16px',
+                            background: 'rgba(255,255,255,0.03)',
+                            padding: '8px',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <a href={file.url} target="_blank" rel="noreferrer">
+                            {file.mimeType.startsWith('image/') ? (
+                              <img
+                                src={file.url}
+                                alt={file.fileName}
+                                style={{
+                                  width: '100%',
+                                  height: '90px',
+                                  objectFit: 'cover',
+                                  borderRadius: '12px',
+                                  display: 'block',
+                                }}
+                              />
+                            ) : file.mimeType.startsWith('video/') ? (
+                              <video
+                                src={file.url}
+                                style={{
+                                  width: '100%',
+                                  height: '90px',
+                                  objectFit: 'cover',
+                                  borderRadius: '12px',
+                                  display: 'block',
+                                }}
+                                muted
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  height: '90px',
+                                  borderRadius: '12px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: 'rgba(255,255,255,0.06)',
+                                  color: 'rgba(255,255,255,0.7)',
+                                  fontSize: '0.75rem',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                Файл
+                              </div>
+                            )}
+                          </a>
+
+                          <div
+                            style={{
+                              marginTop: '8px',
+                              color: '#fff',
+                              fontSize: '0.75rem',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {file.fileName}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: '3px',
+                              color: 'rgba(255,255,255,0.5)',
+                              fontSize: '0.7rem',
+                            }}
+                          >
+                            {formatFileSize(file.size)}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFile(file.id)}
+                            disabled={isReadOnly || deletingFileId === file.id}
+                            style={{
+                              marginTop: '8px',
+                              width: '100%',
+                              border: '1px solid rgba(255,77,77,0.35)',
+                              background: 'rgba(255,77,77,0.08)',
+                              color: '#ff7a7a',
+                              borderRadius: '14px',
+                              padding: '6px 8px',
+                              cursor: isReadOnly ? 'not-allowed' : 'pointer',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {deletingFileId === file.id ? '...' : 'Удалить'}
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
 
               <div className={styles.inputGroup}>
-                <label>Фото договора</label>
+                <label>Договор / материалы</label>
                 <input
                   type="file"
-                  name="photoContract"
-                  accept="image/*,.pdf"
-                  onChange={handleFileChange}
+                  accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  multiple
+                  onChange={(e) => handleFileUpload(e, 'contract')}
                   className={styles.neonInput}
-                  disabled={isReadOnly}
+                  disabled={isReadOnly || !clientId || uploadingCategory !== null}
                 />
+
+                {!isFilesLoading && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                      gap: '12px',
+                      marginTop: '10px',
+                    }}
+                  >
+                    {clientFiles
+                      .filter((file) => file.category === 'contract')
+                      .map((file) => (
+                        <div
+                          key={file.id}
+                          style={{
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '16px',
+                            background: 'rgba(255,255,255,0.03)',
+                            padding: '8px',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <a href={file.url} target="_blank" rel="noreferrer">
+                            {file.mimeType.startsWith('image/') ? (
+                              <img
+                                src={file.url}
+                                alt={file.fileName}
+                                style={{
+                                  width: '100%',
+                                  height: '90px',
+                                  objectFit: 'cover',
+                                  borderRadius: '12px',
+                                  display: 'block',
+                                }}
+                              />
+                            ) : file.mimeType.startsWith('video/') ? (
+                              <video
+                                src={file.url}
+                                style={{
+                                  width: '100%',
+                                  height: '90px',
+                                  objectFit: 'cover',
+                                  borderRadius: '12px',
+                                  display: 'block',
+                                }}
+                                muted
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  height: '90px',
+                                  borderRadius: '12px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  background: 'rgba(255,255,255,0.06)',
+                                  color: 'rgba(255,255,255,0.7)',
+                                  fontSize: '0.75rem',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                Файл
+                              </div>
+                            )}
+                          </a>
+
+                          <div
+                            style={{
+                              marginTop: '8px',
+                              color: '#fff',
+                              fontSize: '0.75rem',
+                              wordBreak: 'break-word',
+                            }}
+                          >
+                            {file.fileName}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: '3px',
+                              color: 'rgba(255,255,255,0.5)',
+                              fontSize: '0.7rem',
+                            }}
+                          >
+                            {formatFileSize(file.size)}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFile(file.id)}
+                            disabled={isReadOnly || deletingFileId === file.id}
+                            style={{
+                              marginTop: '8px',
+                              width: '100%',
+                              border: '1px solid rgba(255,77,77,0.35)',
+                              background: 'rgba(255,77,77,0.08)',
+                              color: '#ff7a7a',
+                              borderRadius: '14px',
+                              padding: '6px 8px',
+                              cursor: isReadOnly ? 'not-allowed' : 'pointer',
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {deletingFileId === file.id ? '...' : 'Удалить'}
+                          </button>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
 
               <div className={styles.inputGroup}>

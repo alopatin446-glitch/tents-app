@@ -115,6 +115,7 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
   const initialWindows = parseWindowItems(client.items);
 
   const initialClientData: ClientFormData = {
+    id: client.id,
     fio: client.fio,
     phone: client.phone,
     address: client.address,

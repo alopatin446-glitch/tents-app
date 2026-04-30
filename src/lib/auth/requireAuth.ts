@@ -1,16 +1,18 @@
 import { redirect } from 'next/navigation';
-import { PrismaClient, UserRole, User } from '@prisma/client';
+import type { User, UserRole } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { getCurrentUser } from './getCurrentUser';
 
-export type AuthenticatedUser = User & { organizationId: string }; // Добавляем ID организации в тип
+export type AuthenticatedUser = User & {
+  organizationId: string;
+};
 
 export async function requireAuth(): Promise<AuthenticatedUser> {
   const user = await getCurrentUser();
 
-  if (!user || !user.organizationId) { // Проверяем и пользователя, и его привязку
+  if (!user || !user.organizationId) {
     redirect('/login');
   }
 

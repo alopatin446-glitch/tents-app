@@ -71,7 +71,7 @@ export default function ProductionStep({
       <main style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div className={styles.drawingWrapper} style={{ flex: 1, display: 'flex' }}>
           {activeWindow ? (
-            <CuttingCanvas windowItem={activeWindow} />
+            <CuttingCanvas windowItem={activeWindow} rollWidth={rollWidth} />
           ) : (
             <div className="flex h-full items-center justify-center text-white/20">
               Выберите окно

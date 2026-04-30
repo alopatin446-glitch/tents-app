@@ -6,9 +6,10 @@ import DrawingCanvas from './DrawingCanvas';
 
 interface CuttingCanvasProps {
   windowItem: WindowItem;
+  rollWidth: number;
 }
 
-export default function CuttingCanvas({ windowItem }: CuttingCanvasProps) {
+export default function CuttingCanvas({ windowItem, rollWidth }: CuttingCanvasProps) {
   return (
     <div style={{ 
       width: '100%', 
@@ -17,11 +18,17 @@ export default function CuttingCanvas({ windowItem }: CuttingCanvasProps) {
       flexDirection: 'column',
       alignItems: 'center', 
       justifyContent: 'center',
-      padding: '20px'
+      padding: '20px',
+      gap: '12px',
     }}>
-      {/* Вызываем твой родной DrawingCanvas.
-        Включаем showFasteners и showExtras, чтобы видеть и люверсы, и молнии.
-      */}
+      <div style={{
+        color: 'rgba(255,255,255,0.75)',
+        fontSize: '0.8rem',
+        fontWeight: 700,
+      }}>
+        Ширина рулона: {rollWidth} мм
+      </div>
+
       <DrawingCanvas 
         item={windowItem} 
         showFasteners={true} 

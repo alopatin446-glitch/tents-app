@@ -37,13 +37,13 @@ function normalizePublicUrl(url: string) {
 }
 
 const s3 = new S3Client({
-  region: requiredEnv.region || "ru-central1",
+  region: requiredEnv.region || "ru-3",
   endpoint: requiredEnv.endpoint,
   credentials: {
     accessKeyId: requiredEnv.accessKey || "",
     secretAccessKey: requiredEnv.secretKey || "",
   },
-  forcePathStyle: true,
+  forcePathStyle: false,
 });
 
 export async function uploadFileToS3(file: File, organizationId: string) {

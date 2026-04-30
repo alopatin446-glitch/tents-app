@@ -7,6 +7,14 @@ export const runtime = 'nodejs';
 
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/'];
 
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+
 function jsonError(message: string, status: number) {
   return NextResponse.json({ ok: false, error: message }, { status });
 }
@@ -94,8 +102,12 @@ export async function POST(request: NextRequest) {
       return jsonError('Файл не передан.', 400);
     }
 
-    if (!ALLOWED_MIME_PREFIXES.some((prefix) => fileValue.type.startsWith(prefix))) {
-      return jsonError('Разрешены только фото и видео.', 400);
+    const isAllowedFile =
+      ALLOWED_MIME_PREFIXES.some((prefix) => fileValue.type.startsWith(prefix)) ||
+      ALLOWED_MIME_TYPES.includes(fileValue.type);
+
+    if (!isAllowedFile) {
+      return jsonError('Разрешены фото, видео, PDF, Word и Excel.', 400);
     }
 
     const client = await assertClientAccess(clientId, organizationId);

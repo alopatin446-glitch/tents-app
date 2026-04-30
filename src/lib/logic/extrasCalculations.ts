@@ -83,7 +83,7 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
 
   // ── Skirt ──────────────────────────────────────────────────────────────────
   if (extras.hasSkirt && extras.skirtWidth <= 0) {
-    errors.push('Skirt is enabled but skirtWidth is missing or zero');
+    errors.push('Юбка включена, но ширина юбки не указана или равна нулю');
   }
 
   // ── Weight ────────────────────────────────────────────────────────────────
@@ -91,57 +91,57 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
     const outerBottomM = getOuterBottomCm(item) / 100;
     if (outerBottomM > 6) {
       errors.push(
-        `Weight bar: outer bottom ${outerBottomM.toFixed(2)} m exceeds the 6 m limit`,
+        `Утяжелитель: нижняя внешняя ширина ${outerBottomM.toFixed(2)} м превышает лимит 6 м`,
       );
     }
   }
 
   // ── Zippers ───────────────────────────────────────────────────────────────
   extras.zippers.forEach((z, idx) => {
-    const label = `Zipper #${idx + 1}`;
+    const label = `Молния #${idx + 1}`;
     if (!Number.isFinite(z.positionFromStart) || z.positionFromStart < 0)
-      errors.push(`${label}: positionFromStart is required and must be >= 0`);
+      errors.push(`${label}: позиция от начала обязательна и должна быть ≥ 0`);
     if (!Number.isFinite(z.offsetStart) || z.offsetStart < 0)
-      errors.push(`${label}: offsetStart must be >= 0`);
+      errors.push(`${label}: отступ от начала должен быть ≥ 0`);
     if (!Number.isFinite(z.offsetEnd) || z.offsetEnd < 0)
-      errors.push(`${label}: offsetEnd must be >= 0`);
+      errors.push(`${label}: отступ от конца должен быть ≥ 0`);
     if (!Number.isFinite(z.bandLeft) || z.bandLeft < 0)
-      errors.push(`${label}: bandLeft must be >= 0`);
+      errors.push(`${label}: левая полоса должна быть ≥ 0`);
     if (!Number.isFinite(z.bandRight) || z.bandRight < 0)
-      errors.push(`${label}: bandRight must be >= 0`);
+      errors.push(`${label}: правая полоса должна быть ≥ 0`);
   });
 
   // ── Dividers ──────────────────────────────────────────────────────────────
   extras.dividers.forEach((d, idx) => {
-    const label = `Divider #${idx + 1}`;
+    const label = `Разделитель #${idx + 1}`;
     if (!Number.isFinite(d.position) || d.position < 0)
-      errors.push(`${label}: position is required and must be >= 0`);
+      errors.push(`${label}: позиция обязательна и должна быть ≥ 0`);
     if (!Number.isFinite(d.offsetStart) || d.offsetStart < 0)
-      errors.push(`${label}: offsetStart must be >= 0`);
+      errors.push(`${label}: отступ от начала должен быть ≥ 0`);
     if (!Number.isFinite(d.offsetEnd) || d.offsetEnd < 0)
-      errors.push(`${label}: offsetEnd must be >= 0`);
+      errors.push(`${label}: отступ от конца должен быть ≥ 0`);
     if (!Number.isFinite(d.width) || d.width <= 0)
-      errors.push(`${label}: width is required and must be > 0`);
+      errors.push(`${label}: ширина обязательна и должна быть больше 0`);
   });
 
   // ── Cutouts & Patches ─────────────────────────────────────────────────────
   extras.cutouts.forEach((c, idx) => {
-    const label = `${c.type === 'cut' ? 'Cutout' : 'Patch'} #${idx + 1}`;
+    const label = `${c.type === 'cut' ? 'Вырез' : 'Заплатка'} #${idx + 1}`;
     if (!Number.isFinite(c.x) || c.x < 0)
-      errors.push(`${label}: x is required and must be >= 0`);
+      errors.push(`${label}: координата X обязательна и должна быть ≥ 0`);
     if (!Number.isFinite(c.y) || c.y < 0)
-      errors.push(`${label}: y is required and must be >= 0`);
+      errors.push(`${label}: координата Y обязательна и должна быть ≥ 0`);
     if (!Number.isFinite(c.width) || c.width <= 0)
-      errors.push(`${label}: width is required and must be > 0`);
+      errors.push(`${label}: ширина обязательна и должна быть больше 0`);
     if (!Number.isFinite(c.height) || c.height <= 0)
-      errors.push(`${label}: height is required and must be > 0`);
+      errors.push(`${label}: высота обязательна и должна быть больше 0`);
   });
 
   // ── Welding ───────────────────────────────────────────────────────────────
   extras.welding.forEach((w, idx) => {
-    const label = `Welding #${idx + 1}`;
+    const label = `Сварка #${idx + 1}`;
     if (!Number.isFinite(w.position) || w.position < 0)
-      errors.push(`${label}: position is required and must be >= 0`);
+      errors.push(`${label}: позиция обязательна и должна быть ≥ 0`);
   });
 
   // ── Trapezoid required fields ─────────────────────────────────────────────
@@ -155,7 +155,7 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
       // diagonalLeft / diagonalRight are needed for exact trapezoid rendering
       if (!item.diagonalLeft && !item.diagonalRight) {
         errors.push(
-          'Trapezoid: diagonalLeft or diagonalRight is required for extras rendering',
+          'Трапеция: для отображения допов нужно указать левую или правую диагональ',
         );
       }
     }

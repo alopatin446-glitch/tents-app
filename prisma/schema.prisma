@@ -7,6 +7,166 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Organization {
+  id          String          @id @default(cuid())
+  name        String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  events      CalendarEvent[]
+  clients     Client[]
+  clientFiles ClientFile[]
+  prices      Price[]
+  teams       TeamMember[]
+  users       User[]
+}
+
+model User {
+  id             String           @id @default(cuid())
+  email          String           @unique
+  passwordHash   String
+  name           String
+  role           UserRole         @default(MANAGER)
+  status         UserStatus       @default(ACTIVE)
+  isOwnerAdmin   Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  avatarUrl      String?
+  lastLoginAt    DateTime?
+  phone          String?
+  telegramId     String?
+  organizationId String?
+  sessions       Session[]
+  teamMember     TeamMember?
+  organization   Organization?    @relation(fields: [organizationId], references: [id])
+  permissions    UserPermission[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String
+  createdAt   DateTime         @default(now())
+  users       UserPermission[]
+}
+
+model UserPermission {
+  id           String     @id @default(cuid())
+  userId       String
+  permissionId String
+  grantedAt    DateTime   @default(now())
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+}
+
+model TeamMember {
+  id             String       @id @default(cuid())
+  name           String
+  category       String
+  color          String
+  status         String       @default("active")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  userId         String?      @unique
+  organizationId String
+  phone          String?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id])
+}
+
+model Client {
+  id               String       @id @default(cuid())
+  fio              String
+  phone            String
+  address          String?
+  source           String?
+  status           String       @default("negotiation")
+  totalPrice       Float        @default(0)
+  advance          Float        @default(0)
+  balance          Float        @default(0)
+  paymentType      String?
+  measurementDate  DateTime?
+  installDate      DateTime?
+  items            Json?
+  mountingConfig   Json?
+  managerComment   String?
+  engineerComment  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  organizationId   String
+  costPrice        Float?       @default(0)
+  mountingCost     Float?       @default(0)
+  overspending     Float?       @default(0)
+  preliminaryPrice Float?       @default(0)
+  productionCost   Float?       @default(0)
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  files            ClientFile[]
+}
+
+model CalendarEvent {
+  id             String       @id @default(cuid())
+  type           String
+  title          String?
+  description    String?
+  date           DateTime
+  startTime      String?
+  endTime        String?
+  durationDays   Int          @default(1)
+  isGlobal       Boolean      @default(false)
+  memberId       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+}
+
+model Price {
+  id             String       @id @default(cuid())
+  slug           String       @default("")
+  name           String
+  value          Float
+  unit           String
+  category       String
+  updatedAt      DateTime     @updatedAt
+  metadata       Json?
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([slug, organizationId])
+}
+
+model ClientFile {
+  id             String       @id @default(cuid())
+  clientId       String
+  organizationId String
+  url            String
+  key            String
+  fileName       String
+  mimeType       String
+  size           Int
+  category       String?
+  createdAt      DateTime     @default(now())
+  deletedAt      DateTime?
+  sortOrder      Int          @default(0)
+  updatedAt      DateTime     @updatedAt
+  client         Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([clientId])
+  @@index([organizationId])
+  @@index([clientId, sortOrder])
+}
+
 enum UserRole {
   ADMIN
   MANAGER
@@ -17,189 +177,4 @@ enum UserRole {
 enum UserStatus {
   ACTIVE
   BLOCKED
-}
-
-model Organization {
-  id          String       @id @default(cuid())
-  name        String
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  clientFiles ClientFile[]
-
-  users   User[]
-  clients Client[]
-  prices  Price[]
-  teams   TeamMember[]
-  events  CalendarEvent[]
-}
-
-model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  passwordHash String
-  name         String
-  phone        String?
-  telegramId   String?
-  avatarUrl    String?
-  lastLoginAt  DateTime?
-  role         UserRole   @default(MANAGER)
-  status       UserStatus @default(ACTIVE)
-  isOwnerAdmin Boolean    @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-
-  sessions    Session[]
-  permissions UserPermission[]
-  teamMember  TeamMember?
-}
-
-model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  tokenHash String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Permission {
-  id          String   @id @default(cuid())
-  key         String   @unique
-  description String
-  createdAt   DateTime @default(now())
-
-  users UserPermission[]
-}
-
-model UserPermission {
-  id           String   @id @default(cuid())
-  userId       String
-  permissionId String
-  grantedAt    DateTime @default(now())
-
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, permissionId])
-}
-
-model TeamMember {
-  id        String   @id @default(cuid())
-  name      String
-  phone     String?
-  category  String
-  color     String
-  status    String   @default("active")
-  userId    String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-}
-
-model Client {
-  id      String  @id @default(cuid())
-  fio     String
-  phone   String
-  address String?
-  source  String?
-  status  String  @default("negotiation")
-
-  totalPrice       Float   @default(0)
-  advance          Float   @default(0)
-  balance          Float   @default(0)
-  preliminaryPrice Float?  @default(0)
-  costPrice        Float?  @default(0)
-  overspending     Float?  @default(0)
-  productionCost   Float?  @default(0)
-  mountingCost     Float?  @default(0)
-  paymentType      String?
-
-  files ClientFile[]
-
-  measurementDate DateTime?
-  installDate     DateTime?
-
-  items          Json?
-  mountingConfig Json?
-
-  managerComment  String?
-  engineerComment String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-}
-
-model CalendarEvent {
-  id          String  @id @default(cuid())
-  type        String
-  title       String?
-  description String?
-
-  date      DateTime
-  startTime String?
-  endTime   String?
-
-  durationDays Int @default(1)
-
-  isGlobal Boolean @default(false)
-  memberId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-}
-
-model Price {
-  id        String   @id @default(cuid())
-  slug      String   @default("")
-  name      String
-  value     Float
-  unit      String
-  category  String
-  metadata  Json?
-  updatedAt DateTime @updatedAt
-
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-
-  @@unique([slug, organizationId])
-}
-
-model ClientFile {
-  id String @id @default(cuid())
-
-  clientId       String
-  organizationId String
-
-  url      String
-  key      String
-  fileName String
-  mimeType String
-  size     Int
-
-  category  String?
-  sortOrder Int       @default(0)
-  deletedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  client       Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id])
-
-  @@index([clientId])
-  @@index([organizationId])
-  @@index([clientId, sortOrder])
 }
