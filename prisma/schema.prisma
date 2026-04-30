@@ -109,6 +109,19 @@ model Client {
   overspending     Float?       @default(0)
   preliminaryPrice Float?       @default(0)
   productionCost   Float?       @default(0)
+  createdById      String?
+  createdByName    String?
+  createdByRole    String?
+
+  updatedById      String?
+  updatedByName    String?
+  updatedByRole    String?
+  contentUpdatedAt DateTime?
+
+  lastOpenedById   String?
+  lastOpenedByName String?
+  lastOpenedByRole String?
+  lastOpenedAt     DateTime?
   organization     Organization @relation(fields: [organizationId], references: [id])
   files            ClientFile[]
 }

@@ -1,29 +1,34 @@
 .container {
-    display: flex;
-    flex-direction: row; /* Явно задаем направление */
-    justify-content: center; /* Центрируем всю конструкцию */
-    align-items: flex-start;
-    width: 100%;
-    min-height: 100%;
-    gap: 40px; /* Увеличим отступ между колонками */
-    padding: 20px;
-    box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  /* Явно задаем направление */
+  justify-content: center;
+  /* Центрируем всю конструкцию */
+  align-items: flex-start;
+  width: 100%;
+  min-height: 100%;
+  gap: 40px;
+  /* Увеличим отступ между колонками */
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 /* ЦЕНТРАЛЬНАЯ ЧАСТЬ */
 .accordionArea {
-    flex: 0 1 750px; /* Позволяем немного сужаться, если экран совсем маленький */
-    min-width: 400px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+  flex: 0 1 750px;
+  min-width: 400px;
+  max-width: 750px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 /* Исправляем секцию, чтобы не было двойных рамок */
 .section {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(123, 255, 0, 0.1); 
-  border-radius: 40px; /* Тот самый овал */
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: 40px;
+  /* Тот самый овал */
   overflow: hidden;
   transition: 0.3s;
   /* margin-bottom: 20px; <— Или gap в accordionArea, или это. Оставим gap. */
@@ -33,8 +38,10 @@
 .header {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 40px; /* Тоже закругляем, чтобы соответствовало секции */
-  padding: 18px 30px;  /* Увеличили внутренние отступы для "воздушности" */
+  border-radius: 40px;
+  /* Тоже закругляем, чтобы соответствовало секции */
+  padding: 18px 30px;
+  /* Увеличили внутренние отступы для "воздушности" */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -42,21 +49,25 @@
   transition: all 0.2s ease;
 }
 
-.header:hover { 
-  background: rgba(123, 255, 0, 0.05); 
-  border-color: rgba(123, 255, 0, 0.2); /* Слегка подсветим и рамку при наведении */
+.header:hover {
+  background: rgba(123, 255, 0, 0.05);
+  border-color: rgba(123, 255, 0, 0.2);
+  /* Слегка подсветим и рамку при наведении */
 }
 
 .content {
   padding: 25px;
   display: flex;
-  flex-direction: column; /* Все элементы внутри шторки теперь идут строго ВНИЗ */
-  gap: 20px;              /* Расстояние между полями ввода */
+  flex-direction: column;
+  /* Все элементы внутри шторки теперь идут строго ВНИЗ */
+  gap: 20px;
+  /* Расстояние между полями ввода */
 }
 
 .row {
   display: flex;
-  flex-direction: column; /* Даже если в строке два поля, они станут друг под другом */
+  flex-direction: column;
+  /* Даже если в строке два поля, они станут друг под другом */
   gap: 20px;
 }
 
@@ -64,88 +75,132 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 100%;            /* Поля растягиваются на всю ширину плашки */
+  width: 100%;
+  /* Поля растягиваются на всю ширину плашки */
 }
 
 /* ПРАВАЯ ЧАСТЬ (Служебная инфа) */
 .stickySidebar {
-    flex: 0 0 350px;
-    width: 350px;
-    position: sticky;
-    top: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+  flex: 0 0 470px;
+  width: 470px;
+  max-width: 470px;
+  position: sticky;
+  top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .infoCard {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 30px;      /* Увеличили внутренние отступы для солидности */
+  padding: 30px;
   border-radius: 30px;
   width: 100%;
+  min-height: 240px;
   box-sizing: border-box;
 }
 
-.infoCard h3 { color: var(--neon-green); font-size: 0.9rem; margin-bottom: 15px; text-transform: uppercase; }
-.infoCard p { font-size: 0.8rem; color: rgba(255,255,255,0.6); margin: 8px 0; display: flex; justify-content: space-between; }
+.infoCard {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 30px;
+  border-radius: 30px;
+  width: 100%;
+  min-height: 240px;
+  box-sizing: border-box;
+}
+
+.infoCard h3 {
+  color: var(--neon-green);
+  font-size: 0.9rem;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+}
+
+.infoCard p {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 8px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  line-height: 1.35;
+}
+
+.infoCard p span {
+  color: rgba(255, 255, 255, 0.72);
+  text-align: right;
+  line-height: 1.35;
+  white-space: nowrap;
+}
 
 /* КНОПКИ В ОДИН РЯД И ВЫРАВНИВАНИЕ */
 .actions {
   display: flex;
-  flex-direction: row; 
-  justify-content: space-between; /* РАСТОЛКАЕТ КНОПКИ ПО КРАЯМ */
-  gap: 12px;           
+  flex-direction: row;
+  justify-content: space-between;
+  /* РАСТОЛКАЕТ КНОПКИ ПО КРАЯМ */
+  gap: 12px;
   width: 100%;
 }
 
 /* Состояние кнопок по умолчанию (одинаковые) */
-.saveBtn, .exitBtn {
-    background: rgba(255, 255, 255, 0.05) !important; /* Принудительно задаем фон */
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #ffffff !important;
-    padding: 12px 0;
-    border-radius: 25px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
-    text-transform: uppercase;
-    transition: all 0.3s ease;
-    flex: 1;
-    max-width: calc(50% - 6px);
-    text-align: center;
+.saveBtn,
+.exitBtn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  /* Принудительно задаем фон */
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  padding: 12px 0;
+  border-radius: 25px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  flex: 1;
+  max-width: calc(50% - 6px);
+  text-align: center;
 }
 
 /* Перезаписываем только специфичные свойства для Сохранить */
 .saveBtn {
-    background: transparent; 
-    color: #ffffff; /* Белая по умолчанию, как ты просил */
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: #ffffff;
+  /* Белая по умолчанию, как ты просил */
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.exitBtn { 
-  background: rgba(255, 255, 255, 0.05); 
-  color: white; 
-  border: 1px solid rgba(255, 255, 255, 0.1); 
+.exitBtn {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* При наведении — СОХРАНИТЬ становится зеленым */
 .saveBtn:hover {
-    background: #a3ff00 !important;
-    border-color: #a3ff00 !important;
-    color: #000000 !important;
-    box-shadow: 0 0 20px rgba(163, 255, 0, 0.6);
+  background: #a3ff00 !important;
+  border-color: #a3ff00 !important;
+  color: #000000 !important;
+  box-shadow: 0 0 20px rgba(163, 255, 0, 0.6);
 }
 
 /* При наведении — ВЫЙТИ становится белым */
 .exitBtn:hover {
-    background: #ffffff !important;
-    border-color: #ffffff !important;
-    color: #000000 !important;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+  background: #ffffff !important;
+  border-color: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
 }
 
-.statLine { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.statLine {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
 
 .divider {
   border: 0;
@@ -171,94 +226,103 @@
 }
 
 /* Поля ввода и селекты внутри аккордеонов */
-.neonInput, .neonSelect {
-    width: 100%;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 40px; /* ДЕЛАЕМ ОВАЛЬНЫМИ */
-    padding: 12px 25px;  /* Увеличили боковой отступ для текста в овале */
-    color: white;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-    outline: none;
-    box-sizing: border-box;
+.neonInput,
+.neonSelect {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  /* ДЕЛАЕМ ОВАЛЬНЫМИ */
+  padding: 12px 25px;
+  /* Увеличили боковой отступ для текста в овале */
+  color: white;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  outline: none;
+  box-sizing: border-box;
 }
 
 /* Эффект при клике в поле */
-.neonInput:focus, .neonSelect:focus {
-    border-color: #7bff00;
-    background: rgba(123, 255, 0, 0.02);
+.neonInput:focus,
+.neonSelect:focus {
+  border-color: #7bff00;
+  background: rgba(123, 255, 0, 0.02);
 }
 
 /* Стилизация выпадающего списка (чтобы не был стандартным белым) */
 .neonSelect option {
-    background-color: #182234; /* Цвет фона выпадашки под твой дизайн */
-    color: white;
-    padding: 10px;
+  background-color: #182234;
+  /* Цвет фона выпадашки под твой дизайн */
+  color: white;
+  padding: 10px;
 }
 
 /* Оформление меток (label) над полями */
 .inputGroup label {
   display: block;
   margin-bottom: 8px;
-  color: rgba(255, 255, 255, 0.6); /* Чуть приглушенный цвет текста */
+  color: rgba(255, 255, 255, 0.6);
+  /* Чуть приглушенный цвет текста */
   font-size: 0.8rem;
-  text-transform: uppercase;    /* Все буквы заглавные, как на референсе */
+  text-transform: uppercase;
+  /* Все буквы заглавные, как на референсе */
   letter-spacing: 0.05em;
 }
 
 /* Убираем стандартный белый фон кнопки внутри инпута с файлом */
 .neonInput::file-selector-button {
-    background: transparent;
-    border: none;
-    color: inherit;
-    cursor: pointer;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
 }
 
 .mainWrapper {
-    display: flex;
-    flex-direction: row; /* ТАБЫ СЛЕВА, КОНТЕНТ СПРАВА */
-    align-items: flex-start;
-    width: 100%;
-    gap: 15px;
+  display: flex;
+  flex-direction: row;
+  /* ТАБЫ СЛЕВА, КОНТЕНТ СПРАВА */
+  align-items: flex-start;
+  width: 100%;
+  gap: 15px;
 }
 
 .sideNav {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding-top: 20px;
-    flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 20px;
+  flex-shrink: 0;
 }
 
 .navBtn {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(123, 255, 0, 0.1);
-    color: rgba(255, 255, 255, 0.5);
-    padding: 15px 5px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 10px;
-    font-weight: bold;
-    text-transform: uppercase;
-    width: 90px;
-    transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  padding: 15px 5px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  width: 90px;
+  transition: all 0.2s ease;
 }
 
 .activeNav {
-    background: #7BFF00;
-    color: #000;
-    border-color: #7BFF00;
+  background: #7BFF00;
+  color: #000;
+  border-color: #7BFF00;
 }
 
 /* Обновляем твой контейнер */
 .container {
-    display: flex;
-    flex-direction: row;
-    flex-grow: 1; /* Чтобы форма заняла всё остальное место */
-    justify-content: flex-start; /* Убираем center, чтобы не было дыр */
-    align-items: flex-start;
-    gap: 30px;
-    padding: 20px;
-    box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  flex-grow: 1;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 30px;
+  padding: 20px;
+  padding-left: 20px;
+  box-sizing: border-box;
 }

@@ -171,6 +171,14 @@ export async function updateClientAction(
           mountingConfig: data.mountingConfig ? (data.mountingConfig as any) : Prisma.JsonNull,
           measurementDate: data.measurementDate ? new Date(data.measurementDate as any) : null,
           installDate: data.installDate ? new Date(data.installDate as any) : null,
+          createdById: user.id,
+          createdByName: user.name,
+          createdByRole: user.role,
+
+          updatedById: user.id,
+          updatedByName: user.name,
+          updatedByRole: user.role,
+          contentUpdatedAt: new Date(),
         },
       });
       finalId = newClient.id;
@@ -178,7 +186,13 @@ export async function updateClientAction(
     } else {
       // ОБНОВЛЕНИЕ СУЩЕСТВУЮЩЕГО КЛИЕНТА
       // Добавляем проверку, что клиент принадлежит организации пользователя
-      const prismaData = buildUpdateClientData(data);
+      const prismaData = {
+        ...buildUpdateClientData(data),
+        updatedById: user.id,
+        updatedByName: user.name,
+        updatedByRole: user.role,
+        contentUpdatedAt: new Date(),
+      };
       const updatedClient = await prisma.client.update({
         where: {
           id,
@@ -221,8 +235,24 @@ export async function createClientAction(data: {
 
     const created = await prisma.client.create({
       data: {
-        organizationId: user.organizationId, // Привязка к организации
-        fio, phone, address, source, status, totalPrice, advance, balance
+        organizationId: user.organizationId,
+        fio,
+        phone,
+        address,
+        source,
+        status,
+        totalPrice,
+        advance,
+        balance,
+
+        createdById: user.id,
+        createdByName: user.name,
+        createdByRole: user.role,
+
+        updatedById: user.id,
+        updatedByName: user.name,
+        updatedByRole: user.role,
+        contentUpdatedAt: new Date(),
       },
     });
 

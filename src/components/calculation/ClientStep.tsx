@@ -100,6 +100,22 @@ export interface ClientFormData {
 
   items?: WindowItem[] | null;
   mountingConfig?: any;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+
+  createdById?: string | null;
+  createdByName?: string | null;
+  createdByRole?: string | null;
+
+  updatedById?: string | null;
+  updatedByName?: string | null;
+  updatedByRole?: string | null;
+  contentUpdatedAt?: string | null;
+
+  lastOpenedById?: string | null;
+  lastOpenedByName?: string | null;
+  lastOpenedByRole?: string | null;
+  lastOpenedAt?: string | null;
 }
 
 type OpenSections = {
@@ -130,6 +146,48 @@ function formatDateInputValue(value: any): string {
   }
 
   return String(value);
+}
+
+function formatAuditDate(value: string | null | undefined): string {
+  if (!value) return 'не зафиксировано';
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'не зафиксировано';
+  }
+
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function getRoleLabel(role: string | null | undefined): string {
+  switch (role) {
+    case 'ADMIN':
+      return 'Админ';
+    case 'MANAGER':
+      return 'Менеджер';
+    case 'ENGINEER':
+      return 'Инженер';
+    case 'INSTALLER':
+      return 'Монтажник';
+    default:
+      return 'Сотрудник';
+  }
+}
+
+function formatAuditPerson(
+  role: string | null | undefined,
+  name: string | null | undefined
+): string {
+  if (!name) return 'не зафиксировано';
+
+  return `${getRoleLabel(role)} ${name}`;
 }
 
 function formatFileSize(size: number): string {
@@ -186,7 +244,10 @@ export default function ClientStep({
 
   useEffect(() => {
     setClientData(initialData);
-  }, [initialData]);
+    // Синхронизация нужна только при смене карточки клиента.
+    // Нельзя зависеть от всего объекта initialData: он может пересоздаваться
+    // и вызывать бесконечный цикл setState -> render -> setState.
+  }, [initialData.id]);
 
   useEffect(() => {
     if (!isReadOnly) {
@@ -542,7 +603,7 @@ export default function ClientStep({
                 </div>
               )}
 
-                            {uploadingCategory && (
+              {uploadingCategory && (
                 <div
                   style={{
                     color: '#a3ff00',
@@ -1108,10 +1169,27 @@ export default function ClientStep({
         <div className={styles.infoCard}>
           <h3>Служебная информация</h3>
           <p>
-            Создал: <span>Админ</span>
+            Создал:{' '}
+            <span>
+              {formatAuditPerson(clientData.createdByRole, clientData.createdByName)} —{' '}
+              {formatAuditDate(clientData.createdAt)}
+            </span>
           </p>
+
           <p>
-            Изменил: <span>Админ</span>
+            Изменил:{' '}
+            <span>
+              {formatAuditPerson(clientData.updatedByRole, clientData.updatedByName)} —{' '}
+              {formatAuditDate(clientData.contentUpdatedAt)}
+            </span>
+          </p>
+
+          <p>
+            Открывал:{' '}
+            <span>
+              {formatAuditPerson(clientData.lastOpenedByRole, clientData.lastOpenedByName)} —{' '}
+              {formatAuditDate(clientData.lastOpenedAt)}
+            </span>
           </p>
 
           <hr className={styles.divider} />

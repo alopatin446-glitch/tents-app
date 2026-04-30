@@ -14,7 +14,7 @@
  * @module src/app/dashboard/new-calculation/page.tsx
  */
 
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { parseWindowItems } from '@/types';
 import { logger } from '@/lib/logger';
@@ -48,6 +48,7 @@ type PageProps = {
  */
 function formatDateForInput(value: Date | null | undefined): string {
   if (!value) return '';
+
   try {
     return value.toISOString().split('T')[0];
   } catch {
@@ -65,7 +66,6 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
   const clientId = resolved?.id?.trim();
   const isReadOnly = resolved?.mode === 'archive';
 
-  // --- ИСПРАВЛЕНИЕ: Если ID нет, не выкидываем пользователя, а создаем пустую форму ---
   if (!clientId) {
     const emptyClientData: ClientFormData = {
       fio: '',
@@ -94,22 +94,42 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
       />
     );
   }
-  // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
-  // Дальше идет логика загрузки существующего клиента (она остается без изменений)
-  let client;
-  try {
-    client = await prisma.client.findUnique({
-      where: { id: clientId },
+  const client = await prisma.client.findFirst({
+    where: {
+      id: clientId,
+      organizationId: user.organizationId,
+    },
+  });
+
+  if (!client) {
+    logger.warn('[NewCalculationPage] Клиент не найден или принадлежит другой организации', {
+      clientId,
+      userId: user.id,
+      userOrganizationId: user.organizationId,
     });
-  } catch (err) {
-    logger.error('[NewCalculationPage] Ошибка запроса к БД', { clientId, error: err });
+
     notFound();
   }
 
-  if (!client) {
-    logger.warn('[NewCalculationPage] Клиент не найден', { clientId });
-    notFound();
+  const openedAt = new Date();
+
+  try {
+    await prisma.client.update({
+      where: { id: client.id },
+      data: {
+        lastOpenedById: user.id,
+        lastOpenedByName: user.name,
+        lastOpenedByRole: user.role,
+        lastOpenedAt: openedAt,
+      },
+    });
+  } catch (err) {
+    logger.error('[NewCalculationPage] Не удалось записать последнее открытие клиента', {
+      clientId: client.id,
+      userId: user.id,
+      error: err,
+    });
   }
 
   const initialWindows = parseWindowItems(client.items);
@@ -130,6 +150,25 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
     managerComment: client.managerComment,
     engineerComment: client.engineerComment,
     mountingConfig: (client.mountingConfig ?? null) as MountingConfig | null,
+
+    createdAt: client.createdAt.toISOString(),
+    updatedAt: client.updatedAt.toISOString(),
+
+    createdById: client.createdById,
+    createdByName: client.createdByName,
+    createdByRole: client.createdByRole,
+
+    updatedById: client.updatedById,
+    updatedByName: client.updatedByName,
+    updatedByRole: client.updatedByRole,
+    contentUpdatedAt: client.contentUpdatedAt
+      ? client.contentUpdatedAt.toISOString()
+      : null,
+
+    lastOpenedById: user.id,
+    lastOpenedByName: user.name,
+    lastOpenedByRole: user.role,
+    lastOpenedAt: openedAt.toISOString(),
   };
 
   return (
