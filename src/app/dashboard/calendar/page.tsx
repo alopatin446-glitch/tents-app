@@ -12,6 +12,7 @@ import CalendarClient from './CalendarClient';
 import type { MountingConfig, MountingStatus } from '@/types/mounting';
 import { requireAuth } from '@/lib/auth/requireAuth';
 import { getActiveTeamMembers } from '@/lib/services/teamMemberService';
+import { getPrices } from '@/app/actions/prices';
 
 function normalizeDate(value: unknown): string {
   if (!value) return '';
@@ -25,7 +26,10 @@ function isMountingConfig(value: unknown): value is MountingConfig {
   return cfg.enabled === true && Boolean(cfg.mountingDate);
 }
 
-async function fetchCalendarEvents(organizationId: string) {
+async function fetchCalendarEvents(
+  organizationId: string,
+  priceMap: Record<string, number>,
+) {
   try {
     const clients = await prisma.client.findMany({
       where: { organizationId },
@@ -51,7 +55,7 @@ async function fetchCalendarEvents(organizationId: string) {
         const cfg = client.mountingConfig as unknown as MountingConfig;
         const parsedItems = parseWindowItems(client.items ?? []);
         const areaM2 = calculateTotalArea(parsedItems);
-        const calculation = calculateMounting(cfg, areaM2);
+        const calculation = calculateMounting(cfg, areaM2, priceMap);
         const memberId = cfg.team?.memberId || '';
 
         return {
@@ -109,8 +113,18 @@ async function fetchCalendarEvents(organizationId: string) {
 export default async function CalendarPage() {
   const user = await requireAuth();
 
+  const pricesResult = await getPrices();
+
+  let priceMap: Record<string, number> = {};
+
+  if (pricesResult.success && Array.isArray(pricesResult.data)) {
+    for (const price of pricesResult.data) {
+      priceMap[price.slug] = Number(price.value);
+    }
+  }
+
   const [events, teamMembers] = await Promise.all([
-    fetchCalendarEvents(user.organizationId),
+    fetchCalendarEvents(user.organizationId, priceMap),
     getActiveTeamMembers(user.organizationId),
   ]);
 

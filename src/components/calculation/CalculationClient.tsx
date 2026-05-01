@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { type WindowItem } from '@/types';
@@ -20,6 +20,7 @@ import styles from './CalculationClient.module.css';
 import ProductionStep from '@/components/calculation/ProductionStep';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { calculateMounting } from '@/lib/logic/mountingCalculations';
+import { getPrices } from '@/app/actions/prices';
 
 type Step =
   | 'client'
@@ -59,10 +60,36 @@ export default function CalculationClient({
   const [clientId, setClientId] = useState<string>(initialClientId);
   const [activeStep, setActiveStep] = useState<Step>('client');
   const [isSaving, setIsSaving] = useState(false);
+  const [mountingPriceMap, setMountingPriceMap] = useState<Record<string, number>>({});
 
   const [activeWindowId, setActiveWindowId] = useState<number>(
     () => initialWindows[0]?.id ?? Date.now(),
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getPrices()
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.success || !Array.isArray(result.data)) return;
+
+        const nextMap: Record<string, number> = {};
+
+        for (const price of result.data) {
+          nextMap[price.slug] = Number(price.value);
+        }
+
+        setMountingPriceMap(nextMap);
+      })
+      .catch((error) => {
+        logger.warn('[CalculationClient] Не удалось загрузить прайс монтажа', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const {
     windows,
@@ -123,7 +150,7 @@ export default function CalculationClient({
 
   const handleMountingChange = useCallback(
     (newConfig: MountingConfig): void => {
-      const mountingCalc = calculateMounting(newConfig, totalAreaMaterial);
+      const mountingCalc = calculateMounting(newConfig, totalAreaMaterial, mountingPriceMap);
 
       const mountingCostValue =
         newConfig.manualPrice ?? mountingCalc.retailFinal ?? 0;
@@ -134,7 +161,7 @@ export default function CalculationClient({
         mountingCost: mountingCostValue, // ← ВОТ ЭТО КЛЮЧ
       });
     },
-    [clientDataWithArea, handleClientDataChange, totalAreaMaterial],
+    [clientDataWithArea, handleClientDataChange, totalAreaMaterial, mountingPriceMap],
   );
 
   const steps: Array<{ id: Step; label: string }> = [

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { captureCurrentPriceSnapshot } from '@/lib/logic/mountingCalculations';
 import type { MountingConfig, TeamCategory } from '@/types/mounting';
+import { requireAuth } from '@/lib/auth/requireAuth';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TEAM_CATEGORIES: TeamCategory[] = ['pro', 'mid', 'junior'];
@@ -34,6 +35,7 @@ function normalizeMountingConfig(value: unknown): MountingConfig | null {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await requireAuth();
     const body = await request.json();
     const clientId = typeof body?.clientId === 'string' ? body.clientId.trim() : '';
     const newDate = typeof body?.newDate === 'string' ? body.newDate.trim() : '';
@@ -47,8 +49,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Некорректный формат даты. Нужен YYYY-MM-DD' }, { status: 400 });
     }
 
-    const client = await prisma.client.findUnique({
-      where: { id: clientId },
+    const client = await prisma.client.findFirst({
+      where: {
+        id: clientId,
+        organizationId: user.organizationId,
+      },
       select: {
         id: true,
         mountingConfig: true,
@@ -71,16 +76,35 @@ export async function POST(request: NextRequest) {
       category: normalizeTeamCategory(currentConfig.team.category),
     };
 
+    const prices = await prisma.price.findMany({
+      where: {
+        organizationId: user.organizationId,
+      },
+      select: {
+        slug: true,
+        value: true,
+      },
+    });
+
+    const priceMap: Record<string, number> = {};
+
+    for (const price of prices) {
+      priceMap[price.slug] = Number(price.value);
+    }
+
     const updatedConfig: MountingConfig = {
       ...currentConfig,
       mountingDate: newDate,
       team: nextTeam,
       mountingSnapshot:
-        currentConfig.mountingSnapshot ?? captureCurrentPriceSnapshot(nextTeam.category),
+        currentConfig.mountingSnapshot ?? captureCurrentPriceSnapshot(nextTeam.category, priceMap),
     };
 
     await prisma.client.update({
-      where: { id: clientId },
+      where: {
+        id: clientId,
+        organizationId: user.organizationId,
+      },
       data: {
         mountingConfig: updatedConfig as any,
         installDate: new Date(`${newDate}T00:00:00.000Z`),

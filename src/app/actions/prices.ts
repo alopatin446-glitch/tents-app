@@ -3,12 +3,40 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireAuth } from '@/lib/auth/requireAuth';
+import { DEFAULT_PRICE_ROWS } from '@/constants/defaultPrices';
+
+async function ensureDefaultPrices(organizationId: string) {
+  if (DEFAULT_PRICE_ROWS.length === 0) return;
+
+  await prisma.$transaction(
+    DEFAULT_PRICE_ROWS.map((price) =>
+      prisma.price.upsert({
+        where: {
+          slug_organizationId: {
+            slug: price.slug,
+            organizationId,
+          },
+        },
+        update: {},
+        create: {
+          organizationId,
+          slug: price.slug,
+          name: price.name,
+          value: price.value,
+          unit: price.unit,
+          category: price.category,
+        },
+      }),
+    ),
+  );
+}
 
 // Получение цен
 export async function getPrices() {
   try {
     const user = await requireAuth();
     const orgId = user.organizationId;
+    await ensureDefaultPrices(orgId);
 
     const prices = await prisma.price.findMany({
       where: {

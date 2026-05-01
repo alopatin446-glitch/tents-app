@@ -52,6 +52,7 @@ const PRICE_ERROR_SENTINEL = 9999;
 
 const DEFAULT_TEAM_CATEGORY: TeamCategory = 'mid';
 const DEFAULT_HEIGHT_WORK_TYPE: HeightWorkType = 'stairs';
+export type MountingPriceMap = Record<string, number>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Вспомогательные функции
@@ -90,6 +91,32 @@ function getTeamCategory(config: MountingConfig): TeamCategory {
 
 function getArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
+}
+
+function getPrice(
+  prices: MountingPriceMap,
+  slug: string,
+  fallback: number,
+): number {
+  const value = prices[slug];
+
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+
+  return value;
+}
+
+function getTeamRetailSlug(category: TeamCategory): string {
+  if (category === 'pro') return 'team_retail_pro';
+  if (category === 'junior') return 'team_retail_junior';
+  return 'team_retail_mid';
+}
+
+function getTeamCostSlug(category: TeamCategory): string {
+  if (category === 'pro') return 'team_cost_pro';
+  if (category === 'junior') return 'team_cost_junior';
+  return 'team_cost_mid';
 }
 
 function emptyCalculationResult(): MountingCalculationResult {
@@ -138,9 +165,22 @@ function priceError(field: string): PriceResult {
  * Розничная ставка базового основания за м².
  * Для сайдинга цена задаётся менеджером вручную.
  */
+function getBaseFoundationSlug(type: FoundationType): string {
+  if (type === 'concrete') return 'base_foundation_concrete';
+  if (type === 'brick') return 'base_foundation_brick';
+  if (type === 'metal') return 'base_foundation_metal';
+  if (type === 'round_wood') return 'base_foundation_round_wood';
+  return 'base_foundation_wood';
+}
+
+/**
+ * Розничная ставка базового основания за м².
+ * Для сайдинга цена задаётся менеджером вручную.
+ */
 function calcBaseFoundationRetail(
   baseFoundation: FoundationType,
-  baseFoundationCustomPrice?: number,
+  baseFoundationCustomPrice: number | undefined,
+  prices: MountingPriceMap,
 ): PriceResult {
   if (baseFoundation === 'siding') {
     const customPrice = toSafeNumber(baseFoundationCustomPrice, NaN);
@@ -152,10 +192,13 @@ function calcBaseFoundationRetail(
     return priceOk(customPrice);
   }
 
-  const rate =
+  const rate = getPrice(
+    prices,
+    getBaseFoundationSlug(baseFoundation),
     MOUNTING_PRICES.BASE_FOUNDATION_SURCHARGE[
     baseFoundation as keyof typeof MOUNTING_PRICES.BASE_FOUNDATION_SURCHARGE
-    ] ?? PRICE_ERROR_SENTINEL;
+    ] ?? PRICE_ERROR_SENTINEL,
+  );
 
   if (isPriceError(rate)) {
     return priceError(`Базовое основание «${baseFoundation}» — цена не установлена`);
@@ -164,12 +207,21 @@ function calcBaseFoundationRetail(
   return priceOk(rate);
 }
 
+function getExtraFoundationSlug(type: ExtraFoundationType): string {
+  if (type === 'concrete') return 'extra_foundation_concrete';
+  if (type === 'brick') return 'extra_foundation_brick';
+  if (type === 'metal') return 'extra_foundation_metal';
+  if (type === 'round_wood') return 'extra_foundation_round_wood';
+  return 'extra_foundation_wood';
+}
+
 /**
  * Розничная стоимость одного дополнительного основания.
  */
 function calcExtraFoundationRetail(
   foundation: ExtraFoundation,
   snapshot: MountingPriceSnapshot | null,
+  prices: MountingPriceMap,
 ): PriceResult {
   const type = foundation.type as ExtraFoundationType;
   const length = toSafeNumber(foundation.length, 0);
@@ -184,16 +236,32 @@ function calcExtraFoundationRetail(
     return priceOk(customPrice * length);
   }
 
-  const foundationPrices =
-    snapshot?.extraFoundationPrices ?? MOUNTING_PRICES.EXTRA_FOUNDATION_PRICE_PER_M;
-
-  const rate = foundationPrices[type] ?? PRICE_ERROR_SENTINEL;
+  const rate = getPrice(
+    prices,
+    getExtraFoundationSlug(type),
+    (snapshot?.extraFoundationPrices ??
+      MOUNTING_PRICES.EXTRA_FOUNDATION_PRICE_PER_M)[type] ??
+    PRICE_ERROR_SENTINEL,
+  );
 
   if (isPriceError(rate)) {
     return priceError(`Доп. основание «${type}» — цена не установлена`);
   }
 
   return priceOk(rate * length);
+}
+
+function getBeamSlug(type: BeamType): string {
+  if (type === 'planed_wood_50x50') return 'beam_planed_wood_50x50';
+  if (type === 'timber_100x100') return 'beam_timber_100x100';
+  if (type === 'timber_150x150') return 'beam_timber_150x150';
+  return 'beam_wood_50x50';
+}
+
+function getHeightWorkSlug(type: HeightWorkType): string {
+  if (type === 'scaffold') return 'height_scaffold';
+  if (type === 'both') return 'height_both';
+  return 'height_stairs';
 }
 
 /**
@@ -203,6 +271,7 @@ function calcExtraFoundationRetail(
 function calcBeamRetail(
   beam: MountingBeam,
   snapshot: MountingPriceSnapshot | null,
+  prices: MountingPriceMap,
 ): PriceResult {
   const type = beam.type as BeamType;
   const length = toSafeNumber(beam.length, 0);
@@ -217,8 +286,12 @@ function calcBeamRetail(
     return priceOk(customPrice * length);
   }
 
-  const beamPrices = snapshot?.beamPrices ?? MOUNTING_PRICES.MOUNTING_BEAMS;
-  const rate = beamPrices[type] ?? PRICE_ERROR_SENTINEL;
+  const rate = getPrice(
+    prices,
+    getBeamSlug(type),
+    (snapshot?.beamPrices ?? MOUNTING_PRICES.MOUNTING_BEAMS)[type] ??
+    PRICE_ERROR_SENTINEL,
+  );
 
   if (isPriceError(rate)) {
     return priceError(`Балка «${type}» — цена не установлена`);
@@ -238,6 +311,7 @@ function calcBeamRetail(
 export function calculateMounting(
   config: MountingConfig,
   totalAreaM2: number,
+  prices: MountingPriceMap = {},
 ): MountingCalculationResult {
   if (!config?.enabled) {
     return emptyCalculationResult();
@@ -270,25 +344,43 @@ export function calculateMounting(
   };
 
   // ── Ставки: снимок прайса приоритетнее текущего прайса ──────────────────
+
   const retailRate = guard(
-    snapshot?.teamRetailRate ?? MOUNTING_PRICES.TEAM_RETAIL_RATES[category],
+    snapshot?.teamRetailRate ??
+    getPrice(
+      prices,
+      getTeamRetailSlug(category),
+      MOUNTING_PRICES.TEAM_RETAIL_RATES[category],
+    ),
     'Тариф бригады (розница)',
   );
+
   const costRate = guard(
-    snapshot?.teamCostRate ?? MOUNTING_PRICES.TEAM_COST_RATES[category],
+    snapshot?.teamCostRate ??
+    getPrice(
+      prices,
+      getTeamCostSlug(category),
+      MOUNTING_PRICES.TEAM_COST_RATES[category],
+    ),
     'Тариф бригады (себестоимость)',
   );
+
   const fuelCostPerKm = guard(
-    snapshot?.fuelCostPerKm ?? MOUNTING_PRICES.FUEL_COST_PER_KM,
+    snapshot?.fuelCostPerKm ?? getPrice(prices, 'fuel_cost_per_km', MOUNTING_PRICES.FUEL_COST_PER_KM),
     'Ставка ГСМ (себестоимость)',
   );
   const kmTariffRetail = guard(
-    snapshot?.kmTariffRetail ?? MOUNTING_PRICES.KM_TARIFF_RETAIL,
+    snapshot?.kmTariffRetail ?? getPrice(prices, 'km_retail', MOUNTING_PRICES.KM_TARIFF_RETAIL),
     'Тариф ГСМ (розница)',
   );
   const minRetailPrice = guard(
-    snapshot?.minRetailPrice ?? MOUNTING_PRICES.MIN_RETAIL_PRICE,
+    snapshot?.minRetailPrice ?? getPrice(prices, 'min_retail_mounting', MOUNTING_PRICES.MIN_RETAIL_PRICE),
     'Минимальная стоимость монтажа',
+  );
+
+  const extraWorksCostFactor = guard(
+    getPrice(prices, 'extra_works_cost_factor', MOUNTING_PRICES.EXTRA_WORKS_COST_FACTOR),
+    'Коэффициент себеса доп. работ',
   );
 
   // ── РОЗНИЦА ──────────────────────────────────────────────────────────────
@@ -300,18 +392,20 @@ export function calculateMounting(
       calcBaseFoundationRetail(
         config.baseFoundation ?? 'wood',
         config.baseFoundationCustomPrice,
+        prices,
       ),
     );
 
   const retailExtraFoundations = getArray(config.extraFoundations).reduce(
-    (sum, foundation) => sum + collect(calcExtraFoundationRetail(foundation, snapshot)),
+    (sum, foundation) =>
+      sum + collect(calcExtraFoundationRetail(foundation, snapshot, prices)),
     0,
   );
 
   const retailFoundations = baseFoundationCost + retailExtraFoundations;
 
   const retailBeams = getArray(config.mountingBeams).reduce(
-    (sum, beam) => sum + collect(calcBeamRetail(beam, snapshot)),
+    (sum, beam) => sum + collect(calcBeamRetail(beam, snapshot, prices)),
     0,
   );
 
@@ -320,9 +414,13 @@ export function calculateMounting(
   let retailHeightWork = 0;
   if (config.heightWork?.active) {
     const heightWorkType = config.heightWork.type ?? DEFAULT_HEIGHT_WORK_TYPE;
-    const heightWorkPrices = snapshot?.heightWorkPrices ?? MOUNTING_PRICES.HEIGHT_WORK;
     const heightWorkRate = guard(
-      heightWorkPrices[heightWorkType] ?? PRICE_ERROR_SENTINEL,
+      getPrice(
+        prices,
+        getHeightWorkSlug(heightWorkType),
+        (snapshot?.heightWorkPrices ?? MOUNTING_PRICES.HEIGHT_WORK)[heightWorkType] ??
+        PRICE_ERROR_SENTINEL,
+      ),
       `Высотные работы «${heightWorkType}»`,
     );
     retailHeightWork = heightWorkRate * durationDays;
@@ -341,8 +439,7 @@ export function calculateMounting(
 
   // ── СЕБЕСТОИМОСТЬ ───────────────────────────────────────────────────────
   const costBase = areaM2 * costRate;
-  const costExtra =
-    (retailFoundations + retailBeams) * MOUNTING_PRICES.EXTRA_WORKS_COST_FACTOR;
+  const costExtra = (retailFoundations + retailBeams) * extraWorksCostFactor;
   const costDistance = distance * 2 * fuelCostPerKm;
   const costTotal = roundRub(costBase + costExtra + costDistance);
 
@@ -389,19 +486,63 @@ export function calculateMounting(
  */
 export function captureCurrentPriceSnapshot(
   teamCategory: TeamCategory,
+  prices: MountingPriceMap = {},
 ): MountingPriceSnapshot {
   const category = teamCategory ?? DEFAULT_TEAM_CATEGORY;
 
   return {
     capturedAt: new Date().toISOString(),
-    teamRetailRate: MOUNTING_PRICES.TEAM_RETAIL_RATES[category],
-    teamCostRate: MOUNTING_PRICES.TEAM_COST_RATES[category],
-    fuelCostPerKm: MOUNTING_PRICES.FUEL_COST_PER_KM,
-    kmTariffRetail: MOUNTING_PRICES.KM_TARIFF_RETAIL,
-    extraFoundationPrices: { ...MOUNTING_PRICES.EXTRA_FOUNDATION_PRICE_PER_M },
-    beamPrices: { ...MOUNTING_PRICES.MOUNTING_BEAMS },
-    heightWorkPrices: { ...MOUNTING_PRICES.HEIGHT_WORK },
-    minRetailPrice: MOUNTING_PRICES.MIN_RETAIL_PRICE,
+
+    teamRetailRate: getPrice(
+      prices,
+      getTeamRetailSlug(category),
+      MOUNTING_PRICES.TEAM_RETAIL_RATES[category],
+    ),
+
+    teamCostRate: getPrice(
+      prices,
+      getTeamCostSlug(category),
+      MOUNTING_PRICES.TEAM_COST_RATES[category],
+    ),
+
+    fuelCostPerKm: getPrice(
+      prices,
+      'fuel_cost_per_km',
+      MOUNTING_PRICES.FUEL_COST_PER_KM,
+    ),
+
+    kmTariffRetail: getPrice(
+      prices,
+      'km_retail',
+      MOUNTING_PRICES.KM_TARIFF_RETAIL,
+    ),
+
+    extraFoundationPrices: {
+      wood: getPrice(prices, 'extra_foundation_wood', MOUNTING_PRICES.EXTRA_FOUNDATION_PRICE_PER_M.wood),
+      concrete: getPrice(prices, 'extra_foundation_concrete', MOUNTING_PRICES.EXTRA_FOUNDATION_PRICE_PER_M.concrete),
+      brick: getPrice(prices, 'extra_foundation_brick', MOUNTING_PRICES.EXTRA_FOUNDATION_PRICE_PER_M.brick),
+      metal: getPrice(prices, 'extra_foundation_metal', MOUNTING_PRICES.EXTRA_FOUNDATION_PRICE_PER_M.metal),
+      round_wood: getPrice(prices, 'extra_foundation_round_wood', MOUNTING_PRICES.EXTRA_FOUNDATION_PRICE_PER_M.round_wood),
+    },
+
+    beamPrices: {
+      wood_50x50: getPrice(prices, 'beam_wood_50x50', MOUNTING_PRICES.MOUNTING_BEAMS.wood_50x50),
+      planed_wood_50x50: getPrice(prices, 'beam_planed_wood_50x50', MOUNTING_PRICES.MOUNTING_BEAMS.planed_wood_50x50),
+      timber_100x100: getPrice(prices, 'beam_timber_100x100', MOUNTING_PRICES.MOUNTING_BEAMS.timber_100x100),
+      timber_150x150: getPrice(prices, 'beam_timber_150x150', MOUNTING_PRICES.MOUNTING_BEAMS.timber_150x150),
+    },
+
+    heightWorkPrices: {
+      stairs: getPrice(prices, 'height_stairs', MOUNTING_PRICES.HEIGHT_WORK.stairs),
+      scaffold: getPrice(prices, 'height_scaffold', MOUNTING_PRICES.HEIGHT_WORK.scaffold),
+      both: getPrice(prices, 'height_both', MOUNTING_PRICES.HEIGHT_WORK.both),
+    },
+
+    minRetailPrice: getPrice(
+      prices,
+      'min_retail_mounting',
+      MOUNTING_PRICES.MIN_RETAIL_PRICE,
+    ),
   };
 }
 
@@ -483,6 +624,7 @@ export interface RawClientCalendarData {
  */
 export function buildCalendarEvents(
   clients: RawClientCalendarData[],
+  prices: MountingPriceMap = {},
 ): CalendarEvent[] {
   const scheduled = clients.filter(
     (client) =>
@@ -506,7 +648,7 @@ export function buildCalendarEvents(
     const parsedItems = parseWindowItems(client.items ?? []);
     const areaM2 = calculateTotalArea(parsedItems);
 
-    const calcResult = calculateMounting(mountingConfig, areaM2);
+    const calcResult = calculateMounting(mountingConfig, areaM2, prices);
     console.log('[buildCalendarEvents]', {
       clientId: client.id,
       clientName: client.fio,

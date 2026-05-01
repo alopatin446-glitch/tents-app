@@ -69,12 +69,35 @@ function computeTrapezoidHeight(
 
   const h2 = ad * ad - x * x;
 
-  if (h2 <= 0) {
-    // Геометрически невозможно (стороны не замыкаются)
+  if (h2 <= 0 || Math.abs(bc - ad) > 5) {
+    // Геометрически невозможно (стороны не замыкаются или разница слишком велика)
+    logger.warn(LOG_MESSAGES.TRAPEZOID_IMPOSSIBLE, {
+      widthTop,
+      widthBottom,
+      heightLeft,
+      heightRight,
+    });
     return null;
   }
 
   return Math.sqrt(h2);
+}
+
+function hasCompleteTrapezoidMeasurements(window: WindowItem): boolean {
+  return (
+    Number(window.diagonalLeft) > 0 &&
+    Number(window.diagonalRight) > 0 &&
+    Number(window.crossbar) > 0
+  );
+}
+
+function calculateBoxAreaCm2(
+  widthTop: number,
+  widthBottom: number,
+  heightLeft: number,
+  heightRight: number,
+): number {
+  return Math.max(widthTop, widthBottom) * Math.max(heightLeft, heightRight);
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +113,12 @@ export interface WindowGeometry {
 
   /** Площадь с учётом канта в м². */
   areaWithKant: number;
+
+  /** Площадь прямоугольной заготовки в м². */
+  cutArea: number;
+
+  /** Геометрический перерасход в м². */
+  wasteArea: number;
 
   /** Периметр полотна в см (для расчёта расхода канта). */
   perimeter: number;
@@ -117,16 +146,14 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
   let areaCm2: number;
   let isExact = true;
 
-  if (isTrapezoid) {
-    const h = computeTrapezoidHeight(widthTop, widthBottom, heightLeft, heightRight);
+  const canCalculateTrapezoid = isTrapezoid && hasCompleteTrapezoidMeasurements(window);
 
-    if (h !== null) {
-      // Формула площади трапеции: S = (a + b) / 2 * h
-      areaCm2 = ((widthTop + widthBottom) / 2) * h;
-    } else {
-      // Fallback: геометрия невозможна — стороны трапеции не замыкаются.
-      areaCm2 =
-        ((widthTop + widthBottom) / 2) * ((heightLeft + heightRight) / 2);
+
+  if (canCalculateTrapezoid) {
+    const h = Number(window.crossbar);
+
+    if (!Number.isFinite(h) || h <= 0) {
+      areaCm2 = calculateBoxAreaCm2(widthTop, widthBottom, heightLeft, heightRight);
       isExact = false;
       logger.warn(LOG_MESSAGES.TRAPEZOID_IMPOSSIBLE, {
         windowId: window.id,
@@ -136,12 +163,25 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
         heightLeft,
         heightRight,
       });
+    } else {
+      // Для полной трапеции используем фактическую площадь:
+      // S = (верх + низ) / 2 × параллель.
+      areaCm2 = ((widthTop + widthBottom) / 2) * h;
     }
   } else {
-    // Стандартный четырёхугольник — средние значения сторон
-    areaCm2 =
-      ((widthTop + widthBottom) / 2) * ((heightLeft + heightRight) / 2);
+    // Если трапеция не включена или не заполнены диагонали/параллель,
+    // считаем как обычное изделие по габариту.
+    areaCm2 = calculateBoxAreaCm2(widthTop, widthBottom, heightLeft, heightRight);
   }
+
+  const cutAreaCm2 = calculateBoxAreaCm2(
+    widthTop,
+    widthBottom,
+    heightLeft,
+    heightRight,
+  );
+
+  const wasteAreaCm2 = Math.max(0, cutAreaCm2 - areaCm2);
 
   // Периметр полотна
   const perimeter = widthTop + heightRight + widthBottom + heightLeft;
@@ -154,32 +194,26 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
 
   let areaWithKantCm2: number;
 
-  if (isTrapezoid && isExact) {
-    const hKanted = computeTrapezoidHeight(
-      kantedWidthTop,
-      kantedWidthBottom,
-      kantedHeightLeft,
-      kantedHeightRight
-    );
-    areaWithKantCm2 =
-      hKanted !== null
-        ? ((kantedWidthTop + kantedWidthBottom) / 2) * hKanted
-        : ((kantedWidthTop + kantedWidthBottom) / 2) *
-          ((kantedHeightLeft + kantedHeightRight) / 2);
+  if (canCalculateTrapezoid && isExact) {
+    const hKanted = Number(window.crossbar) + kantTop + kantBottom;
+
+    areaWithKantCm2 = ((kantedWidthTop + kantedWidthBottom) / 2) * hKanted;
   } else {
-    areaWithKantCm2 =
-      ((kantedWidthTop + kantedWidthBottom) / 2) *
-      ((kantedHeightLeft + kantedHeightRight) / 2);
+    const outerWidth = Math.max(widthTop, widthBottom) + kantLeft + kantRight;
+    const outerHeight = Math.max(heightLeft, heightRight) + kantTop + kantBottom;
+
+    areaWithKantCm2 = outerWidth * outerHeight;
   }
 
   return {
     areaMaterial: roundM2(areaCm2 / CM2_TO_M2),
     areaWithKant: roundM2(areaWithKantCm2 / CM2_TO_M2),
+    cutArea: roundM2(cutAreaCm2 / CM2_TO_M2),
+    wasteArea: roundM2(wasteAreaCm2 / CM2_TO_M2),
     perimeter,
     isExact,
   };
 }
-
 /**
  * Быстрый расчёт площади одного изделия в м².
  * Используется в тех местах, где нужно только это значение.

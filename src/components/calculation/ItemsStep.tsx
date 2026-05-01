@@ -76,6 +76,35 @@ function toWindowItemDraft(item: WindowItem): WindowItemDraft {
   return item as WindowItemDraft;
 }
 
+function getTrapezoidWarning(item: WindowItemDraft | undefined): string | null {
+  if (!item) return null;
+
+  const widthTop = resolveNumericField(item.widthTop);
+  const widthBottom = resolveNumericField(item.widthBottom);
+  const heightLeft = resolveNumericField(item.heightLeft);
+  const heightRight = resolveNumericField(item.heightRight);
+
+  const hasTrapezoidDifference =
+    Math.abs(widthTop - widthBottom) >= 5 ||
+    Math.abs(heightLeft - heightRight) >= 5;
+
+  if (hasTrapezoidDifference && !item.isTrapezoid) {
+    return '⚠ Разница сторон 5 см или больше. Похоже на трапецию. Если это действительно трапеция — включите режим «Трапеция» и заполните диагонали/параллель.';
+  }
+
+  if (item.isTrapezoid) {
+    const diagonalLeft = resolveNumericField(item.diagonalLeft);
+    const diagonalRight = resolveNumericField(item.diagonalRight);
+    const crossbar = resolveNumericField(item.crossbar);
+
+    if (diagonalLeft <= 0 || diagonalRight <= 0 || crossbar <= 0) {
+      return '⚠ Для точного расчёта трапеции нужно заполнить: диагональ A-C, диагональ B-D и параллель.';
+    }
+  }
+
+  return null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Конфигурация полей
 // ─────────────────────────────────────────────────────────────────────────────
@@ -151,11 +180,11 @@ export default function ItemsStep({
   }, [localWindows, activeWindowId, onActiveWindowChange, isReadOnly]);
 
   useEffect(() => {
-  if (localWindows.length === 0 || isReadOnly) return;
-  if (windows && windows.length > 0) return;
+    if (localWindows.length === 0 || isReadOnly) return;
+    if (windows && windows.length > 0) return;
 
-  onDraftChange?.(localWindows.map(resolveDraftToWindowItem));
-}, [localWindows.length, windows, onDraftChange, isReadOnly]);
+    onDraftChange?.(localWindows.map(resolveDraftToWindowItem));
+  }, [localWindows.length, windows, onDraftChange, isReadOnly]);
 
   const activeItem: WindowItemDraft | undefined =
     localWindows.find((w) => w.id === activeWindowId) ?? localWindows[0];
@@ -164,6 +193,11 @@ export default function ItemsStep({
     if (!activeItem) return null;
     return calculateWindowGeometry(resolveDraftToWindowItem(activeItem));
   }, [activeItem]);
+
+  const trapezoidWarning = useMemo(
+    () => getTrapezoidWarning(activeItem),
+    [activeItem],
+  );
 
   // ─── Обновление состояния ────────────────────────────────────────────────
 
@@ -235,6 +269,22 @@ export default function ItemsStep({
 
             {/* Материал */}
             <div className={styles.formSection}>
+              {trapezoidWarning && (
+                <div
+                  style={{
+                    color: '#FFD600',
+                    background: 'rgba(255, 214, 0, 0.08)',
+                    border: '1px solid rgba(255, 214, 0, 0.35)',
+                    borderRadius: 12,
+                    padding: '10px 12px',
+                    marginBottom: 12,
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {trapezoidWarning}
+                </div>
+              )}
               <h4>Материал полотна</h4>
               <div className={styles.inputGroup} style={{ position: 'relative' }}>
                 <select

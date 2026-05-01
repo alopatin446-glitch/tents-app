@@ -29,6 +29,7 @@ import type {
   TeamCategory,
 } from "@/types/mounting";
 import { logger } from "@/lib/logger";
+import { getPrices } from "@/app/actions/prices";
 import styles from "./MountingStep.module.css";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,6 +136,11 @@ function getEffectiveRetail(
 ): number {
   return manualPrice !== null ? manualPrice : calcRetailFinal;
 }
+
+type PriceRowForMounting = {
+  slug: string;
+  value: number;
+};
 
 type CalendarBlockCheck = {
   isBlocked: boolean;
@@ -291,6 +297,32 @@ export default function MountingStep({
   const [dayBlockCheck, setDayBlockCheck] =
     useState<CalendarBlockCheck>(EMPTY_BLOCK_CHECK);
   const [isCheckingDayBlock, setIsCheckingDayBlock] = useState(false);
+  const [mountingPriceMap, setMountingPriceMap] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getPrices()
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.success || !Array.isArray(result.data)) return;
+
+        const nextMap: Record<string, number> = {};
+
+        for (const price of result.data as PriceRowForMounting[]) {
+          nextMap[price.slug] = Number(price.value);
+        }
+
+        setMountingPriceMap(nextMap);
+      })
+      .catch((error) => {
+        logger.warn("[MountingStep] Не удалось загрузить прайс монтажа", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ── Загрузка монтажников из БД (если не переданы пропом) ─────────────────
   const [fetchedMembers, setFetchedMembers] = useState<TeamMemberConfig[] | null>(null);
@@ -347,8 +379,8 @@ export default function MountingStep({
 
   // SSOT: все цифры расчёта берём только из calculateMounting().
   const calc = useMemo(
-    () => calculateMounting(config, totalAreaM2),
-    [config, totalAreaM2],
+    () => calculateMounting(config, totalAreaM2, mountingPriceMap),
+    [config, totalAreaM2, mountingPriceMap],
   );
 
   const systemRetail = calc.retailFinal;
@@ -459,7 +491,7 @@ export default function MountingStep({
     const nextDate = dateStr || null;
     const nextSnapshot = nextDate
       ? (config.mountingSnapshot ??
-        captureCurrentPriceSnapshot(config.team.category))
+        captureCurrentPriceSnapshot(config.team.category, mountingPriceMap))
       : null;
 
     mutate({
@@ -537,7 +569,7 @@ export default function MountingStep({
       return;
 
     const oldEffectiveRetail = effectiveRetail;
-    const nextSnapshot = captureCurrentPriceSnapshot(config.team.category);
+    const nextSnapshot = captureCurrentPriceSnapshot(config.team.category, mountingPriceMap);
     const nextConfig: MountingConfig = {
       ...config,
       manualPrice: null,
