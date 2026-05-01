@@ -19,20 +19,26 @@ export type HeightWorkType = 'stairs' | 'scaffold' | 'both';
 /** Статус монтажа в заказе */
 export type MountingStatus = 'pending' | 'confirmed' | 'completed';
 
+/** Тип основания для базового и дополнительного монтажа */
+export type FoundationType =
+  | 'wood'
+  | 'concrete'
+  | 'brick'
+  | 'metal'
+  | 'round_wood'
+  | 'siding';
+
 /** Тип дополнительного основания */
-export type ExtraFoundationType = 'standard' | 'reinforced' | 'heavy';
+export type ExtraFoundationType = FoundationType;
 
 /** Тип монтажной балки */
 export type BeamType =
-  | 'aluminum_40x40'
-  | 'aluminum_60x40'
-  | 'wood_standard'
-  | 'wood_reinforced'
-  | 'metal'
-  | 'custom';
-
-/** Тип базового основания */
-export type FoundationType = 'concrete' | 'brick' | 'wood' | 'metal';
+  | 'custom_wood'
+  | 'wood_50x50'
+  | 'planed_wood_50x50'
+  | 'timber_100x100'
+  | 'timber_150x150'
+  | 'custom_metal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Составные объекты
@@ -41,27 +47,38 @@ export type FoundationType = 'concrete' | 'brick' | 'wood' | 'metal';
 /** Дополнительное основание с длиной */
 export interface ExtraFoundation {
   /** Тип доп. основания */
-  type:   ExtraFoundationType;
+  type: ExtraFoundationType;
+
   /** Длина в м.п. */
   length: number;
+
+  /**
+   * Ручная цена за м.п. (₽).
+   * Используется для сайдинга.
+   */
+  customPrice?: number;
 }
 
 /** Монтажная балка */
 export interface MountingBeam {
   /** Тип балки */
   type: BeamType;
+
   /**
-   * Габариты для нестандартного размера (мм).
-   * Обязательны при type === 'custom'.
+   * Габариты для нестандартного бруска (мм).
+   * Используются при type === 'custom_wood'.
    */
   dimensions?: { width: number; height: number };
+
   /** Длина в м.п. */
   length: number;
+
   /** Признак покраски балки */
   isPainted: boolean;
+
   /**
    * Ручная цена за м.п. (₽).
-   * Обязательна при type === 'metal' или 'custom'.
+   * Используется при type === 'custom_wood' или type === 'custom_metal'.
    */
   customPrice?: number;
 }
@@ -69,7 +86,7 @@ export interface MountingBeam {
 /** Высотные работы */
 export interface HeightWork {
   /** Тип высотных работ */
-  type:   HeightWorkType;
+  type: HeightWorkType;
   /** Активны ли высотные работы на данном объекте */
   active: boolean;
 }
@@ -92,16 +109,16 @@ export interface TeamAssignment {
  */
 export interface MountingPriceAuditEntry {
   /** ID пользователя (менеджера), внёсшего изменение */
-  userId:    string;
+  userId: string;
   /** Цена до изменения (₽) */
-  oldPrice:  number;
+  oldPrice: number;
   /** Цена после изменения (₽) */
-  newPrice:  number;
+  newPrice: number;
   /**
    * Причина изменения.
    * Обязательна при убыточном заказе (retail < cost).
    */
-  reason?:   string;
+  reason?: string;
   /** Временна́я метка в формате ISO 8601 */
   timestamp: string;
 }
@@ -113,23 +130,23 @@ export interface MountingPriceAuditEntry {
  */
 export interface MountingPriceSnapshot {
   /** Время фиксации снимка */
-  capturedAt:            string;
+  capturedAt: string;
   /** Розничная ставка бригады на момент бронирования (₽/м²) */
-  teamRetailRate:        number;
+  teamRetailRate: number;
   /** Себестоимостная ставка бригады (₽/м²) */
-  teamCostRate:          number;
+  teamCostRate: number;
   /** ГСМ себестоимость (₽/км) */
-  fuelCostPerKm:         number;
+  fuelCostPerKm: number;
   /** ГСМ розница (₽/км) */
-  kmTariffRetail:        number;
+  kmTariffRetail: number;
   /** Прайс доп. оснований (тип → ₽/м.п.) */
   extraFoundationPrices: Record<string, number>;
   /** Прайс балок (тип → ₽/м.п.) */
-  beamPrices:            Record<string, number>;
+  beamPrices: Record<string, number>;
   /** Прайс высотных работ (тип → ₽/день) */
-  heightWorkPrices:      Record<string, number>;
+  heightWorkPrices: Record<string, number>;
   /** Минимальная стоимость монтажа (₽) */
-  minRetailPrice:        number;
+  minRetailPrice: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,6 +166,11 @@ export interface MountingConfig {
 
   /** Тип базового основания */
   baseFoundation: FoundationType;
+  /**
+ * Ручная цена базового основания за м² (₽).
+ * Используется при baseFoundation === 'siding'.
+ */
+  baseFoundationCustomPrice?: number;
 
   /** Список дополнительных оснований (может быть пустым) */
   extraFoundations: ExtraFoundation[];
@@ -188,12 +210,6 @@ export interface MountingConfig {
   manualPrice: number | null;
 
   /**
-   * Коэффициент сложности объекта (по умолчанию 1.0).
-   * Применяется к итоговой рознице после минималки.
-   */
-  complexityFactor: number;
-
-  /**
    * Причина убыточности.
    * Обязательна при сохранении если retail < cost.
    */
@@ -220,52 +236,52 @@ export interface MountingConfig {
 export interface MountingCalculationResult {
   // ── Розница: детализация ────────────────────────────────────────────────
   /** Площадь × тариф бригады (₽) */
-  retailWindowsBase:   number;
+  retailWindowsBase: number;
   /** Сумма всех доп. оснований (₽) */
-  retailFoundations:   number;
+  retailFoundations: number;
   /** Сумма всех балок (₽) */
-  retailBeams:         number;
+  retailBeams: number;
   /** ГСМ розница (₽) */
-  retailDistance:      number;
+  retailDistance: number;
   /** Надбавка за высотные работы (₽) */
-  retailHeightWork:    number;
+  retailHeightWork: number;
   /** Подытог до минималки (₽) */
-  retailSubtotal:      number;
+  retailSubtotal: number;
   /** После применения минималки (₽) */
-  retailAfterMinimum:  number;
-  /** Итоговая розница после complexityFactor (₽) */
-  retailFinal:         number;
+  retailAfterMinimum: number;
+  /** Итоговая розница монтажа (₽) */
+  retailFinal: number;
 
   // ── Себестоимость: детализация ──────────────────────────────────────────
   /** База себестоимости: площадь × тариф (₽) */
-  costBase:            number;
+  costBase: number;
   /** Себестоимость доп. работ (оснований + балок) (₽) */
-  costExtra:           number;
+  costExtra: number;
   /** ГСМ себестоимость: км × 2 × 8 ₽ */
-  costDistance:        number;
+  costDistance: number;
   /** Итоговая себестоимость (₽) */
-  costTotal:           number;
+  costTotal: number;
 
   // ── Итоги ───────────────────────────────────────────────────────────────
   /** Прибыль = effectiveRetail - costTotal (₽) */
-  profit:              number;
+  profit: number;
   /** Процент прибыли. null если розница = 0 */
-  profitPercent:       number | null;
+  profitPercent: number | null;
 
   // ── Флаги ───────────────────────────────────────────────────────────────
-  /** true = применена минималка 7500 ₽ */
-  isMinimumApplied:    boolean;
+  /** true = применена минимальная стоимость монтажа */
+  isMinimumApplied: boolean;
   /** true = активна ручная цена (manualPrice !== null) */
-  isManualOverride:    boolean;
+  isManualOverride: boolean;
   /** true = заказ убыточный (profit < 0) */
-  isLoss:              boolean;
+  isLoss: boolean;
   /**
    * true = в задействованных полях есть значение 9999.
    * При hasPriceError === true кнопки «Сохранить» и «Создать договор» заблокированы.
    */
-  hasPriceError:       boolean;
+  hasPriceError: boolean;
   /** Список полей с ошибкой прайса (для Toast-уведомления) */
-  priceErrorFields:    string[];
+  priceErrorFields: string[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -278,29 +294,29 @@ export interface MountingCalculationResult {
  */
 export interface CalendarEvent {
   /** ID клиента в БД */
-  clientId:     string;
+  clientId: string;
   /** ФИО клиента */
-  clientName:   string;
+  clientName: string;
   /** Адрес объекта */
-  address:      string;
+  address: string;
   /** Дата начала монтажа (YYYY-MM-DD) */
   mountingDate: string;
   /** Количество дней (событие занимает несколько ячеек) */
   durationDays: number;
   /** Время начала (HH:mm) */
-  startTime:    string;
+  startTime: string;
   /** Время окончания (HH:mm) */
-  endTime:      string;
+  endTime: string;
   /** ID назначенного монтажника */
-  memberId:     string;
+  memberId: string;
   /** Имя монтажника */
-  memberName:   string;
+  memberName: string;
   /** Цвет карточки (из TEAM_MEMBERS[].color) */
-  memberColor:  string;
+  memberColor: string;
   /** Статус монтажа */
-  status:       MountingStatus;
+  status: MountingStatus;
   /** Итоговая розница монтажа (₽) */
-  retailFinal:  number;
+  retailFinal: number;
   /** true = конфликт по расписанию у данного монтажника */
-  isConflict:   boolean;
+  isConflict: boolean;
 }

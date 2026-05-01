@@ -5,13 +5,12 @@
  * Правила:
  *   РОЗНИЦА:
  *     = (площадь × розничный тариф бригады)
- *     + базовое основание, если по прайсу есть надбавка
+ *     + (площадь × ставка базового основания)
  *     + (Σ длина доп. оснований × ставка доп. основания)
  *     + (Σ длина балок × ставка балки)
  *     + (расстояние × 2 × розничный тариф км)
  *     + (высотные работы × количество дней)
  *     Минималка: max(розница, MIN_RETAIL_PRICE)
- *     После минималки: × complexityFactor
  *
  *   СЕБЕСТОИМОСТЬ:
  *     = (площадь × себестоимостный тариф бригады)
@@ -85,11 +84,6 @@ function normalizeDurationDays(value: unknown): number {
   return days > 0 ? days : 1;
 }
 
-function normalizeComplexityFactor(value: unknown): number {
-  const factor = toSafeNumber(value, MOUNTING_PRICES.DEFAULT_COMPLEXITY_FACTOR);
-  return factor > 0 ? factor : MOUNTING_PRICES.DEFAULT_COMPLEXITY_FACTOR;
-}
-
 function getTeamCategory(config: MountingConfig): TeamCategory {
   return config.team?.category ?? DEFAULT_TEAM_CATEGORY;
 }
@@ -141,11 +135,23 @@ function priceError(field: string): PriceResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Розничная надбавка за базовое основание.
- * Для metal в текущем MountingConfig нет поля ручной цены, поэтому это корректно
- * ловится как ошибка прайса и должно блокировать сохранение.
+ * Розничная ставка базового основания за м².
+ * Для сайдинга цена задаётся менеджером вручную.
  */
-function calcBaseFoundationRetail(baseFoundation: FoundationType): PriceResult {
+function calcBaseFoundationRetail(
+  baseFoundation: FoundationType,
+  baseFoundationCustomPrice?: number,
+): PriceResult {
+  if (baseFoundation === 'siding') {
+    const customPrice = toSafeNumber(baseFoundationCustomPrice, NaN);
+
+    if (isPriceError(customPrice)) {
+      return priceError('Базовое основание «сайдинг» — цена за м² не задана менеджером');
+    }
+
+    return priceOk(customPrice);
+  }
+
   const rate =
     MOUNTING_PRICES.BASE_FOUNDATION_SURCHARGE[
     baseFoundation as keyof typeof MOUNTING_PRICES.BASE_FOUNDATION_SURCHARGE
@@ -167,8 +173,20 @@ function calcExtraFoundationRetail(
 ): PriceResult {
   const type = foundation.type as ExtraFoundationType;
   const length = toSafeNumber(foundation.length, 0);
+
+  if (type === 'siding') {
+    const customPrice = toSafeNumber(foundation.customPrice, NaN);
+
+    if (isPriceError(customPrice)) {
+      return priceError('Доп. основание «сайдинг» — цена за м.п. не задана менеджером');
+    }
+
+    return priceOk(customPrice * length);
+  }
+
   const foundationPrices =
     snapshot?.extraFoundationPrices ?? MOUNTING_PRICES.EXTRA_FOUNDATION_PRICE_PER_M;
+
   const rate = foundationPrices[type] ?? PRICE_ERROR_SENTINEL;
 
   if (isPriceError(rate)) {
@@ -180,7 +198,7 @@ function calcExtraFoundationRetail(
 
 /**
  * Розничная стоимость одной монтажной балки.
- * Для metal/custom ручная цена за м.п. обязательна.
+ * Для custom_wood/custom_metal ручная цена за м.п. обязательна.
  */
 function calcBeamRetail(
   beam: MountingBeam,
@@ -189,11 +207,11 @@ function calcBeamRetail(
   const type = beam.type as BeamType;
   const length = toSafeNumber(beam.length, 0);
 
-  if (type === 'metal' || type === 'custom') {
+  if (type === 'custom_wood' || type === 'custom_metal') {
     const customPrice = toSafeNumber(beam.customPrice, NaN);
 
     if (isPriceError(customPrice)) {
-      return priceError(`Балка «${type}» — цена не задана менеджером`);
+      return priceError(`Балка «${type}» — цена за м.п. не задана менеджером`);
     }
 
     return priceOk(customPrice * length);
@@ -230,7 +248,6 @@ export function calculateMounting(
   const areaM2 = normalizeArea(totalAreaM2);
   const distance = toSafeNumber(config.distance, 0);
   const durationDays = normalizeDurationDays(config.durationDays);
-  const complexityFactor = normalizeComplexityFactor(config.complexityFactor);
 
   const priceErrorFields: string[] = [];
   let hasPriceError = false;
@@ -277,9 +294,14 @@ export function calculateMounting(
   // ── РОЗНИЦА ──────────────────────────────────────────────────────────────
   const retailWindowsBase = areaM2 * retailRate;
 
-  const baseFoundationCost = collect(
-    calcBaseFoundationRetail(config.baseFoundation ?? 'concrete'),
-  );
+  const baseFoundationCost =
+    areaM2 *
+    collect(
+      calcBaseFoundationRetail(
+        config.baseFoundation ?? 'wood',
+        config.baseFoundationCustomPrice,
+      ),
+    );
 
   const retailExtraFoundations = getArray(config.extraFoundations).reduce(
     (sum, foundation) => sum + collect(calcExtraFoundationRetail(foundation, snapshot)),
@@ -315,7 +337,7 @@ export function calculateMounting(
 
   const isMinimumApplied = retailSubtotal < minRetailPrice;
   const retailAfterMinimum = isMinimumApplied ? minRetailPrice : retailSubtotal;
-  const retailFinal = roundRub(retailAfterMinimum * complexityFactor);
+  const retailFinal = roundRub(retailAfterMinimum);
 
   // ── СЕБЕСТОИМОСТЬ ───────────────────────────────────────────────────────
   const costBase = areaM2 * costRate;

@@ -60,7 +60,6 @@ export function defaultMountingConfig(): MountingConfig {
     endTime: "18:00",
     durationDays: 1,
     manualPrice: null,
-    complexityFactor: MOUNTING_PRICES.DEFAULT_COMPLEXITY_FACTOR,
     lossReason: undefined,
     mountingSnapshot: null,
     priceAuditLog: [],
@@ -127,7 +126,7 @@ function normalizeMountingConfig(
 }
 
 function isManualPriceRequired(beam: MountingBeam): boolean {
-  return beam.type === "metal" || beam.type === "custom";
+  return beam.type === "custom_wood" || beam.type === "custom_metal";
 }
 
 function getEffectiveRetail(
@@ -336,14 +335,14 @@ export default function MountingStep({
   const effectiveMembers: TeamMemberConfig[] = useMemo(() => {
     // 1. Если проп передан — это приоритет (серверные данные)
     if (teamMembersFromProp !== undefined) return teamMembersFromProp;
-    
+
     // 2. Если API вернул данные (даже пустой массив []) — используем их
     if (fetchedMembers !== null) return fetchedMembers;
-    
+
     // 3. Пока идет загрузка (fetchedMembers === null) — возвращаем ПУСТОЙ список,
     // чтобы не было мерцания старых данных. 
     // Статика TEAM_MEMBERS тут больше не нужна, если мы перешли на БД.
-    return []; 
+    return [];
   }, [teamMembersFromProp, fetchedMembers]);
 
   // SSOT: все цифры расчёта берём только из calculateMounting().
@@ -684,21 +683,6 @@ export default function MountingStep({
           </select>
         </div>
 
-        <div className={styles.formRow}>
-          <label className={styles.label}>Коэффициент сложности</label>
-          <input
-            type="number"
-            min="0"
-            step="0.1"
-            className={styles.input}
-            value={config.complexityFactor}
-            onChange={(event) =>
-              mutate({ complexityFactor: toSafeNumber(event.target.value, 1) })
-            }
-            disabled={isReadOnly}
-          />
-        </div>
-
         <div className={styles.listSection}>
           <div className={styles.listSectionHeader}>
             <span className={styles.listSectionTitle}>Доп. основания</span>
@@ -709,7 +693,7 @@ export default function MountingStep({
                 mutate({
                   extraFoundations: [
                     ...config.extraFoundations,
-                    { type: "standard", length: 1 },
+                    { type: "wood", length: 1 },
                   ],
                 })
               }
@@ -798,7 +782,7 @@ export default function MountingStep({
                 mutate({
                   mountingBeams: [
                     ...config.mountingBeams,
-                    { type: "aluminum_40x40", length: 1, isPainted: false },
+                    { type: "wood_50x50", length: 1, isPainted: false },
                   ],
                 })
               }
@@ -822,11 +806,11 @@ export default function MountingStep({
                       ...beam,
                       type: nextType,
                       customPrice:
-                        nextType === "metal" || nextType === "custom"
+                        nextType === "custom_wood" || nextType === "custom_metal"
                           ? (beam.customPrice ?? 0)
                           : undefined,
                       dimensions:
-                        nextType === "custom"
+                        nextType === "custom_wood"
                           ? (beam.dimensions ?? { width: 0, height: 0 })
                           : undefined,
                     };
@@ -884,7 +868,7 @@ export default function MountingStep({
                 </div>
               )}
 
-              {beam.type === "custom" && (
+              {beam.type === "custom_wood" && (
                 <>
                   <div className={styles.listItemFieldSmall}>
                     <span className={styles.listItemLabel}>Шир., мм</span>
@@ -1152,18 +1136,18 @@ export default function MountingStep({
               появится подтверждение.
             </div>
 
-        {!isReadOnly && (
-          <div className={styles.actionsRow}>
-            <button
-              type="button"
-              className={styles.saveBtn}
-              disabled={!canSave}
-              onClick={handleSave}
-            >
-              {isSaving ? "Сохранение..." : "Сохранить монтаж"}
-            </button>
-          </div>
-        )}
+            {!isReadOnly && (
+              <div className={styles.actionsRow}>
+                <button
+                  type="button"
+                  className={styles.saveBtn}
+                  disabled={!canSave}
+                  onClick={handleSave}
+                >
+                  {isSaving ? "Сохранение..." : "Сохранить монтаж"}
+                </button>
+              </div>
+            )}
 
           </div>
         )}

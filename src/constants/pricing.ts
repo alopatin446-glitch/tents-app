@@ -8,7 +8,6 @@
  *      При наличии 9999 в задействованных полях: блокировать «Сохранить».
  *   3. Минималка монтажа = 7500 ₽. Применяется только к рознице.
  *   4. ГСМ себестоимость: расстояние × 2 × FUEL_COST_PER_KM (8 ₽/км).
- *   5. Коэффициент сложности (complexityFactor) применяется к итоговой рознице.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -26,22 +25,19 @@ export const MOUNTING_PRICES = {
   /** Порог убыточности — предупреждение «согласуйте с директором» (%) */
   MIN_PROFIT_PERCENT: 30,
 
-  /** Коэффициент сложности по умолчанию */
-  DEFAULT_COMPLEXITY_FACTOR: 1.0,
-
   // ── Тарифы бригады ────────────────────────────────────────────────────────
 
   /** Розничная ставка по категории бригады (₽/м²) */
   TEAM_RETAIL_RATES: {
-    pro:    850,
-    mid:    720,
+    pro: 850,
+    mid: 720,
     junior: 600,
   } as const,
 
   /** Себестоимостная ставка по категории бригады (₽/м²) */
   TEAM_COST_RATES: {
-    pro:    350,
-    mid:    280,
+    pro: 350,
+    mid: 280,
     junior: 200,
   } as const,
 
@@ -59,45 +55,50 @@ export const MOUNTING_PRICES = {
   // ── Типы оснований ───────────────────────────────────────────────────────
 
   /**
-   * Базовое основание включено в стоимость → 0.
-   * Металл требует ручной цены → 9999.
-   */
+ * Ставка базового основания (₽/м²).
+ * Сайдинг требует ручной цены → 9999.
+ */
   BASE_FOUNDATION_SURCHARGE: {
+    wood: 0,
     concrete: 0,
-    brick:    0,
-    wood:     0,
-    metal:    9999,
+    brick: 0,
+    metal: 0,
+    round_wood: 0,
+    siding: 9999,
   } as const,
 
   /** Стоимость дополнительного основания (₽/м.п.) */
   EXTRA_FOUNDATION_PRICE_PER_M: {
-    standard:   450,
-    reinforced: 750,
-    heavy:      9999, // 9999 = под заказ, требует ручной цены
+    wood: 0,
+    concrete: 0,
+    brick: 0,
+    metal: 100,
+    round_wood: 0,
+    siding: 9999,
   } as const,
 
   // ── Монтажные балки ───────────────────────────────────────────────────────
 
   /**
-   * Базовая стоимость балки (₽/м.п.).
-   * metal и custom = 9999 → обязателен customPrice от менеджера.
-   */
+ * Стоимость монтажной балки (₽/м.п.).
+ * custom_wood и custom_metal = 9999 → обязателен customPrice от менеджера.
+ */
   MOUNTING_BEAMS: {
-    aluminum_40x40:   320,
-    aluminum_60x40:   450,
-    wood_standard:    180,
-    wood_reinforced:  280,
-    metal:            9999, // обязателен customPrice
-    custom:           9999, // нестандартный размер — обязателен customPrice
+    custom_wood: 9999,
+    wood_50x50: 0,
+    planed_wood_50x50: 0,
+    timber_100x100: 0,
+    timber_150x150: 0,
+    custom_metal: 9999,
   } as const,
 
   // ── Высотные работы ───────────────────────────────────────────────────────
 
   /** Надбавка за высотные работы (₽/день) */
   HEIGHT_WORK: {
-    stairs:   500,
-    scaffold: 1500,
-    both:     1800,
+    stairs: 0,
+    scaffold: 0,
+    both: 0,
   } as const,
 
   // ── Себестоимость доп. работ ──────────────────────────────────────────────
@@ -115,19 +116,19 @@ export const MOUNTING_PRICES = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface TeamMemberConfig {
-  id:       string;
-  name:     string;
+  id: string;
+  name: string;
   category: 'pro' | 'mid' | 'junior';
   /** Цвет для карточки в календаре */
-  color:    string;
+  color: string;
 }
 
 export const TEAM_MEMBERS: TeamMemberConfig[] = [
-  { id: 'tm-001', name: 'Алексей Петров',   category: 'pro',    color: '#7BFF00' },
-  { id: 'tm-002', name: 'Дмитрий Сидоров',  category: 'pro',    color: '#00E5FF' },
-  { id: 'tm-003', name: 'Сергей Козлов',    category: 'mid',    color: '#FFD600' },
-  { id: 'tm-004', name: 'Николай Иванов',   category: 'mid',    color: '#FF6D00' },
-  { id: 'tm-005', name: 'Михаил Смирнов',   category: 'junior', color: '#EA80FC' },
+  { id: 'tm-001', name: 'Алексей Петров', category: 'pro', color: '#7BFF00' },
+  { id: 'tm-002', name: 'Дмитрий Сидоров', category: 'pro', color: '#00E5FF' },
+  { id: 'tm-003', name: 'Сергей Козлов', category: 'mid', color: '#FFD600' },
+  { id: 'tm-004', name: 'Николай Иванов', category: 'mid', color: '#FF6D00' },
+  { id: 'tm-005', name: 'Михаил Смирнов', category: 'junior', color: '#EA80FC' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,41 +136,46 @@ export const TEAM_MEMBERS: TeamMemberConfig[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const BEAM_TYPE_LABELS: Record<string, string> = {
-  aluminum_40x40:  'Алюминий 40×40 мм',
-  aluminum_60x40:  'Алюминий 60×40 мм',
-  wood_standard:   'Дерево стандарт',
-  wood_reinforced: 'Дерево усиленное',
-  metal:           'Металл (под заказ)',
-  custom:          'Нестандартный размер',
+  custom_wood: 'Брусок нестандартный',
+  wood_50x50: 'Брусок обычный 50×50',
+  planed_wood_50x50: 'Брусок строганный 50×50',
+  timber_100x100: 'Брус обычный 10×10',
+  timber_150x150: 'Брус обычный 15×15',
+  custom_metal: 'Металл под заказ',
 };
 
 export const FOUNDATION_TYPE_LABELS: Record<string, string> = {
+  wood: 'Брус',
   concrete: 'Бетон',
-  brick:    'Кирпич',
-  wood:     'Дерево',
-  metal:    'Металл (ручная цена)',
+  brick: 'Кирпич',
+  metal: 'Металл',
+  round_wood: 'Круглый брус',
+  siding: 'Сайдинг',
 };
 
 export const EXTRA_FOUNDATION_LABELS: Record<string, string> = {
-  standard:   'Стандартное (+450 ₽/м.п.)',
-  reinforced: 'Усиленное (+750 ₽/м.п.)',
-  heavy:      'Тяжёлое (под заказ)',
+  wood: 'Брус',
+  concrete: 'Бетон',
+  brick: 'Кирпич',
+  metal: 'Металл',
+  round_wood: 'Круглый брус',
+  siding: 'Сайдинг',
 };
 
 export const TEAM_CATEGORY_LABELS: Record<string, string> = {
-  pro:    'Бригада Про',
-  mid:    'Бригада Стандарт',
+  pro: 'Бригада Про',
+  mid: 'Бригада Стандарт',
   junior: 'Бригада Эконом',
 };
 
 export const HEIGHT_WORK_LABELS: Record<string, string> = {
-  stairs:   'Лестница (+500 ₽/день)',
-  scaffold: 'Леса (+1 500 ₽/день)',
-  both:     'Лестница + Леса (+1 800 ₽/день)',
+  stairs: 'Лестница',
+  scaffold: 'Леса',
+  both: 'Лестница + леса',
 };
 
 export const MOUNTING_STATUS_LABELS: Record<string, string> = {
-  pending:   'Ожидает',
+  pending: 'Ожидает',
   confirmed: 'Подтверждён',
   completed: 'Выполнен',
 };
