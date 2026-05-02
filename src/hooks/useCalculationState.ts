@@ -28,6 +28,10 @@ export interface CalculationState {
   totalAreaWithKant: number;
   totalPrice: number;
   costPrice: number;
+  totalMaterialInProduct: number;
+  totalMaterialCut: number;
+  totalOverspending: number;
+  totalProductionCost: number;
   handleWindowsChange: (updated: WindowItem[]) => void;
   handleClientDataChange: (updated: ClientFormData) => void;
   handleExtrasChange: (windowId: number, extras: WindowItem['additionalElements']) => void;
@@ -48,15 +52,15 @@ export function useCalculationState(
   const [clientData, setClientData] = useState<ClientFormData>(initialClientData);
 
   // ── ОПРЕДЕЛЕНИЕ ПРАЙС-ЛИСТА (Архив vs Живой) ──────────────────────────────
-  
+
   const activePrices = useMemo(() => {
     // Если статус сделки "Успешно" или "Провалено" — пытаемся взять сохраненный снапшот
     const isClosed = clientData.status === 'done' || clientData.status === 'cancelled';
-    
+
     // ВАЖНО: Предполагаем, что снапшот цен хранится в clientData.savedPrices
     // Если сделка открыта или снапшота нет — используем живые цены из БД
-    return isClosed && (clientData as any).savedPrices 
-      ? (clientData as any).savedPrices 
+    return isClosed && (clientData as any).savedPrices
+      ? (clientData as any).savedPrices
       : currentPrices;
   }, [clientData.status, (clientData as any).savedPrices, currentPrices]);
 
@@ -88,6 +92,34 @@ export function useCalculationState(
     return windows.reduce((sum, w) => {
       const finance = calculateWindowFinance(w, activePrices);
       return sum + finance.costPrice;
+    }, 0);
+  }, [windows, activePrices]);
+
+  const totalMaterialInProduct = useMemo(() => {
+    return windows.reduce((sum, w) => {
+      const finance = calculateWindowFinance(w, activePrices);
+      return sum + finance.materialInProductCost;
+    }, 0);
+  }, [windows, activePrices]);
+
+  const totalMaterialCut = useMemo(() => {
+    return windows.reduce((sum, w) => {
+      const finance = calculateWindowFinance(w, activePrices);
+      return sum + finance.materialCutCost;
+    }, 0);
+  }, [windows, activePrices]);
+
+  const totalOverspending = useMemo(() => {
+    return windows.reduce((sum, w) => {
+      const finance = calculateWindowFinance(w, activePrices);
+      return sum + finance.overspending;
+    }, 0);
+  }, [windows, activePrices]);
+
+  const totalProductionCost = useMemo(() => {
+    return windows.reduce((sum, w) => {
+      const finance = calculateWindowFinance(w, activePrices);
+      return sum + finance.productionCost;
     }, 0);
   }, [windows, activePrices]);
 
@@ -150,5 +182,9 @@ export function useCalculationState(
     handleWindowsChange,
     handleClientDataChange,
     handleExtrasChange,
+    totalMaterialInProduct,
+    totalMaterialCut,
+    totalOverspending,
+    totalProductionCost,
   };
 }

@@ -60,7 +60,7 @@ export default function CalculationClient({
   const [clientId, setClientId] = useState<string>(initialClientId);
   const [activeStep, setActiveStep] = useState<Step>('client');
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // ЦЕНОВОЙ СУВЕРЕНИТЕТ: Универсальный стейт для всех цен из БД
   const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({});
 
@@ -101,6 +101,10 @@ export default function CalculationClient({
     totalAreaWithKant,
     totalPrice,
     costPrice,
+    totalMaterialInProduct,
+    totalMaterialCut,
+    totalOverspending,
+    totalProductionCost,
     handleWindowsChange,
     handleClientDataChange,
     handleExtrasChange,
@@ -120,7 +124,7 @@ export default function CalculationClient({
         items: windows,
         mountingConfig: clientDataWithArea.mountingConfig,
         // Сохраняем слепок цен, по которым считали (для истории)
-        savedPrices: currentPrices, 
+        savedPrices: currentPrices,
       };
 
       const result = await updateClientAction(clientId, payload);
@@ -220,6 +224,10 @@ export default function CalculationClient({
             priceMap={currentPrices}
             calculatedTotal={totalPrice}
             calculatedCost={costPrice}
+            materialInProductCost={totalMaterialInProduct}
+            materialCutCost={totalMaterialCut}
+            overspendingCost={totalOverspending}
+            productionCost={totalProductionCost}
             calculatedArea={totalAreaMaterial}
             onSave={handleSaveAll}
             onDraftChange={handleClientDataChange}

@@ -59,7 +59,7 @@ export function optimizeRollLayout(width: number, height: number, material: stri
       const effectiveWidth = Math.max(roll, w);
       return {
         roll,
-        area: (effectiveWidth * h) / 10000, // Площадь в м²
+        area: effectiveWidth * h, // Площадь в см²
         isOverSize: false
       };
     }
@@ -68,7 +68,7 @@ export function optimizeRollLayout(width: number, height: number, material: stri
     // Берем самый широкий рулон материала, но площадь считаем по фактической ширине детали
     return {
       roll: maxAvailableRoll,
-      area: (w * h) / 10000,
+      area: w * h, // Площадь в см²
       isOverSize: true
     };
   };

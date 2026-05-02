@@ -15,19 +15,28 @@ export async function getPrices() {
     const orgId = user.organizationId;
 
     // ТАМОЖНЯ: Проверяем наличие записей. Если пусто — наполняем из эталона[cite: 3]
-    const count = await prisma.price.count({ where: { organizationId: orgId } });
-    
-    if (count === 0 && DEFAULT_PRICE_ROWS.length > 0) {
-      console.log('--- [INIT] Creating default prices for org:', orgId);
+    const existingPrices = await prisma.price.findMany({
+      where: { organizationId: orgId },
+      select: { slug: true },
+    });
+
+    const existingSlugs = new Set(existingPrices.map((p) => p.slug));
+
+    const missingPrices = DEFAULT_PRICE_ROWS.filter((p) => !existingSlugs.has(p.slug));
+
+    if (missingPrices.length > 0) {
+      console.log('--- [SYNC] Adding missing default prices for org:', orgId);
+
       await prisma.price.createMany({
-        data: DEFAULT_PRICE_ROWS.map(p => ({
+        data: missingPrices.map((p) => ({
           organizationId: orgId,
           slug: p.slug,
           name: p.name,
           value: p.value,
           unit: p.unit,
           category: p.category,
-        }))
+        })),
+        skipDuplicates: true,
       });
     }
 

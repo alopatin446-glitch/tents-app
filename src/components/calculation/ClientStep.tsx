@@ -142,6 +142,12 @@ interface ClientStepProps {
   calculatedTotal?: number;   // Итого из ядра
   calculatedCost?: number;    // Себестоимость из ядра
   calculatedArea?: number;    // Точная площадь
+
+  materialInProductCost?: number;
+  materialCutCost?: number;
+  overspendingCost?: number;
+  productionCost?: number;
+
   priceMap: PriceMap;
 }
 
@@ -236,6 +242,10 @@ export default function ClientStep({
   calculatedTotal,
   calculatedCost,
   calculatedArea,
+  materialInProductCost,
+  materialCutCost,
+  overspendingCost,
+  productionCost,
   priceMap,
 }: ClientStepProps) {
   const [clientData, setClientData] = useState<ClientFormData>(initialData);
@@ -1228,6 +1238,16 @@ export default function ClientStep({
                 <strong>{(calculatedArea ?? areaDisplay).toFixed(2)} м²</strong>
               </div>
 
+              <div className={styles.statLine}>
+                <span>Материал в изделии:</span>
+                <strong>{formatMoney(materialInProductCost ?? 0)}</strong>
+              </div>
+
+              <div className={styles.statLine}>
+                <span>Списано материала всего:</span>
+                <strong>{formatMoney(materialCutCost ?? 0)}</strong>
+              </div>
+
               <div className={styles.inputGroup}>
                 <label>Себестоимость</label>
                 <input
@@ -1246,7 +1266,7 @@ export default function ClientStep({
                   type="number"
                   name="overspending"
                   // Директор: Показываем то, что реально посчитано в financials
-                  value={financials.overspending || ''}
+                  value={overspendingCost ?? financials.overspending ?? ''}
                   onChange={handleChange}
                   className={styles.neonInput}
                   disabled={isReadOnly}
@@ -1259,7 +1279,7 @@ export default function ClientStep({
                 <input
                   type="number"
                   name="productionCost"
-                  value={clientData.productionCost ?? ''}
+                  value={productionCost ?? clientData.productionCost ?? ''}
                   onChange={handleChange}
                   className={styles.neonInput}
                   disabled={isReadOnly}
