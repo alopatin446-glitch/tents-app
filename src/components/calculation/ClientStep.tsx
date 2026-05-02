@@ -458,7 +458,7 @@ export default function ClientStep({
 
     const mountingCost = toFinancialNumber(clientData.mountingCost);
     const balance = retailPrice - advance;
-    const totalExpenses = costPrice + overspending + productionCost + mountingCost;
+    const totalExpenses = costPrice + mountingCost;
     const netProfit = retailPrice - totalExpenses;
 
     return {

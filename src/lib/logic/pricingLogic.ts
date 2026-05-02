@@ -5,34 +5,39 @@ export interface WindowFinance {
   costPrice: number;              // Общая себестоимость
   retailPrice: number;            // Цена для клиента
   profit: number;                 // Чистая прибыль
-  materialPriceM2: number;        // Цена материала за м²
-  materialInProductCost: number;  // Материал, который вошёл в изделие
-  materialCutCost: number;        // Весь списанный материал
-  overspending: number;           // Перерасход материала в ₽
-  productionCost: number;         // Стоимость изготовления
+
+  materialPriceM2: number;        // Цена материала полотна за м²
+  materialInProductCost: number;  // Плёнка, которая вошла в изделие
+  materialCutCost: number;        // Вся списанная плёнка
+  overspending: number;           // Перерасход плёнки в ₽
+
+  kantPriceM2: number;            // Цена канта за м²
+  kantMaterialCost: number;       // Кант: материал, всего с перерасходом
+  kantLaborCost: number;          // Работа по пайке канта
+
+  productionCost: number;         // Изготовление: кант + работа
 }
 
 export type PriceMap = Record<string, number>;
 
 /**
- * ФИНАНСОВЫЙ МОСТ: Расчет экономики окна на основе фактического раскроя.
- * Теперь принимает объект с ценами из БД или Снапшота.
+ * ФИНАНСОВЫЙ МОСТ:
+ * Расчёт экономики окна на основе фактической геометрии и живого прайса.
  */
 export function calculateWindowFinance(
   window: WindowItem,
-  priceMap: Record<string, number> // Живой прайс из БД или архив
+  priceMap: PriceMap
 ): WindowFinance {
-  // 1. Получаем точную геометрию из расчетного ядра
+  // 1. Геометрия
   const geo = calculateWindowGeometry(window);
 
-  // 2. ЦЕНЫ ИЗ ПЕРЕДАННОГО КАРТОТЕКИ (Если цены нет — строго 0)
-  const buyPrice = priceMap['c_pr_1'] || 0;       // Закупка ПВХ за м2
-  const kantPrice = priceMap['c_pr_4'] || 0;      // Цена ткани канта за пог. м
-  const laborPrice = priceMap['c_produc_1'] || 0; // Зарплата мастера за метр пайки
+  // 2. Себестоимость из прайса
+  const buyPrice = priceMap['c_pr_1'] || 0;        // Закупка полотна за м²
+  const kantPriceM2 = priceMap['c_pr_4'] || 0;     // Кант за м²
+  const laborPriceM = priceMap['c_produc_1'] || 0; // Работа по пайке за м.п.
 
   const getRetailProductSlug = (item: WindowItem): { slug: string; topFactor: number } => {
     const material = item.material;
-
     const fastenerType = item.fasteners?.type ?? 'none';
 
     const leftEnabled = item.fasteners?.sides?.left === true;
@@ -41,19 +46,13 @@ export function calculateWindowFinance(
 
     const topEnabled = topState === true;
 
-    // 1. Определяем базу по вертикалям
     let baseType = 'none';
 
     if (leftEnabled && rightEnabled) {
       baseType = fastenerType;
-    } else {
-      baseType = 'none';
     }
 
-    const topFactor =
-      topEnabled && baseType !== 'none'
-        ? 4 / 3
-        : 1;
+    const topFactor = topEnabled && baseType !== 'none' ? 4 / 3 : 1;
 
     const isTPU = material === 'ТПУ Полиуретан';
 
@@ -77,25 +76,32 @@ export function calculateWindowFinance(
 
     const slug = isTPU ? mapTPU[baseType] : mapPVC[baseType];
 
-    return { slug, topFactor };
+    return { slug: slug || (isTPU ? 'prod_12' : 'prod_11'), topFactor };
   };
 
   const { slug: retailSlug, topFactor } = getRetailProductSlug(window);
   const retailPriceM2 = priceMap[retailSlug] || 0;
 
-  // 3. Материал считается одной ценой за м²:
-  // что вошло в изделие и что ушло в перерасход — стоит одинаково.
+  // 3. Плёнка
   const materialInProductCost = geo.areaMaterial * buyPrice;
   const materialCutCost = geo.cutArea * buyPrice;
-
-  // 4. Перерасход материала — только по wasteArea из геометрического ядра.
   const overspending = geo.wasteArea * buyPrice;
 
-  // 5. СТОИМОСТЬ ИЗГОТОВЛЕНИЯ (Периметр изделия * (Кант + Работа))
-  const perimeterM = geo.perimeter / 100; // Переводим см в метры
-  const productionCost = perimeterM * (kantPrice + laborPrice);
+  // 4. Кант
+  // geo.kantTotalArea уже включает:
+  // - кант в изделии
+  // - перерасход +30 см на каждую сторону
+  // - 2 слоя
+  const kantMaterialCost = geo.kantTotalArea * kantPriceM2;
 
-  // ИТОГИ
+  // 5. Работа по пайке канта
+  const perimeterM = geo.perimeter / 100;
+  const kantLaborCost = perimeterM * laborPriceM;
+
+  // 6. Производство
+  const productionCost = kantMaterialCost + kantLaborCost;
+
+  // 7. Итоги
   const totalCost = materialCutCost + productionCost;
   const totalRetail = geo.areaWithKant * retailPriceM2 * topFactor;
 
@@ -103,10 +109,16 @@ export function calculateWindowFinance(
     costPrice: Math.round(totalCost),
     retailPrice: Math.round(totalRetail),
     profit: Math.round(totalRetail - totalCost),
+
     materialPriceM2: buyPrice,
     materialInProductCost: Math.round(materialInProductCost),
     materialCutCost: Math.round(materialCutCost),
     overspending: Math.round(overspending),
+
+    kantPriceM2,
+    kantMaterialCost: Math.round(kantMaterialCost),
+    kantLaborCost: Math.round(kantLaborCost),
+
     productionCost: Math.round(productionCost),
   };
 }

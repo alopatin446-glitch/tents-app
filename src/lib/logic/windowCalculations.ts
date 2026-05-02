@@ -179,6 +179,9 @@ export interface WindowGeometry {
   areaWithKant: number;   /** Площадь с учётом канта в м². */
   cutArea: number;        /** Площадь прямоугольной заготовки в м². */
   wasteArea: number;      /** Геометрический перерасход в м². */
+  kantAreaInProduct: number; /** Площадь канта, вошедшая в изделие, м². */
+  kantWasteArea: number;     /** Перерасход канта, м². */
+  kantTotalArea: number;     /** Весь расход канта, м². */
   perimeter: number;      /** Периметр полотна в см. */
   rollWidth: number;      // Ширина рулона
   isRotated: boolean;     // Метка поворота
@@ -284,11 +287,50 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
     areaWithKantCm2 = outerWidth * outerHeight;
   }
 
+  // Площадь канта по сторонам.
+  // Кант считается как лента по каждой стороне в 2 слоя: лицо + тыл.
+  const topKantLength = widthTop + kantLeft + kantRight;
+  const rightKantLength = heightRight + kantTop + kantBottom;
+  const bottomKantLength = widthBottom + kantLeft + kantRight;
+  const leftKantLength = heightLeft + kantTop + kantBottom;
+
+  const topKantAreaCm2 = topKantLength * kantTop * 2;
+  const rightKantAreaCm2 = rightKantLength * kantRight * 2;
+  const bottomKantAreaCm2 = bottomKantLength * kantBottom * 2;
+  const leftKantAreaCm2 = leftKantLength * kantLeft * 2;
+
+  const kantAreaInProductCm2 =
+    topKantAreaCm2 +
+    rightKantAreaCm2 +
+    bottomKantAreaCm2 +
+    leftKantAreaCm2;
+
+  // Перерасход канта: +30 см на каждую ленту, тоже в 2 слоя.
+  const KANT_MACHINE_WASTE_CM = 30;
+
+  const topKantWasteCm2 = kantTop > 0 ? KANT_MACHINE_WASTE_CM * kantTop * 2 : 0;
+  const rightKantWasteCm2 = kantRight > 0 ? KANT_MACHINE_WASTE_CM * kantRight * 2 : 0;
+  const bottomKantWasteCm2 = kantBottom > 0 ? KANT_MACHINE_WASTE_CM * kantBottom * 2 : 0;
+  const leftKantWasteCm2 = kantLeft > 0 ? KANT_MACHINE_WASTE_CM * kantLeft * 2 : 0;
+
+  const kantWasteAreaCm2 =
+    topKantWasteCm2 +
+    rightKantWasteCm2 +
+    bottomKantWasteCm2 +
+    leftKantWasteCm2;
+
+  const kantTotalAreaCm2 = kantAreaInProductCm2 + kantWasteAreaCm2;
+
   return {
     areaMaterial: roundM2(areaCm2 / CM2_TO_M2),
     areaWithKant: roundM2(areaWithKantCm2 / CM2_TO_M2),
     cutArea: roundM2(finalCutAreaCm2 / CM2_TO_M2),
     wasteArea: roundM2(wasteAreaCm2 / CM2_TO_M2),
+
+    kantAreaInProduct: roundM2(kantAreaInProductCm2 / CM2_TO_M2),
+    kantWasteArea: roundM2(kantWasteAreaCm2 / CM2_TO_M2),
+    kantTotalArea: roundM2(kantTotalAreaCm2 / CM2_TO_M2),
+
     perimeter,
     rollWidth: finalRollWidth,
     isRotated: finalIsRotated,

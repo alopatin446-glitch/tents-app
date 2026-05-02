@@ -614,6 +614,22 @@ export default function ItemsStep({
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                     <span style={{ color: 'rgba(255,255,255,0.45)' }}>Перерасход:</span>
+
+                    <div className={styles.diagnosticRow}>
+                      <span>Кант в изделии:</span>
+                      <strong>{row.geometry.kantAreaInProduct.toFixed(2)} м²</strong>
+                    </div>
+
+                    <div className={styles.diagnosticRow}>
+                      <span>Перерасход канта:</span>
+                      <strong>{row.geometry.kantWasteArea.toFixed(2)} м²</strong>
+                    </div>
+
+                    <div className={styles.diagnosticRow}>
+                      <span>Кант всего:</span>
+                      <strong>{row.geometry.kantTotalArea.toFixed(2)} м²</strong>
+                    </div>
+
                     <span style={{ color: row.geometry.wasteArea > 0 ? '#ff4d4f' : '#7BFF00', fontWeight: 700 }}>
                       {formatArea(row.geometry.wasteArea)}
                     </span>
