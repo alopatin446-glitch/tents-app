@@ -34,13 +34,14 @@ interface EditModalClient {
 interface EditModalProps {
   client: EditModalClient;
   onClose: () => void;
+  // Добавляем обязательный пропс согласно требованию ClientStep
+  priceMap: Record<string, number>;
 }
 
-export default function EditModal({ client, onClose }: EditModalProps) {
+export default function EditModal({ client, onClose, priceMap }: EditModalProps) {
   const router = useRouter();
   const { updateClient } = useClients();
 
-  // Сигнатура совпадает с ClientStep.onSave: (data: ClientFormData) => void | Promise<void>
   const handleUpdate = async (updatedData: ClientFormData): Promise<void> => {
     const nextTotalPrice = toFinancialNumber(
       updatedData.totalPrice,
@@ -90,6 +91,7 @@ export default function EditModal({ client, onClose }: EditModalProps) {
         balance: nextBalance,
         status: nextStatus,
       });
+      notifySuccess('Данные клиента обновлены');
       onClose();
       router.refresh();
     } else {
@@ -101,18 +103,42 @@ export default function EditModal({ client, onClose }: EditModalProps) {
     <div className={styles.modalOverlay}>
       <div
         className={styles.editModal}
-        style={{ width: '1200px', maxWidth: '95vw', height: '95vh', overflowY: 'auto', padding: '20px', background: '#182234', borderRadius: '16px', position: 'relative' }}
+        style={{ 
+          width: '1200px', 
+          maxWidth: '95vw', 
+          height: '95vh', 
+          overflowY: 'auto', 
+          padding: '20px', 
+          background: '#182234', 
+          borderRadius: '16px', 
+          position: 'relative' 
+        }}
       >
-        <div style={{ padding: '10px 0', borderBottom: '1px solid rgba(123, 255, 0, 0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div style={{ 
+          padding: '10px 0', 
+          borderBottom: '1px solid rgba(123, 255, 0, 0.2)', 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '20px' 
+        }}>
           <h2 style={{ color: '#7BFF00', margin: 0, fontSize: '1.2rem', textTransform: 'uppercase' }}>
             Редактирование: {client.fio || client.name}
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.5rem' }}>×</button>
+          <button 
+            onClick={onClose} 
+            style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.5rem' }}
+          >
+            ×
+          </button>
         </div>
+        
+        {/* ОШИБКА ИСПРАВЛЕНА: Пробрасываем priceMap в ядро расчетов */}
         <ClientStep
           initialData={client}
           onSave={handleUpdate}
           onClose={onClose}
+          priceMap={priceMap}
         />
       </div>
     </div>
