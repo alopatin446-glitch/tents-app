@@ -125,6 +125,79 @@ const kantFields: Array<{ label: string; field: WindowNumericField }> = [
   { label: 'Лево', field: 'kantLeft' },
 ];
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Диагностический вывод текущего расчёта
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface WindowCalculationDebugRow {
+  id: number;
+  index: number;
+  name: string;
+  material: string;
+  innerWidth: number;
+  innerHeight: number;
+  cutWidthRaw: number;
+  cutHeightRaw: number;
+  widthAcrossRoll: number;
+  cutLength: number;
+  chargedWidth: number;
+  geometry: WindowGeometry;
+}
+
+function getMaterialLabel(material: string): string {
+  switch (material) {
+    case 'PVC_700':
+      return 'ПВХ 700';
+    case 'TINTED':
+      return 'Тонировка';
+    case 'TPU':
+      return 'TPU';
+    case 'MOSQUITO':
+      return 'Москитка';
+    default:
+      return material || '—';
+  }
+}
+
+function formatCm(value: number): string {
+  if (!Number.isFinite(value)) return '—';
+  return `${value.toFixed(0)} см`;
+}
+
+function formatM(valueCm: number): string {
+  if (!Number.isFinite(valueCm)) return '—';
+  return `${(valueCm / 100).toFixed(2)} м`;
+}
+
+function buildDebugRow(item: WindowItem, index: number): WindowCalculationDebugRow {
+  const geometry = calculateWindowGeometry(item);
+  const innerWidth = Math.max(Number(item.widthTop), Number(item.widthBottom));
+  const innerHeight = Math.max(Number(item.heightLeft), Number(item.heightRight));
+  const cutWidthRaw = innerWidth + 6;
+  const cutHeightRaw = innerHeight + 6;
+  const widthAcrossRoll = geometry.isRotated ? cutHeightRaw : cutWidthRaw;
+  const cutLength = geometry.isRotated ? cutWidthRaw : cutHeightRaw;
+  const chargedWidth = geometry.isOverSize
+    ? widthAcrossRoll
+    : Math.max(Number(geometry.rollWidth), widthAcrossRoll);
+
+  return {
+    id: item.id,
+    index,
+    name: item.name,
+    material: item.material || 'PVC_700',
+    innerWidth,
+    innerHeight,
+    cutWidthRaw,
+    cutHeightRaw,
+    widthAcrossRoll,
+    cutLength,
+    chargedWidth,
+    geometry,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Пропсы
 // ─────────────────────────────────────────────────────────────────────────────
@@ -196,10 +269,18 @@ export default function ItemsStep({
     return calculateWindowGeometry(resolveDraftToWindowItem(activeItem));
   }, [activeItem]);
 
+  const resolvedWindows = useMemo(() => {
+    return localWindows.map(resolveDraftToWindowItem);
+  }, [localWindows]);
+
   // Глобальный расчет всего заказа для блока "Итого рулонов"
   const orderSummary = useMemo(() => {
-    return calculateOrderOptimization(localWindows.map(resolveDraftToWindowItem));
-  }, [localWindows]);
+    return calculateOrderOptimization(resolvedWindows);
+  }, [resolvedWindows]);
+
+  const debugRows = useMemo(() => {
+    return resolvedWindows.map((item, index) => buildDebugRow(item, index));
+  }, [resolvedWindows]);
 
   const trapezoidWarning = useMemo(
     () => getTrapezoidWarning(activeItem),
@@ -439,34 +520,165 @@ export default function ItemsStep({
           {/* ... код чекбокса трапеции ... */}
         </div>
 
-        {/* Владелец, внедряю ПЛАН РАСКРОЯ здесь! */}
+        {/* Диагностический план раскроя: показывает, что сейчас реально возвращает windowCalculations.ts */}
         <div className={styles.orderSummaryCard} style={{ marginTop: '20px', borderTop: '1px solid rgba(123, 255, 0, 0.1)', paddingTop: '15px' }}>
-          <h4 style={{ color: '#7BFF00', fontSize: '0.75rem', marginBottom: '12px', textTransform: 'uppercase' }}>
+          <h4 style={{ color: '#7BFF00', fontSize: '0.75rem', marginBottom: '8px', textTransform: 'uppercase' }}>
             План раскроя заказа
           </h4>
 
+          <div style={{
+            color: 'rgba(255,255,255,0.55)',
+            fontSize: '0.68rem',
+            lineHeight: 1.35,
+            marginBottom: '12px',
+            background: 'rgba(15, 23, 42, 0.35)',
+            border: '1px solid rgba(123, 255, 0, 0.12)',
+            borderRadius: '10px',
+            padding: '8px 10px',
+          }}>
+            Диагностика показывает текущий ответ <b>calculateWindowGeometry()</b> по каждому изделию.
+            Алгоритм расчёта здесь не меняется — только выводится наружу.
+          </div>
+
           <div className={styles.batchList}>
-            {orderSummary.batches.map((batch, idx) => (
-              <div key={idx} className={styles.batchItem} style={{ background: 'rgba(15, 23, 42, 0.4)', padding: '10px', borderRadius: '12px', marginBottom: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '5px' }}>
-                  <span style={{ color: '#fff', fontWeight: 'bold' }}>{batch.material}</span>
-                  <span style={{ color: '#7BFF00' }}>{batch.rollWidth} см</span>
+            {debugRows.map((row) => (
+              <div
+                key={row.id}
+                className={styles.batchItem}
+                style={{
+                  background: 'rgba(15, 23, 42, 0.45)',
+                  padding: '10px',
+                  borderRadius: '12px',
+                  marginBottom: '10px',
+                  border: row.geometry.isOverSize
+                    ? '1px solid rgba(255, 77, 79, 0.55)'
+                    : '1px solid rgba(123, 255, 0, 0.12)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: '0.72rem', marginBottom: '8px' }}>
+                  <span style={{ color: '#fff', fontWeight: 'bold' }}>
+                    Окно {row.index + 1}: {row.name}
+                  </span>
+                  <span style={{ color: '#7BFF00', whiteSpace: 'nowrap' }}>
+                    {getMaterialLabel(row.material)} / рулон {row.geometry.rollWidth} см
+                  </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.5)' }}>Длина:</span>
-                  <span style={{ color: '#fff', fontWeight: 'bold' }}>{(batch.totalLength / 100).toFixed(2)} м.п.</span>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', fontSize: '0.68rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>Внутренний размер:</span>
+                    <span style={{ color: '#fff', fontWeight: 700 }}>{formatCm(row.innerWidth)} × {formatCm(row.innerHeight)}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>Заготовка +6 см:</span>
+                    <span style={{ color: '#fff', fontWeight: 700 }}>{formatCm(row.cutWidthRaw)} × {formatCm(row.cutHeightRaw)}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>Поворот:</span>
+                    <span style={{ color: row.geometry.isRotated ? '#FFD600' : '#7BFF00', fontWeight: 700 }}>
+                      {row.geometry.isRotated ? '90°' : '0°'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>Поперёк рулона:</span>
+                    <span style={{ color: '#fff', fontWeight: 700 }}>{formatCm(row.widthAcrossRoll)}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>Длина отреза:</span>
+                    <span style={{ color: '#fff', fontWeight: 700 }}>{formatM(row.cutLength)}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>Ширина списания:</span>
+                    <span style={{ color: '#fff', fontWeight: 700 }}>{formatCm(row.chargedWidth)}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>Полотно:</span>
+                    <span style={{ color: '#fff', fontWeight: 700 }}>{formatArea(row.geometry.areaMaterial)}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>С кантом:</span>
+                    <span style={{ color: '#fff', fontWeight: 700 }}>{formatArea(row.geometry.areaWithKant)}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>Списание:</span>
+                    <span style={{ color: '#7BFF00', fontWeight: 700 }}>{formatArea(row.geometry.cutArea)}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.45)' }}>Перерасход:</span>
+                    <span style={{ color: row.geometry.wasteArea > 0 ? '#ff4d4f' : '#7BFF00', fontWeight: 700 }}>
+                      {formatArea(row.geometry.wasteArea)}
+                    </span>
+                  </div>
                 </div>
+
+                {(row.geometry.isOverSize || !row.geometry.isExact) && (
+                  <div style={{ marginTop: '8px', display: 'grid', gap: '5px' }}>
+                    {row.geometry.isOverSize && (
+                      <div style={{ color: '#ff4d4f', fontSize: '0.68rem', lineHeight: 1.35 }}>
+                        ⚠ Негабарит: текущий алгоритм берёт максимальный рулон материала, но площадь считает по фактической ширине заготовки.
+                      </div>
+                    )}
+
+                    {!row.geometry.isExact && (
+                      <div style={{ color: '#FFD600', fontSize: '0.68rem', lineHeight: 1.35 }}>
+                        ⚠ Приближённый расчёт: трапеция включена, но точных данных для неё не хватает.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
+          <div style={{ marginTop: '12px' }}>
+            <div style={{ color: '#7BFF00', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '8px' }}>
+              Группы, которые сейчас возвращает calculateOrderOptimization()
+            </div>
+
+            {orderSummary.batches.length > 0 ? (
+              <div className={styles.batchList}>
+                {orderSummary.batches.map((batch, idx) => (
+                  <div key={`${batch.material}-${batch.rollWidth}-${idx}`} className={styles.batchItem} style={{ background: 'rgba(15, 23, 42, 0.35)', padding: '10px', borderRadius: '12px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '5px' }}>
+                      <span style={{ color: '#fff', fontWeight: 'bold' }}>{getMaterialLabel(batch.material)}</span>
+                      <span style={{ color: '#7BFF00' }}>{batch.rollWidth} см</span>
+                    </div>
+                    <div style={{ display: 'grid', gap: '4px', fontSize: '0.68rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)' }}>Длина:</span>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>{(batch.totalLength / 100).toFixed(2)} м.п.</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)' }}>ID изделий:</span>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>{batch.windowIds.join(', ')}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.7rem' }}>
+                Нет изделий для расчёта.
+              </div>
+            )}
+          </div>
+
           <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Списание:</span>
+              <span>Списание всего заказа:</span>
               <span style={{ color: '#fff' }}>{orderSummary.totalCutArea.toFixed(2)} м²</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ff4d4f' }}>
-              <span>Перерасход:</span>
+              <span>Перерасход всего заказа:</span>
               <span>{orderSummary.totalWasteArea.toFixed(2)} м²</span>
             </div>
           </div>

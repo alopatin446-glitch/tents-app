@@ -24,7 +24,7 @@ export default async function ClientsPage() {
   // 3. ПОГРАНИЧНИК-ЛОГИКА: Формирование справочника цен (Value Sovereignity)
   // Явно типизируем аккумулятор как Record<string, number>
   const priceMap: Record<string, number> = pricingData.reduce((acc, item) => {
-    acc[item.name] = item.value; // В схеме поле называется 'value'
+    acc[item.slug] = item.value; // В схеме поле называется 'value'
     return acc;
   }, {} as Record<string, number>);
 
