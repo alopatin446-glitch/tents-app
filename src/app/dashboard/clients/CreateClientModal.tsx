@@ -4,11 +4,19 @@ import { useRouter } from 'next/navigation';
 // createClientAction живёт в @/app/actions, а не в ./actions
 import { createClientAction } from '@/app/actions';
 import { useClients } from './ClientContext';
+// Добавляем импорт типа для priceMap, если он есть, или используем Record
 import ClientStep, { type ClientFormData } from '@/components/calculation/ClientStep';
 import styles from './KanbanBoard.module.css';
 import { notifyError, notifySuccess } from '@/lib/notify';
 
-export default function CreateClientModal({ onClose }: { onClose: () => void }) {
+// Добавляем priceMap в пропсы модалки
+export default function CreateClientModal({ 
+  onClose, 
+  priceMap 
+}: { 
+  onClose: () => void; 
+  priceMap: Record<string, number>; // Добавили обязательный пропс
+}) {
   const router = useRouter();
   const { addClient } = useClients();
 
@@ -44,6 +52,8 @@ export default function CreateClientModal({ onClose }: { onClose: () => void }) 
           managerComment: formData.managerComment ? String(formData.managerComment) : null,
           engineerComment: formData.engineerComment ? String(formData.engineerComment) : null,
         });
+        
+        notifySuccess('Клиент успешно создан'); // Добавил для порядка
         onClose();
         router.refresh();
       } else {
@@ -65,10 +75,13 @@ export default function CreateClientModal({ onClose }: { onClose: () => void }) 
           <h2 style={{ color: '#00f3ff', margin: 0, fontSize: '1.2rem' }}>НОВЫЙ ЗАКАЗ / КЛИЕНТ</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.5rem' }}>×</button>
         </div>
+        
+        {/* ПЕРЕДАЕМ priceMap — ЭТО УБИРАЕТ ОШИБКУ ТИПОВ */}
         <ClientStep
           initialData={{ status: 'negotiation' }}
           onSave={handleFinalSave}
           onClose={onClose}
+          priceMap={priceMap} 
         />
       </div>
     </div>
