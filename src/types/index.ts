@@ -35,17 +35,31 @@ export interface FastenerSides {
   left: boolean;
 }
 
+// В файле типов (примерно так должен выглядеть FastenerConfig)
 export interface FastenerConfig {
-  type: FastenerType;
-  sides: FastenerSides;
-  finish: FastenerFinish;
+  type: string;
+  sides: {
+    top: boolean;
+    bottom: boolean;
+    left: boolean;
+    right: boolean;
+  };
+  finish: FastenerFinish; // ДОБАВЛЕНО: возвращаем легальный статус полю finish
+  priceRetail: number;
+  priceCost: number;
+  retailCost?: number;
+  costCost?: number;
 }
 
 export function getInitialFastener(): FastenerConfig {
   return {
     type: 'none',
     sides: { top: false, right: false, bottom: false, left: false },
-    finish: null,
+    finish: null, // Теперь это поле законно
+    priceRetail: 0,
+    priceCost: 0,
+    retailCost: 0,
+    costCost: 0,
   };
 }
 
@@ -330,3 +344,35 @@ export interface Client {
 }
 
 export interface Stage { id: ClientStatus; title: string; }
+
+// Внутри интерфейса WindowItem в src/types/index.ts
+
+export interface WindowItem {
+  id: number;
+  name: string;
+  // ... (существующие поля: размеры, канты и т.д.)
+
+  fasteners?: FastenerConfig;
+  additionalElements?: AdditionalElements;
+
+  /** 
+   * ── PRICE SNAPSHOT (HARD COPY) ──
+   * Фиксация цен на момент расчета/сохранения изделия.
+   * Эти поля заполняются автоматически при вызове calculateWindowGeometry.
+   */
+
+  /** Розничная цена выбранного крепежа за 1 единицу (₽) */
+  fastenerPriceRetail?: number;
+  /** Себестоимость выбранного крепежа за 1 единицу (₽) */
+  fastenerPriceCost?: number;
+  /** Slug из DEFAULT_PRICE_ROWS для идентификации в справочнике */
+  fastenerSlug?: string;
+
+  /** Общая стоимость крепежа для этого окна (Розница) */
+  totalFastenersRetail?: number;
+  /** Общая себестоимость крепежа для этого окна (Себес) */
+  totalFastenersCost?: number;
+
+  /** Метка времени фиксации цен */
+  pricesCapturedAt?: string;
+}

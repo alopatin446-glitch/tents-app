@@ -19,6 +19,73 @@ import { logger, LOG_MESSAGES } from '@/lib/logger';
 /** Коэффициент перевода см² → м². */
 const CM2_TO_M2 = 10_000;
 
+// 1. Добавляем припуск на припой (по 3 см с каждой стороны)
+export const SOLDER_ALLOWANCE = 6; // +6 см на припуски
+export const SMART_TOLERANCE = 4; // Допуск "натяжки"
+
+/**
+ * Единый справочник ширин рулонов (в см)
+ * ТАМОЖНЯ: Цены и параметры здесь — это закон.
+ */
+export const ROLL_WIDTHS: Record<string, number[]> = {
+  'PVC_700': [140, 150, 180, 200, 220, 240], // Теперь это наш стандарт
+  'TPU': [140],
+  'TINTED': [140, 180, 200],
+  'MOSQUITO': [200],
+};
+
+// --- СЕРЕДИНА ФАЙЛА (ЛОГИКА) ---
+
+/**
+ * Оптимизация раскроя: подбор рулона, вращение и обработка негабаритов.
+ * 
+ * Мы не удаляем старые правила, мы наращиваем их!
+ */
+export function optimizeRollLayout(width: number, height: number, material: string) {
+  const prodW = width + SOLDER_ALLOWANCE;
+  const prodH = height + SOLDER_ALLOWANCE;
+
+  // Используем ПВХ 700 как безопасный fallback
+  const availableRolls = ROLL_WIDTHS[material] || ROLL_WIDTHS['PVC_700'];
+  const rolls = [...availableRolls].sort((a, b) => a - b);
+  const maxAvailableRoll = rolls[rolls.length - 1];
+
+  const findFit = (w: number, h: number) => {
+    // А) Ищем рулон с учетом SMART_TOLERANCE
+    let roll = rolls.find(r => (w - SMART_TOLERANCE) <= r);
+
+    if (roll) {
+      // Стандартный случай: деталь влезла в один из рулонов
+      const effectiveWidth = Math.max(roll, w);
+      return {
+        roll,
+        area: (effectiveWidth * h) / 10000, // Площадь в м²
+        isOverSize: false
+      };
+    }
+
+    // Б) Кейс "Оверзайс": Деталь больше любого доступного рулона (напр. ТПУ 200 см)
+    // Берем самый широкий рулон материала, но площадь считаем по фактической ширине детали
+    return {
+      roll: maxAvailableRoll,
+      area: (w * h) / 10000,
+      isOverSize: true
+    };
+  };
+
+  const normal = findFit(prodW, prodH);
+  const rotated = findFit(prodH, prodW);
+
+  // ПОГРАНИЧНИК-ЛОГИКА: Выбираем вариант с МИНИМАЛЬНОЙ площадью списания
+  if (normal && rotated) {
+    return normal.area <= rotated.area
+      ? { ...normal, isRotated: false }
+      : { ...rotated, isRotated: true };
+  }
+
+  return normal ? { ...normal, isRotated: false } : null;
+}
+
 // ---------------------------------------------------------------------------
 // Вспомогательные функции
 // ---------------------------------------------------------------------------
@@ -108,26 +175,31 @@ function calculateBoxAreaCm2(
  * Результат расчёта геометрии одного изделия.
  */
 export interface WindowGeometry {
-  /** Площадь полотна в м². */
-  areaMaterial: number;
+  areaMaterial: number;   /** Площадь полотна в м². */
+  areaWithKant: number;   /** Площадь с учётом канта в м². */
+  cutArea: number;        /** Площадь прямоугольной заготовки в м². */
+  wasteArea: number;      /** Геометрический перерасход в м². */
+  perimeter: number;      /** Периметр полотна в см. */
+  rollWidth: number;      // Ширина рулона
+  isRotated: boolean;     // Метка поворота
+  isOverSize?: boolean;   // Метка негабарита (для ТПУ)
+  isExact: boolean;       /** Флаг точности трапеции */
+}
 
-  /** Площадь с учётом канта в м². */
-  areaWithKant: number;
+/**
+ * Расширенный результат для всего заказа (Цеховое планирование)
+ */
+export interface OrderOptimization {
+  totalCutArea: number;   /** Общая площадь списания по заказу. */
+  totalWasteArea: number; /** Общий перерасход материала. */
+  batches: MaterialBatch[];
+}
 
-  /** Площадь прямоугольной заготовки в м². */
-  cutArea: number;
-
-  /** Геометрический перерасход в м². */
-  wasteArea: number;
-
-  /** Периметр полотна в см (для расчёта расхода канта). */
-  perimeter: number;
-
-  /**
-   * true, если расчёт произведён точно.
-   * false — если трапеция геометрически некорректна и использована приближённая формула.
-   */
-  isExact: boolean;
+interface MaterialBatch {
+  material: string;
+  rollWidth: number;
+  totalLength: number;    /** Общий погонаж отреза (см). */
+  windowIds: number[];    /** ID окон, входящих в этот отрез. */
 }
 
 /**
@@ -174,14 +246,21 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
     areaCm2 = calculateBoxAreaCm2(widthTop, widthBottom, heightLeft, heightRight);
   }
 
-  const cutAreaCm2 = calculateBoxAreaCm2(
-    widthTop,
-    widthBottom,
-    heightLeft,
-    heightRight,
-  );
+  // --- НОВАЯ ЛОГИКА РАСКРОЯ ---
+  // 1. Берем максимальные габариты (ведь рулон должен закрыть всё окно)
+  const maxW = Math.max(widthTop, widthBottom);
+  const maxH = Math.max(heightLeft, heightRight);
 
-  const wasteAreaCm2 = Math.max(0, cutAreaCm2 - areaCm2);
+  // 2. Вызываем наш оптимизатор. Передаем материал из объекта window
+  const layout = optimizeRollLayout(maxW, maxH, window.material || 'PVC_500');
+
+  // 3. Определяем параметры списания
+  const finalRollWidth = layout ? layout.roll : (maxW + SOLDER_ALLOWANCE);
+  const finalCutAreaCm2 = layout ? layout.area : (finalRollWidth * (maxH + SOLDER_ALLOWANCE));
+  const finalIsRotated = layout ? layout.isRotated : false;
+
+  // 4. Считаем честный перерасход (сколько рулона ушло в мусор)
+  const wasteAreaCm2 = Math.max(0, finalCutAreaCm2 - areaCm2);
 
   // Периметр полотна
   const perimeter = widthTop + heightRight + widthBottom + heightLeft;
@@ -208,12 +287,16 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
   return {
     areaMaterial: roundM2(areaCm2 / CM2_TO_M2),
     areaWithKant: roundM2(areaWithKantCm2 / CM2_TO_M2),
-    cutArea: roundM2(cutAreaCm2 / CM2_TO_M2),
+    cutArea: roundM2(finalCutAreaCm2 / CM2_TO_M2),
     wasteArea: roundM2(wasteAreaCm2 / CM2_TO_M2),
     perimeter,
+    rollWidth: finalRollWidth,
+    isRotated: finalIsRotated,
+    isOverSize: layout?.isOverSize || false, // ОБЯЗАТЕЛЬНО ДОБАВИТЬ ЭТО
     isExact,
   };
 }
+
 /**
  * Быстрый расчёт площади одного изделия в м².
  * Используется в тех местах, где нужно только это значение.
@@ -249,6 +332,52 @@ export function calculateTotalAreaWithKant(windows: WindowItem[]): number {
 // ---------------------------------------------------------------------------
 // Утилиты
 // ---------------------------------------------------------------------------
+
+/**
+ * Глобальный оптимизатор заказа.
+ * ТАМОЖНЯ: Группирует окна по материалу и ширине рулона для минимизации остатков.[cite: 1]
+ */
+export function calculateOrderOptimization(windows: WindowItem[]): OrderOptimization {
+  // 1. Получаем индивидуальные расчеты для каждого окна[cite: 1]
+  const results = windows.map(w => ({
+    id: w.id,
+    geo: calculateWindowGeometry(w),
+    material: w.material || 'PVC_700' // Наш новый стандарт вместо 500[cite: 1]
+  }));
+
+  // 2. Группируем по Материалу + Ширине рулона[cite: 1]
+  const batchMap: Record<string, MaterialBatch> = {};
+
+  results.forEach(res => {
+    const key = `${res.material}_${res.geo.rollWidth}`;
+
+    if (!batchMap[key]) {
+      batchMap[key] = {
+        material: res.material,
+        rollWidth: res.geo.rollWidth,
+        totalLength: 0,
+        windowIds: []
+      };
+    }
+
+    // Находим исходное окно для получения точных размеров[cite: 1]
+    const originalWindow = windows.find(w => w.id === res.id)!;
+
+    // Длина отреза зависит от того, повернули мы деталь или нет[cite: 1]
+    const length = res.geo.isRotated
+      ? (Number(originalWindow.widthTop) + SOLDER_ALLOWANCE)
+      : (Math.max(Number(originalWindow.heightLeft), Number(originalWindow.heightRight)) + SOLDER_ALLOWANCE);
+
+    batchMap[key].totalLength += length;
+    batchMap[key].windowIds.push(res.id);
+  });
+
+  return {
+    totalCutArea: results.reduce((sum, r) => sum + r.geo.cutArea, 0),
+    totalWasteArea: results.reduce((sum, r) => sum + r.geo.wasteArea, 0),
+    batches: Object.values(batchMap)
+  };
+}
 
 /**
  * Округляет значение площади до 2 знаков после запятой.

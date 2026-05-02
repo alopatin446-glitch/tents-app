@@ -22,6 +22,8 @@ import {
   formatMoney,
 } from '@/lib/logic/financialCalculations';
 
+import { calculateWindowFinance, type PriceMap } from '@/lib/logic/pricingLogic';
+
 export type { WindowItem as ClientStepWindowItem };
 
 const SOURCE_OPTIONS = [
@@ -137,6 +139,10 @@ interface ClientStepProps {
   onDraftChange?: (data: ClientFormData) => void;
   onClose: () => void;
   isReadOnly?: boolean;
+  calculatedTotal?: number;   // Итого из ядра
+  calculatedCost?: number;    // Себестоимость из ядра
+  calculatedArea?: number;    // Точная площадь
+  priceMap: PriceMap;
 }
 
 function formatDateInputValue(value: any): string {
@@ -226,6 +232,11 @@ export default function ClientStep({
   onDraftChange,
   onClose,
   isReadOnly = false,
+  // ТЕПЕРЬ ОНИ ЗДЕСЬ ДОСТУПНЫ:
+  calculatedTotal,
+  calculatedCost,
+  calculatedArea,
+  priceMap,
 }: ClientStepProps) {
   const [clientData, setClientData] = useState<ClientFormData>(initialData);
   const [clientFiles, setClientFiles] = useState<ClientFileItem[]>([]);
@@ -360,41 +371,96 @@ export default function ClientStep({
     };
   }, [clientId]);
 
+  // ⚡️ Директор: Исправленный Мост. Теперь он видит всё!
+  useEffect(() => {
+    if (isReadOnly) return;
+
+    setClientData((prev) => {
+      // 1. Считаем детализацию по изделиям (если они есть)
+      const itemsFinance = (prev.items || []).reduce((acc, item) => {
+        const f = calculateWindowFinance(item, priceMap);
+        return {
+          overspending: acc.overspending + f.overspending,
+          productionCost: acc.productionCost + f.productionCost
+        };
+      }, { overspending: 0, productionCost: 0 });
+
+      // 2. Сверяем базу из пропсов и детализацию
+      const hasTotalChanged = calculatedTotal !== undefined && calculatedTotal !== prev.totalPrice;
+      const hasCostChanged = calculatedCost !== undefined && calculatedCost !== prev.costPrice;
+      const hasAreaChanged = calculatedArea !== undefined && calculatedArea !== prev.area;
+      const hasDetailsChanged = prev.overspending !== itemsFinance.overspending || prev.productionCost !== itemsFinance.productionCost;
+
+      if (hasTotalChanged || hasCostChanged || hasAreaChanged || hasDetailsChanged) {
+        const nextData = {
+          ...prev,
+          totalPrice: hasTotalChanged ? calculatedTotal : prev.totalPrice,
+          costPrice: hasCostChanged ? calculatedCost : prev.costPrice,
+          area: hasAreaChanged ? calculatedArea : prev.area,
+          // 🛠 ВОТ ТУТ МЫ ОЖИВЛЯЕМ ПОЛЯ:
+          overspending: itemsFinance.overspending,
+          productionCost: itemsFinance.productionCost,
+        };
+
+        setTimeout(() => {
+          onDraftChange?.(nextData);
+        }, 0);
+        return nextData;
+      }
+      return prev;
+    });
+  }, [calculatedTotal, calculatedCost, calculatedArea, isReadOnly, onDraftChange]);
+
+  // Вычисляем итоговые показатели заказа на основе всех изделий
+  const orderFinancials = useMemo(() => {
+    if (!clientData.items || clientData.items.length === 0) {
+      return { totalRetail: 0, totalCost: 0, totalProfit: 0 };
+    }
+
+    return clientData.items.reduce((acc, item) => {
+      // Вызываем функцию и СРАЗУ сохраняем результат в константу
+      const finance = calculateWindowFinance(item, priceMap);
+      return {
+        totalRetail: acc.totalRetail + finance.retailPrice,
+        totalCost: acc.totalCost + finance.costPrice,
+        totalProfit: acc.totalProfit + finance.profit,
+      };
+    }, { totalRetail: 0, totalCost: 0, totalProfit: 0 });
+  }, [clientData.items, priceMap]);
+
   const financials = useMemo(() => {
+    // Считаем перерасход и производство прямо из изделий, чтобы не зависеть от лагов стейта
+    const sumsFromItems = (clientData.items || []).reduce((acc, item) => {
+      const f = calculateWindowFinance(item, priceMap);
+      return {
+        overspending: acc.overspending + f.overspending,
+        productionCost: acc.productionCost + f.productionCost
+      };
+    }, { overspending: 0, productionCost: 0 });
+
     const retailPrice = toFinancialNumber(clientData.totalPrice);
     const advance = toFinancialNumber(clientData.advance);
-
     const costPrice = toFinancialNumber(clientData.costPrice);
-    const overspending = toFinancialNumber(clientData.overspending);
-    const productionCost = toFinancialNumber(clientData.productionCost);
+
+    // ПРИОРИТЕТ: если в стейте пусто, берем то, что насчитал PricingLogic по изделиям
+    const overspending = toFinancialNumber(clientData.overspending) || sumsFromItems.overspending;
+    const productionCost = toFinancialNumber(clientData.productionCost) || sumsFromItems.productionCost;
+
     const mountingCost = toFinancialNumber(clientData.mountingCost);
-
     const balance = retailPrice - advance;
-
-    const totalExpenses =
-      costPrice + overspending + productionCost + mountingCost;
-
+    const totalExpenses = costPrice + overspending + productionCost + mountingCost;
     const netProfit = retailPrice - totalExpenses;
 
     return {
-      retailPrice,
-      advance,
-      balance,
-      costPrice,
-      overspending,
-      productionCost,
-      mountingCost,
-      totalExpenses,
-      netProfit,
+      retailPrice, advance, balance, costPrice,
+      overspending, productionCost, mountingCost,
+      totalExpenses, netProfit,
       isUnprofitable: netProfit < 0,
     };
   }, [
-    clientData.totalPrice,
-    clientData.advance,
-    clientData.costPrice,
-    clientData.overspending,
-    clientData.productionCost,
-    clientData.mountingCost,
+    clientData.totalPrice, clientData.advance, clientData.costPrice,
+    clientData.overspending, clientData.productionCost, clientData.mountingCost,
+    clientData.items // ДОБАВИЛИ В ЗАВИСИМОСТИ
   ]);
 
   const toggleSection = useCallback((section: keyof OpenSections): void => {
@@ -1159,7 +1225,7 @@ export default function ClientStep({
             <div className={styles.content}>
               <div className={styles.statLine}>
                 <span>Площадь:</span>
-                <strong>{areaDisplay.toFixed(2)} м²</strong>
+                <strong>{(calculatedArea ?? areaDisplay).toFixed(2)} м²</strong>
               </div>
 
               <div className={styles.inputGroup}>
@@ -1167,7 +1233,7 @@ export default function ClientStep({
                 <input
                   type="number"
                   name="costPrice"
-                  value={clientData.costPrice ?? ''}
+                  value={calculatedCost ?? clientData.costPrice ?? ''}
                   onChange={handleChange}
                   className={styles.neonInput}
                   disabled={isReadOnly}
@@ -1179,10 +1245,12 @@ export default function ClientStep({
                 <input
                   type="number"
                   name="overspending"
-                  value={clientData.overspending ?? ''}
+                  // Директор: Показываем то, что реально посчитано в financials
+                  value={financials.overspending || ''}
                   onChange={handleChange}
                   className={styles.neonInput}
                   disabled={isReadOnly}
+                  placeholder="0"
                 />
               </div>
 
@@ -1195,6 +1263,7 @@ export default function ClientStep({
                   onChange={handleChange}
                   className={styles.neonInput}
                   disabled={isReadOnly}
+                  placeholder="0"
                 />
               </div>
 
@@ -1203,10 +1272,11 @@ export default function ClientStep({
                 <input
                   type="number"
                   name="mountingCost"
-                  value={clientData.mountingCost ?? ''}
+                  value={clientData.mountingCost === null || clientData.mountingCost === undefined ? '' : clientData.mountingCost}
                   onChange={handleChange}
                   className={styles.neonInput}
                   disabled={isReadOnly}
+                  placeholder="0"
                 />
               </div>
 
@@ -1226,7 +1296,7 @@ export default function ClientStep({
             </div>
           )}
         </div>
-      </div>
+      </div> {/* Закрывает accordionArea */}
 
       <aside className={styles.stickySidebar}>
         <div className={styles.infoCard}>

@@ -1,4 +1,6 @@
-.productionGrid {
+/* ItemsStep.module.css — ПОЛНАЯ ЗАМЕНА */
+
+.itemsGrid {
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: 30px;
@@ -7,7 +9,7 @@
   height: 95vh;
 }
 
-/* Копия твоей левой панели */
+/* 1. ЛЕВАЯ ПАНЕЛЬ: Единый стандарт для всех контуров */
 .inputPanelWrapper {
   background: #242D3E !important;
   border: 1px solid rgba(123, 255, 0, 0.2);
@@ -16,23 +18,201 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  overflow-y: auto;
 }
 
-/* Та самая обертка для чертежа "лист на листе" */
-.drawingWrapper {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(123, 255, 0, 0.2);
-  border-radius: 20px;
+/* СКРОЛЛБАР */
+.inputPanelWrapper::-webkit-scrollbar {
+  width: 4px;
+}
+
+.inputPanelWrapper::-webkit-scrollbar-thumb {
+  background: rgba(123, 255, 0, 0.2);
+  border-radius: 10px;
+}
+
+/* 2. ИНФОРМАЦИОННЫЕ КАПСУЛЫ (Ширина рулона) */
+.rollDisplayWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
+  width: 100%;
+  min-height: 46px; /* Строго под высоту селекторов */
+  padding: 0 20px;
+  background: rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  border-radius: 30px !important;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+.rollValue {
+  color: #7BFF00;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+
+.lockIcon {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(123, 255, 0, 0.4);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+/* 3. ФОРМЫ И ИНПУТЫ */
+.sectionTitle {
+  color: #7BFF00;
+  text-transform: uppercase;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.formSection h4 {
+  font-size: 0.75rem;
+  color: #7BFF00;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+}
+
+.geometryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.inputGroup label {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.inputGroup input {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(123, 255, 0, 0.15);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 30px !important;
+  outline: none;
+  transition: 0.2s;
+}
+
+.inputGroup input:focus {
+  border-color: #7BFF00;
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.1);
+}
+
+.selectInput {
+  width: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(123, 255, 0, 0.15);
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 30px !important;
+  appearance: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.selectArrow {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #7BFF00;
+  pointer-events: none;
+}
+
+/* 4. ПРАВАЯ ПАНЕЛЬ И ЧЕРТЕЖ */
+.rightColumn {
+  border: 1px solid rgba(123, 255, 0, 0.2);
   display: flex;
   flex-direction: column;
+  background: #242D3E;
+  border-radius: 20px;
+  padding: 24px;
   overflow: hidden;
 }
 
-.bottomInfoBar {
-  background: rgba(0, 0, 0, 0.4);
-  border-top: 1px solid rgba(123, 255, 0, 0.2);
-  padding: 12px 20px;
+.drawingWrapper {
+  flex: 1;
+  width: 100%;
   display: flex;
-  gap: 30px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+  border: 1px solid rgba(123, 255, 0, 0.05);
+  position: relative;
+  min-height: 0;
+}
+
+.bottomInfoBar {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 30px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: 50px;
+  margin-top: 15px;
+}
+
+.statLabel {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.statLabel span {
+  color: #fff;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.saveButton {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  border-radius: 30px;
+  padding: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: 0.3s;
+  margin-top: auto;
+}
+
+.saveButton:hover {
+  background: #7BFF00;
+  color: #111827;
+  box-shadow: 0 0 20px rgba(123, 255, 0, 0.4);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-size: 0.85rem;
+  margin: 10px 0;
+  cursor: pointer;
+}
+
+.trapezoidFields {
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  padding: 15px;
+  border-radius: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }

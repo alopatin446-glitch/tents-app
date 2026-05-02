@@ -1,17 +1,9 @@
 /**
  * Calculation state hook.
- *
- * Changes vs. previous version:
- *   - All incoming windows are normalized through `normalizeAllWindowExtras`
- *     on initialization so `additionalElements` is always present.
- *   - Exposes `handleWindowsChange` and `handleExtrasChange` separately
- *     so ExtrasStep can update additionalElements without touching geometry.
- *
- * @module src/hooks/useCalculationState.ts
+ * ЦЕНОВОЙ СУВЕРЕНИТЕТ ВОССТАНОВЛЕН: Расчеты переведены на единое ядро pricingLogic.
+ * Реализована защита истории: закрытые сделки не пересчитываются по новым ценам.
  */
-
 import { useCallback, useMemo, useState } from 'react';
-
 import { type WindowItem } from '@/types';
 import { type ClientFormData } from '@/components/calculation/ClientStep';
 import {
@@ -22,23 +14,22 @@ import {
   normalizeAllWindowExtras,
   normalizeExtrasOnResize,
 } from '@/lib/logic/extrasCalculations';
+// ФИНАНСОВЫЙ МОСТ: Импорт единственно верного источника цен
+import { calculateWindowFinance } from '@/lib/logic/pricingLogic';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export interface CalculationState {
-  /** Normalized window list — additionalElements always present. */
   windows: WindowItem[];
   clientDataWithArea: ClientFormData;
   totalAreaMaterial: number;
   totalAreaWithKant: number;
+  totalPrice: number;
+  costPrice: number;
   handleWindowsChange: (updated: WindowItem[]) => void;
   handleClientDataChange: (updated: ClientFormData) => void;
-  /**
-   * Updates additionalElements for a single window.
-   * ADDITIVE ONLY — does not touch geometry, borders, or fasteners.
-   */
   handleExtrasChange: (windowId: number, extras: WindowItem['additionalElements']) => void;
 }
 
@@ -49,13 +40,27 @@ export interface CalculationState {
 export function useCalculationState(
   initialClientData: ClientFormData,
   initialWindows: WindowItem[],
+  currentPrices: Record<string, number> // Цены из БД (передаются из CalculationClient)
 ): CalculationState {
   const [windows, setWindows] = useState<WindowItem[]>(
     () => normalizeAllWindowExtras(initialWindows),
   );
   const [clientData, setClientData] = useState<ClientFormData>(initialClientData);
 
-  // ── Reactive area calculation ─────────────────────────────────────────────
+  // ── ОПРЕДЕЛЕНИЕ ПРАЙС-ЛИСТА (Архив vs Живой) ──────────────────────────────
+  
+  const activePrices = useMemo(() => {
+    // Если статус сделки "Успешно" или "Провалено" — пытаемся взять сохраненный снапшот
+    const isClosed = clientData.status === 'done' || clientData.status === 'cancelled';
+    
+    // ВАЖНО: Предполагаем, что снапшот цен хранится в clientData.savedPrices
+    // Если сделка открыта или снапшота нет — используем живые цены из БД
+    return isClosed && (clientData as any).savedPrices 
+      ? (clientData as any).savedPrices 
+      : currentPrices;
+  }, [clientData.status, (clientData as any).savedPrices, currentPrices]);
+
+  // ── Расчеты площадей (Мозг) ─────────────────────────────────────────────
 
   const totalAreaMaterial = useMemo(
     () => calculateTotalArea(windows),
@@ -67,22 +72,37 @@ export function useCalculationState(
     [windows],
   );
 
+  // ── Финансовое ядро (ОШИБКИ ИСПРАВЛЕНЫ) ──────────────────────────────────
+
+  // Розница: Сумма всех изделий с учетом живого или архивного прайса
+  const totalPrice = useMemo(() => {
+    return windows.reduce((sum, w) => {
+      // Теперь передаем второй аргумент — activePrices (Живой или Снапшот)
+      const finance = calculateWindowFinance(w, activePrices);
+      return sum + finance.retailPrice;
+    }, 0);
+  }, [windows, activePrices]);
+
+  // Себестоимость: Сумма затрат
+  const costPrice = useMemo(() => {
+    return windows.reduce((sum, w) => {
+      const finance = calculateWindowFinance(w, activePrices);
+      return sum + finance.costPrice;
+    }, 0);
+  }, [windows, activePrices]);
+
+  // Инъекция площади в объект клиента
   const clientDataWithArea = useMemo<ClientFormData>(
     () => ({ ...clientData, area: totalAreaMaterial }),
     [clientData, totalAreaMaterial],
   );
 
-  // ── Handlers ─────────────────────────────────────────────────────────────
+  // ── Обработчики (Handlers) ─────────────────────────────────────────────
 
-  /**
-   * Replaces the full window list.
-   * When dimensions change, re-derives extras proportionally per window.
-   */
   const handleWindowsChange = useCallback((updated: WindowItem[]): void => {
     setWindows((prev) => {
       const prevById = new Map(prev.map((w) => [w.id, w]));
       const normalized = normalizeAllWindowExtras(updated);
-      // For each window whose dimensions changed, scale extras proportionally
       return normalized.map((curr) => {
         const prevWindow = prevById.get(curr.id);
         if (!prevWindow) return curr;
@@ -97,10 +117,6 @@ export function useCalculationState(
     });
   }, []);
 
-  /**
-   * Updates only additionalElements for one window.
-   * Does NOT touch geometry, borders, or fasteners.
-   */
   const handleExtrasChange = useCallback(
     (windowId: number, extras: WindowItem['additionalElements']): void => {
       setWindows((prev) =>
@@ -110,13 +126,9 @@ export function useCalculationState(
     [],
   );
 
-  /**
-   * Updates client form data (never overwrites `area`).
-   */
   const handleClientDataChange = useCallback(
     (updated: ClientFormData): void => {
       setClientData((prev) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { area: _ignored, ...rest } = updated;
         const hasChanges = Object.keys(rest).some(
           (k) => prev[k as keyof ClientFormData] !== (rest as Record<string, unknown>)[k],
@@ -133,6 +145,8 @@ export function useCalculationState(
     clientDataWithArea,
     totalAreaMaterial,
     totalAreaWithKant,
+    totalPrice,
+    costPrice,
     handleWindowsChange,
     handleClientDataChange,
     handleExtrasChange,

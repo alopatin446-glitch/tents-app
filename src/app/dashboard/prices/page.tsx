@@ -26,62 +26,50 @@ export default function PricesPage() {
   const [allPrices, setAllPrices] = useState<any[]>([]);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function load() {
-      const res = await getPrices();
-
-      if (res.success) {
-        setAllPrices(res.data ?? []);
+      try {
+        const res = await getPrices();
+        if (isMounted) {
+          if (res.success) {
+            setAllPrices(res.data ?? []);
+          } else {
+            notifyError(res.error || 'Ошибка загрузки');
+          }
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
+        if (isMounted) setLoading(false);
       }
-
-      setLoading(false);
     }
 
     load();
-  }, []);
+    return () => { isMounted = false; }; // Чистим за собой
+  }, []); // Строго пустой массив!
 
-  const handleInputChange = (id: string, field: string, value: string) => {
+  const handleInputChange = (id: string, value: string) => {
     setAllPrices((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)),
+      prev.map((item) => (item.id === id ? { ...item, value: value } : item)),
     );
   };
 
-  const addNewPrice = () => {
-    const categoryItems = allPrices.filter((p) => p.category === activeTab);
-    const nextNumber = categoryItems.length + 1;
-
-    const prefix = activeTab.replace('retail_', '').replace('cost_', 'c_').slice(0, 8);
-    const newSlug = `${prefix}_${nextNumber}`;
-
-    const newItem = {
-      id: `new-${Date.now()}`,
-      slug: newSlug,
-      name: '',
-      value: 0,
-      unit: 'м2',
-      category: activeTab,
-    };
-
-    setAllPrices((prev) => [...prev, newItem]);
-  };
-
-  const deleteRow = (id: string) => {
-    setAllPrices((prev) => prev.filter((item) => item.id !== id));
-  };
-
   const saveToDb = async () => {
+    // ПОГРАНИЧНИК-ЛОГИКА: Берем данные только активной категории
     const categoryData = allPrices.filter((p) => p.category === activeTab);
-    const res = await updatePrices(categoryData, activeTab);
+
+    // ТАМОЖНЯ: Исправляем ошибку 2554. Передаем только один аргумент
+    const res = await updatePrices(categoryData);
 
     if (res.success) {
       notifySuccess('Данные раздела успешно сохранены!');
-
       const updated = await getPrices();
-
       if (updated.success) {
         setAllPrices(updated.data ?? []);
       }
     } else {
-      notifySuccess('Ошибка при сохранении: ' + res.error);
+      notifyError('Ошибка при сохранении: ' + res.error);
     }
   };
 
@@ -91,9 +79,9 @@ export default function PricesPage() {
     return (
       <div
         className={styles.container}
-        style={{ justifyContent: 'center', alignItems: 'center' }}
+        style={{ justifyContent: 'center', alignItems: 'center', display: 'flex', height: '100vh' }}
       >
-        ЗАГРУЗКА ДАННЫХ...
+        ЗАГРУЗКА ДАННЫХ ПРАЙСА...
       </div>
     );
   }
@@ -136,91 +124,46 @@ export default function PricesPage() {
         <div className={styles.priceGrid}>
           <div
             className={styles.gridHeader}
-            style={{ gridTemplateColumns: '150px 2fr 1fr 100px 40px' }}
+            style={{ gridTemplateColumns: '150px 2fr 1fr 100px' }}
           >
             <span>АРТИКУЛ</span>
             <span>Наименование позиции</span>
-            <span style={{ textAlign: 'right', paddingRight: '20px' }}>Цена</span>
+            <span style={{ textAlign: 'right', paddingRight: '20px' }}>Цена (₽)</span>
             <span style={{ textAlign: 'center' }}>Ед. изм.</span>
-            <span></span>
           </div>
 
           {currentItems.map((item) => (
             <div
               key={item.id}
               className={styles.priceRow}
-              style={{ gridTemplateColumns: '150px 2fr 1fr 100px 40px' }}
+              style={{ gridTemplateColumns: '150px 2fr 1fr 100px' }}
             >
-              <input
-                type="text"
-                value={item.slug ?? ''}
-                onChange={(e) => handleInputChange(item.id, 'slug', e.target.value)}
-                className={styles.inputName}
-                placeholder="ID / артикул"
-                disabled={!item.id.toString().startsWith('new-')}
-                title={
-                  item.id.toString().startsWith('new-')
-                    ? 'Можно изменить только при создании'
-                    : 'Системный ID менять нельзя'
-                }
-                style={{
-                  opacity: item.id.toString().startsWith('new-') ? 1 : 0.5,
-                  cursor: item.id.toString().startsWith('new-') ? 'text' : 'not-allowed',
-                  width: '150px',
-                }}
-              />
+              {/* Поля Slug, Name и Unit закрыты для редактирования согласно Конституции */}
+              <div className={styles.inputName} style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', fontSize: '12px' }}>
+                {item.slug}
+              </div>
 
-              <input
-                type="text"
-                value={item.name ?? ''}
-                onChange={(e) => handleInputChange(item.id, 'name', e.target.value)}
-                className={styles.inputName}
-                placeholder="Введите название..."
-              />
+              <div className={styles.inputName} style={{ display: 'flex', alignItems: 'center' }}>
+                {item.name}
+              </div>
 
               <input
                 type="number"
                 value={item.value ?? 0}
-                onChange={(e) => handleInputChange(item.id, 'value', e.target.value)}
+                onChange={(e) => handleInputChange(item.id, e.target.value)}
                 className={styles.inputPrice}
+                placeholder="0.00"
               />
 
-              <input
-                type="text"
-                value={item.unit ?? 'м2'}
-                onChange={(e) => handleInputChange(item.id, 'unit', e.target.value)}
-                className={styles.inputName}
-                style={{ textAlign: 'center' }}
-              />
-
-              <button
-                onClick={() => deleteRow(item.id)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#ff4444',
-                  cursor: 'pointer',
-                  fontSize: '1.2rem',
-                }}
-                title="Удалить строку"
-              >
-                ×
-              </button>
+              <div className={styles.inputName} style={{ textAlign: 'center', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {item.unit}
+              </div>
             </div>
           ))}
+        </div>
 
-          <button
-            className={styles.tab}
-            style={{
-              marginTop: '20px',
-              borderStyle: 'dashed',
-              textAlign: 'center',
-              background: 'rgba(123, 255, 0, 0.02)',
-            }}
-            onClick={addNewPrice}
-          >
-            + ДОБАВИТЬ НОВУЮ СТРОКУ
-          </button>
+        <div style={{ marginTop: '20px', padding: '15px', background: 'rgba(123, 255, 0, 0.05)', borderRadius: '8px', borderLeft: '4px solid #7BFF00', color: '#666', fontSize: '13px' }}>
+          <strong>Статус системы:</strong> Структура прайса заблокирована. Изменение названий и артикулов производится только через файлы констант и миграции БД.
         </div>
       </section>
     </main>

@@ -29,9 +29,11 @@ import {
 
 import {
   calculateWindowGeometry,
+  calculateOrderOptimization, // ← Добавь это
   formatArea,
   type WindowGeometry,
 } from '@/lib/logic/windowCalculations';
+
 
 export type { WindowItem };
 
@@ -194,6 +196,11 @@ export default function ItemsStep({
     return calculateWindowGeometry(resolveDraftToWindowItem(activeItem));
   }, [activeItem]);
 
+  // Глобальный расчет всего заказа для блока "Итого рулонов"
+  const orderSummary = useMemo(() => {
+    return calculateOrderOptimization(localWindows.map(resolveDraftToWindowItem));
+  }, [localWindows]);
+
   const trapezoidWarning = useMemo(
     () => getTrapezoidWarning(activeItem),
     [activeItem],
@@ -293,14 +300,46 @@ export default function ItemsStep({
                   onChange={(e) => handleChange(activeItem.id, 'material', e.target.value as WindowMaterial)}
                   disabled={isReadOnly}
                 >
-                  <option value="ПВХ 700 мкм (Прозрачная)">ПВХ Прозрачная</option>
-                  <option value="ПВХ 700 мкм (Тонированная)">ПВХ Тонированная</option>
-                  <option value="ТПУ Полиуретан">ТПУ Полиуретан</option>
-                  <option value="Москитная сетка">Москитная сетка</option>
+                  {/* ПВХ 500 УДАЛЕН ПО ПРИКАЗУ ВЛАДЕЛЬЦА */}
+                  <option value="PVC_700">ПВХ Прозрачная (700 мкм)</option>
+                  <option value="TINTED">ПВХ Тонированная</option>
+                  <option value="TPU">ТПУ Полиуретан</option>
+                  <option value="MOSQUITO">Москитная сетка</option>
                 </select>
                 <div className={styles.selectArrow}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Ширина рулона (списание) */}
+            <div className={styles.formSection}>
+              <h4>Ширина рулона (списание)</h4>
+              <div className={styles.inputGroup} style={{ position: 'relative' }}>
+                <input
+                  className={styles.selectInput}
+                  type="text"
+                  value={activeItemGeometry ? `${activeItemGeometry.rollWidth} см` : '—'}
+                  readOnly
+                  style={{
+                    cursor: 'default',
+                    textAlign: 'left',
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    // КРАСНЫЙ если оверзайс, ЗЕЛЕНЫЙ если норма
+                    color: activeItemGeometry?.isOverSize ? '#ff4d4f' : '#7BFF00',
+                    fontWeight: '700',
+                    border: activeItemGeometry?.isOverSize ? '1px solid #ff4d4f' : 'none',
+                    transition: 'all 0.3s ease'
+                  }}
+                />
+                <div className={styles.selectArrow}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke={activeItemGeometry?.isOverSize ? '#ff4d4f' : 'currentColor'}
+                    strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                   </svg>
                 </div>
               </div>
@@ -395,6 +434,44 @@ export default function ItemsStep({
           </div>
         )}
 
+        {/* Трапеция (было выше) */}
+        <div className={styles.formSection}>
+          {/* ... код чекбокса трапеции ... */}
+        </div>
+
+        {/* Владелец, внедряю ПЛАН РАСКРОЯ здесь! */}
+        <div className={styles.orderSummaryCard} style={{ marginTop: '20px', borderTop: '1px solid rgba(123, 255, 0, 0.1)', paddingTop: '15px' }}>
+          <h4 style={{ color: '#7BFF00', fontSize: '0.75rem', marginBottom: '12px', textTransform: 'uppercase' }}>
+            План раскроя заказа
+          </h4>
+
+          <div className={styles.batchList}>
+            {orderSummary.batches.map((batch, idx) => (
+              <div key={idx} className={styles.batchItem} style={{ background: 'rgba(15, 23, 42, 0.4)', padding: '10px', borderRadius: '12px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', marginBottom: '5px' }}>
+                  <span style={{ color: '#fff', fontWeight: 'bold' }}>{batch.material}</span>
+                  <span style={{ color: '#7BFF00' }}>{batch.rollWidth} см</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.5)' }}>Длина:</span>
+                  <span style={{ color: '#fff', fontWeight: 'bold' }}>{(batch.totalLength / 100).toFixed(2)} м.п.</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>Списание:</span>
+              <span style={{ color: '#fff' }}>{orderSummary.totalCutArea.toFixed(2)} м²</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ff4d4f' }}>
+              <span>Перерасход:</span>
+              <span>{orderSummary.totalWasteArea.toFixed(2)} м²</span>
+            </div>
+          </div>
+        </div>
+
         {!isReadOnly && (
           <button className={styles.saveButton} onClick={handleSaveClick} style={{ marginTop: 'auto' }}>
             СОХРАНИТЬ ВСЕ ИЗДЕЛИЯ
@@ -431,6 +508,14 @@ export default function ItemsStep({
               <div className={styles.statLabel}>Выбрано: <span>{activeItem.name}</span></div>
               <div className={styles.statLabel}>Полотно: <span>{formatArea(activeItemGeometry.areaMaterial)}</span></div>
               <div className={styles.statLabel}>С кантом: <span>{formatArea(activeItemGeometry.areaWithKant)}</span></div>
+
+              {/* Новая метрика для контроля перерасхода */}
+              <div className={styles.statLabel}>
+                Раскрой: <span style={{ color: activeItemGeometry.isOverSize ? '#ff4d4f' : '#7BFF00' }}>
+                  {formatArea(activeItemGeometry.cutArea)}
+                </span>
+              </div>
+
               {!activeItemGeometry.isExact && (
                 <div className={styles.statLabel} style={{ color: '#ff9900', fontSize: '0.7rem' }}>
                   ⚠ Приближённый расчёт

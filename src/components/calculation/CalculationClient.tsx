@@ -60,12 +60,15 @@ export default function CalculationClient({
   const [clientId, setClientId] = useState<string>(initialClientId);
   const [activeStep, setActiveStep] = useState<Step>('client');
   const [isSaving, setIsSaving] = useState(false);
-  const [mountingPriceMap, setMountingPriceMap] = useState<Record<string, number>>({});
+  
+  // ЦЕНОВОЙ СУВЕРЕНИТЕТ: Универсальный стейт для всех цен из БД
+  const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({});
 
   const [activeWindowId, setActiveWindowId] = useState<number>(
     () => initialWindows[0]?.id ?? Date.now(),
   );
 
+  // ── ЗАГРУЗКА ПРАЙСОВ ИЗ БД ──────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
@@ -75,15 +78,14 @@ export default function CalculationClient({
         if (!result.success || !Array.isArray(result.data)) return;
 
         const nextMap: Record<string, number> = {};
-
         for (const price of result.data) {
           nextMap[price.slug] = Number(price.value);
         }
 
-        setMountingPriceMap(nextMap);
+        setCurrentPrices(nextMap);
       })
       .catch((error) => {
-        logger.warn('[CalculationClient] Не удалось загрузить прайс монтажа', error);
+        logger.warn('[CalculationClient] Ошибка загрузки мастер-прайса', error);
       });
 
     return () => {
@@ -91,15 +93,18 @@ export default function CalculationClient({
     };
   }, []);
 
+  // ── МОЗГОВОЙ ЦЕНТР (Прайсы поданы!) ─────────────────────────────────────
   const {
     windows,
     clientDataWithArea,
     totalAreaMaterial,
     totalAreaWithKant,
+    totalPrice,
+    costPrice,
     handleWindowsChange,
     handleClientDataChange,
     handleExtrasChange,
-  } = useCalculationState(initialClientData, initialWindows);
+  } = useCalculationState(initialClientData, initialWindows, currentPrices);
 
   /**
    * 🔥 ЕДИНОЕ СОХРАНЕНИЕ ВСЕГО ЗАКАЗА
@@ -114,6 +119,8 @@ export default function CalculationClient({
         ...clientDataWithArea,
         items: windows,
         mountingConfig: clientDataWithArea.mountingConfig,
+        // Сохраняем слепок цен, по которым считали (для истории)
+        savedPrices: currentPrices, 
       };
 
       const result = await updateClientAction(clientId, payload);
@@ -146,11 +153,12 @@ export default function CalculationClient({
     } finally {
       setIsSaving(false);
     }
-  }, [clientId, clientDataWithArea, windows, router, isReadOnly]);
+  }, [clientId, clientDataWithArea, windows, router, isReadOnly, currentPrices, handleClientDataChange]);
 
   const handleMountingChange = useCallback(
     (newConfig: MountingConfig): void => {
-      const mountingCalc = calculateMounting(newConfig, totalAreaMaterial, mountingPriceMap);
+      // Используем актуальные цены для монтажа
+      const mountingCalc = calculateMounting(newConfig, totalAreaMaterial, currentPrices);
 
       const mountingCostValue =
         newConfig.manualPrice ?? mountingCalc.retailFinal ?? 0;
@@ -158,10 +166,10 @@ export default function CalculationClient({
       handleClientDataChange({
         ...clientDataWithArea,
         mountingConfig: newConfig,
-        mountingCost: mountingCostValue, // ← ВОТ ЭТО КЛЮЧ
+        mountingCost: mountingCostValue,
       });
     },
-    [clientDataWithArea, handleClientDataChange, totalAreaMaterial, mountingPriceMap],
+    [clientDataWithArea, handleClientDataChange, totalAreaMaterial, currentPrices],
   );
 
   const steps: Array<{ id: Step; label: string }> = [
@@ -177,7 +185,6 @@ export default function CalculationClient({
   return (
     <div className={styles.wrapper}>
       <div className={styles.topBar}>
-
         <nav className={styles.stepNav}>
           {steps.map((step) => (
             <button
@@ -204,13 +211,16 @@ export default function CalculationClient({
           <strong>{totalAreaWithKant.toFixed(2)} м²</strong>
           {isSaving && <span>Сохранение…</span>}
         </div>
-
       </div>
 
       <main className={styles.mainContent}>
         {activeStep === 'client' && (
           <ClientStep
             initialData={clientDataWithArea}
+            priceMap={currentPrices}
+            calculatedTotal={totalPrice}
+            calculatedCost={costPrice}
+            calculatedArea={totalAreaMaterial}
             onSave={handleSaveAll}
             onDraftChange={handleClientDataChange}
             onClose={() => router.back()}

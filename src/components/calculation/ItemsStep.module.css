@@ -12,7 +12,7 @@
 /* 1. ЛЕВАЯ ПАНЕЛЬ: Теперь она ТЕМНАЯ и не мешает другим цветам */
 .inputPanelWrapper {
   /* Ставим темно-синий (как правая панель) или почти черный */
-  background: #242D3E !important; 
+  background: #242D3E !important;
   border: 1px solid rgba(123, 255, 0, 0.2);
   border-radius: 20px;
   padding: 15px;
@@ -77,7 +77,8 @@
   padding: 10px 24px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 30px !important; /* БЫЛО 12px */
+  border-radius: 30px !important;
+  /* БЫЛО 12px */
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.85rem;
   font-weight: 600;
@@ -100,7 +101,8 @@
   background: rgba(123, 255, 0, 0.05);
   border: 1px dashed rgba(123, 255, 0, 0.4);
   color: #7BFF00;
-  border-radius: 50% !important; /* Делаем её идеально круглой */
+  border-radius: 50% !important;
+  /* Делаем её идеально круглой */
   cursor: pointer;
 }
 
@@ -118,10 +120,13 @@
 .bottomInfoBar {
   display: flex;
   justify-content: space-between;
-  padding: 12px 30px; /* Увеличили боковые отступы для формы капсулы */
+  padding: 12px 30px;
+  /* Увеличили боковые отступы для формы капсулы */
   background: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(123, 255, 0, 0.1); /* Добавим легкий контур */
-  border-radius: 50px; /* БЫЛО 14px — ставим максимум для эффекта таблетки */
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  /* Добавим легкий контур */
+  border-radius: 50px;
+  /* БЫЛО 14px — ставим максимум для эффекта таблетки */
   margin-top: 15px;
   flex-shrink: 0;
 }
@@ -161,8 +166,10 @@
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(123, 255, 0, 0.15);
   color: #fff;
-  padding: 12px 20px; /* Увеличил паддинг для овальной формы */
-  border-radius: 30px !important; /* БЫЛО 8px */
+  padding: 12px 20px;
+  /* Увеличил паддинг для овальной формы */
+  border-radius: 30px !important;
+  /* БЫЛО 8px */
   outline: none;
 }
 
@@ -188,8 +195,10 @@
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(123, 255, 0, 0.15);
   color: #ffffff;
-  padding: 12px 20px; /* Увеличил паддинг */
-  border-radius: 30px !important; /* БЫЛО 8px */
+  padding: 12px 20px;
+  /* Увеличил паддинг */
+  border-radius: 30px !important;
+  /* БЫЛО 8px */
   margin-bottom: 10px;
   outline: none;
   appearance: none;
@@ -252,10 +261,12 @@
 
 /* 5. ПОЛЕ ТРАПЕЦИИ */
 .trapezoidFields {
-  background-color: #242D3E !important; 
-  border: 1px solid rgba(123, 255, 0, 0.1) !important; /* Добавим тонкую рамку */
+  background-color: #242D3E !important;
+  border: 1px solid rgba(123, 255, 0, 0.1) !important;
+  /* Добавим тонкую рамку */
   padding: 15px;
-  border-radius: 25px !important; /* БЫЛО 12px */
+  border-radius: 25px !important;
+  /* БЫЛО 12px */
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -266,4 +277,127 @@
 /* Чтобы инпуты внутри трапеции не сливались, сделаем их чуть темнее фона */
 .trapezoidFields .inputGroup input {
   background: rgba(15, 23, 42, 0.4);
+}
+
+/* Добавь в конец ItemsStep.module.css */
+.inputGroup input[readonly] {
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  pointer-events: none;
+  /* Чтобы нельзя было даже поставить курсор */
+}
+
+/* Контейнер для информационного поля */
+.infoFieldWrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+/* Стилизация инпута как на скриншоте (овальная капсула) */
+.infoInput {
+  width: 100%;
+  background: rgba(123, 255, 0, 0.05) !important;
+  /* Легкий зеленый оттенок фона */
+  border: 1px solid rgba(123, 255, 0, 0.2) !important;
+  /* Тонкая зеленая рамка */
+  color: #7BFF00 !important;
+  /* Акцентный текст */
+  padding: 12px 20px;
+  border-radius: 30px !important;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  cursor: default;
+  font-size: 0.9rem;
+}
+
+/* Иконка индикатора "Только чтение" */
+.infoIcon {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(123, 255, 0, 0.4);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+/* Убираем любые эффекты при фокусе для этого поля */
+.infoInput:focus {
+  border-color: rgba(123, 255, 0, 0.3) !important;
+  box-shadow: none !important;
+}
+
+.orderSummaryCard {
+  margin-top: 20px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: 20px;
+  padding: 15px;
+}
+
+.summaryHeader h4 {
+  font-size: 0.7rem;
+  color: #7BFF00;
+  margin: 0 0 12px 0;
+  letter-spacing: 1px;
+}
+
+.batchGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.batchItem {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.batchMain {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.batchMaterialName {
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.batchRollBadge {
+  background: #7BFF00;
+  color: #111827;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.batchStat {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  justify-content: space-between;
+}
+
+.batchStat span {
+  color: #fff;
+}
+
+.orderTotals {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 10px;
+}
+
+.totalLine {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
