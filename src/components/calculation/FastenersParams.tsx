@@ -2,8 +2,7 @@
 
 /**
  * Панель настройки крепежа для одного изделия.
- * * Согласовано с FastenersStep.tsx: принимает fasteners и onChange напрямую.
- * @module src/components/calculation/FastenersParams.tsx
+ * Исправлена ошибка типизации TS 2322 (sides configuration).
  */
 
 import styles from './FastenersParams.module.css';
@@ -12,7 +11,7 @@ import {
   type FastenerType,
   type FastenerFinish,
   type FastenerSideState,
-  getInitialFastener, // Используем обновленное имя
+  getInitialFastener,
 } from '@/types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,7 +28,7 @@ const FASTENER_TYPE_OPTIONS: Array<{ value: FastenerType; label: string }> = [
 ];
 
 const FINISH_OPTIONS: Array<{ value: NonNullable<FastenerFinish>; label: string; premium: string }> = [
-  { value: 'zinc',  label: 'Желтый цинк',       premium: '+10%' },
+  { value: 'zinc',  label: 'Желтый цинк',     premium: '+10%' },
   { value: 'black', label: 'Черная фурнитура',   premium: '+15%' },
   { value: 'color', label: 'Цветная фурнитура',  premium: '+20%' },
 ];
@@ -39,10 +38,6 @@ const TOP_STATE_META: Record<string, { icon: string; label: string; hint: string
   true:    { icon: '✓',  label: 'Верх',  hint: '' },
   false:   { icon: '✕',  label: 'Верх',  hint: '' },
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Пропсы (Интерфейс должен совпадать с вызовом в FastenersStep)
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface FastenersParamsProps {
   fasteners: FastenerConfig;
@@ -56,10 +51,9 @@ export default function FastenersParams({
   isReadOnly = false,
 }: FastenersParamsProps) {
   
-  // Если проп fasteners вдруг не пришел, берем дефолт
   const config = fasteners ?? getInitialFastener();
 
-  // ── Смена типа ─────────────────────────────────────────────────────────────
+  // ── Смена типа (ИСПРАВЛЕНО: Типизация объектов сторон) ─────────────────────
 
   const handleTypeChange = (type: FastenerType): void => {
     if (isReadOnly) return;
@@ -71,10 +65,16 @@ export default function FastenersParams({
         sides: { top: false, right: false, bottom: false, left: false },
       });
     } else if (config.type === 'none') {
+      // ИСПРАВЛЕНИЕ: Гарантируем, что объект соответствует FastenerConfig['sides']
       onChange({
         ...config,
         type,
-        sides: { top: 'default', right: true, bottom: true, left: true },
+        sides: { 
+          top: 'default' as FastenerSideState, 
+          right: true, 
+          bottom: true, 
+          left: true 
+        },
       });
     } else {
       onChange({ ...config, type });
@@ -87,19 +87,26 @@ export default function FastenersParams({
     if (isReadOnly) return;
     const current = config.sides.top;
     let next: FastenerSideState;
+    
     if (current === 'default') next = true;
     else if (current === true) next = false;
     else next = 'default';
-    onChange({ ...config, sides: { ...config.sides, top: next } });
+
+    onChange({ 
+      ...config, 
+      sides: { ...config.sides, top: next } 
+    });
   };
 
   // ── Тогл обычной стороны ───────────────────────────────────────────────────
 
   const handleSideToggle = (side: 'right' | 'bottom' | 'left'): void => {
     if (isReadOnly) return;
+    // Явное приведение к boolean для исключения попадания 'default' в эти поля
+    const currentValue = !!config.sides[side];
     onChange({
       ...config,
-      sides: { ...config.sides, [side]: !config.sides[side] },
+      sides: { ...config.sides, [side]: !currentValue },
     });
   };
 
@@ -119,11 +126,11 @@ export default function FastenersParams({
     return styles.sideBtnInactive;
   };
 
-  const topMeta = TOP_STATE_META[String(config.sides.top)] ?? TOP_STATE_META['false'];
+  const topValue = config.sides.top;
+  const topMeta = TOP_STATE_META[String(topValue)] ?? TOP_STATE_META['false'];
 
   return (
     <div className={styles.wrapper}>
-      {/* Тип крепежа */}
       <div className={styles.formSection}>
         <h4 className={styles.sectionLabel}>Тип крепежа</h4>
         <div className={styles.selectWrapper}>
@@ -140,7 +147,6 @@ export default function FastenersParams({
         </div>
       </div>
 
-      {/* Стороны */}
       {config.type !== 'none' && (
         <div className={styles.formSection}>
           <h4 className={styles.sectionLabel}>Стороны крепежа</h4>
@@ -173,7 +179,6 @@ export default function FastenersParams({
         </div>
       )}
 
-      {/* Отделка */}
       {config.type !== 'none' && (
         <div className={styles.formSection}>
           <h4 className={styles.sectionLabel}>Отделка фурнитуры</h4>

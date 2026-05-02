@@ -26,25 +26,23 @@ export type FastenerType =
 
 export type FastenerFinish = 'zinc' | 'black' | 'color' | null;
 
+/** 
+ * 'default' — автоматический выбор (например, люверс 10мм для верха)
+ * boolean — принудительное включение/выключение
+ */
 export type FastenerSideState = 'default' | boolean;
 
 export interface FastenerSides {
-  top: FastenerSideState;
+  top: FastenerSideState; // ЗДЕСЬ МЫ РАЗРЕШАЕМ 'default'
   right: boolean;
   bottom: boolean;
   left: boolean;
 }
 
-// В файле типов (примерно так должен выглядеть FastenerConfig)
 export interface FastenerConfig {
-  type: string;
-  sides: {
-    top: boolean;
-    bottom: boolean;
-    left: boolean;
-    right: boolean;
-  };
-  finish: FastenerFinish; // ДОБАВЛЕНО: возвращаем легальный статус полю finish
+  type: FastenerType; // Используем строгий Union тип вместо string
+  sides: FastenerSides; // Используем интерфейс выше для синхронизации
+  finish: FastenerFinish;
   priceRetail: number;
   priceCost: number;
   retailCost?: number;
@@ -54,8 +52,13 @@ export interface FastenerConfig {
 export function getInitialFastener(): FastenerConfig {
   return {
     type: 'none',
-    sides: { top: false, right: false, bottom: false, left: false },
-    finish: null, // Теперь это поле законно
+    sides: {
+      top: false,
+      right: false,
+      bottom: false,
+      left: false
+    },
+    finish: null,
     priceRetail: 0,
     priceCost: 0,
     retailCost: 0,
