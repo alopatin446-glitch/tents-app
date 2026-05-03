@@ -216,3 +216,26 @@
   flex-direction: column;
   gap: 10px;
 }
+
+.rightColumn {
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  background: #242D3E;
+  border-radius: 20px;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.drawingWrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+  border: 1px solid rgba(123, 255, 0, 0.05);
+  position: relative;
+  min-height: 0;
+}
