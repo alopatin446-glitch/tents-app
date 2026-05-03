@@ -1,0 +1,235 @@
+/* CuttingDiagnostics.module.css
+ * Стили диагностического блока «ПЛАН РАСКРОЯ ЗАКАЗА».
+ * Все цвета и скругления соответствуют дизайн-системе ItemsStep.
+ */
+
+/* ─── Корневой блок ─────────────────────────────────────────────────────── */
+
+.root {
+  margin-top: 20px;
+  border-top: 1px solid rgba(123, 255, 0, 0.1);
+  padding-top: 15px;
+}
+
+.heading {
+  color: #7BFF00;
+  font-size: 0.75rem;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ─── Подзаголовок-описание ──────────────────────────────────────────────── */
+
+.description {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  margin-bottom: 12px;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(123, 255, 0, 0.12);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+/* ─── Список карточек изделий ────────────────────────────────────────────── */
+
+.batchList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.windowCard {
+  background: rgba(15, 23, 42, 0.45);
+  padding: 10px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(123, 255, 0, 0.12);
+}
+
+.windowCard--oversize {
+  border-color: rgba(255, 77, 79, 0.55);
+}
+
+/* ─── Шапка карточки ─────────────────────────────────────────────────────── */
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.72rem;
+  margin-bottom: 8px;
+}
+
+.cardTitle {
+  color: #fff;
+  font-weight: bold;
+}
+
+.cardMaterial {
+  color: #7BFF00;
+  white-space: nowrap;
+}
+
+/* ─── Сетка параметров карточки ──────────────────────────────────────────── */
+
+.paramGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  font-size: 0.68rem;
+}
+
+.paramRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.paramLabel {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.paramValue {
+  color: #fff;
+  font-weight: 700;
+}
+
+.paramValue--rotated {
+  color: #FFD600;
+  font-weight: 700;
+}
+
+.paramValue--ok {
+  color: #7BFF00;
+  font-weight: 700;
+}
+
+.paramValue--waste {
+  color: #ff4d4f;
+  font-weight: 700;
+}
+
+/* ─── Строки детализации перерасхода (вложены в ячейку paramGrid) ─────────── */
+
+.overflowCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diagnosticRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.68rem;
+}
+
+.diagnosticRow span {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.diagnosticRow strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ─── Предупреждения внутри карточки ─────────────────────────────────────── */
+
+.warnings {
+  margin-top: 8px;
+  display: grid;
+  gap: 5px;
+}
+
+.warnOversize {
+  color: #ff4d4f;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.warnApprox {
+  color: #FFD600;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+/* ─── Блок групп calculateOrderOptimization ──────────────────────────────── */
+
+.groupsHeading {
+  color: #7BFF00;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 12px 0 8px;
+}
+
+.groupCard {
+  background: rgba(15, 23, 42, 0.35);
+  padding: 10px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.groupHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  margin-bottom: 5px;
+}
+
+.groupMaterial {
+  color: #fff;
+  font-weight: bold;
+}
+
+.groupRoll {
+  color: #7BFF00;
+}
+
+.groupStats {
+  display: grid;
+  gap: 4px;
+  font-size: 0.68rem;
+}
+
+.groupStatRow {
+  display: flex;
+  justify-content: space-between;
+}
+
+.groupStatLabel {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.groupStatValue {
+  color: #fff;
+  font-weight: bold;
+}
+
+.emptyGroups {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.7rem;
+}
+
+/* ─── Итоговые строки заказа ─────────────────────────────────────────────── */
+
+.totals {
+  margin-top: 10px;
+  font-size: 0.7rem;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.totalRow--waste {
+  color: #ff4d4f;
+}
+
+.totalValue {
+  color: #fff;
+}
