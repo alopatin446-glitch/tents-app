@@ -82,6 +82,7 @@ export default function CreateClientModal({
           onSave={handleFinalSave}
           onClose={onClose}
           priceMap={priceMap} 
+          calculatedTotalExpenses={0}
         />
       </div>
     </div>
