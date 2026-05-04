@@ -20,6 +20,7 @@ interface EditModalClient {
   address?: string | null;
   source?: string | null;
   status?: string | null;
+  totalExpenses?: number;
   totalPrice?: number | string | null;
   advance?: number | string | null;
   balance?: number | string | null;
@@ -139,6 +140,7 @@ export default function EditModal({ client, onClose, priceMap }: EditModalProps)
           onSave={handleUpdate}
           onClose={onClose}
           priceMap={priceMap}
+          calculatedTotalExpenses={client.totalExpenses || 0}
         />
       </div>
     </div>
