@@ -36,25 +36,28 @@ export default function FastenersStep({
   const handleParamsChange = useCallback((newConfig: FastenerConfig) => {
     if (!activeWindow) return;
 
-    // 1. Вызов Единого мозга
     const geometry = calculateWindowGeometry(activeWindow);
 
-    // 2. Ценовой суверенитет: расчет стоимости на основе периметра
-    const retailCost = geometry.perimeter * (newConfig.priceRetail || 0);
-    const costCost = geometry.perimeter * (newConfig.priceCost || 0);
+    // Директорский расчет: количество точек (минимум 4 по углам)
+    // Допустим, шаг 40 см (400 мм). Периметр у нас в см.
+    const step = 40;
+    const pointsCount = Math.max(4, Math.ceil(geometry.perimeter / step));
+
+    // Ценовой суверенитет: цена за ШТУКУ из конфига (подтягивается из прайса)
+    const retailCost = pointsCount * (newConfig.priceRetail || 0);
+    const costCost = pointsCount * (newConfig.priceCost || 0);
 
     const updatedFastenerConfig: FastenerConfig = {
       ...newConfig,
+      pointsCount, // Сохраняем количество для производства!
       retailCost: Number(retailCost.toFixed(2)),
       costCost: Number(costCost.toFixed(2)),
     };
 
-    // 3. Обновление стейта без потери фокуса (Keyboard Jump Prevention)
     const updatedWindows = windows.map((w) =>
       w.id === activeWindowId ? {
         ...w,
         fasteners: updatedFastenerConfig,
-        // Фиксация в Гроссбухе изделия
         totalFastenersRetail: updatedFastenerConfig.retailCost,
         totalFastenersCost: updatedFastenerConfig.costCost
       } : w
@@ -118,15 +121,12 @@ export default function FastenersStep({
             <span className={styles.infoItem}>
               Выбрано: <strong>{activeWindow.name}</strong>
             </span>
+            {/* НОВЫЙ БЛОК: Выводим количество точек крепления */}
             <span className={styles.infoItem}>
-              Стороны: <strong>{activeSidesCount} / 4</strong>
+              Точек: <strong>{activeFasteners.pointsCount || 0} шт.</strong>
             </span>
             <span className={styles.infoItem}>
-              Тип: <strong>
-                {activeFasteners.type === 'none'
-                  ? 'Без крепежа'
-                  : activeFasteners.type.toUpperCase()}
-              </strong>
+              Стороны: <strong>{activeSidesCount} / 4</strong>
             </span>
             <span className={styles.infoItem}>
               Цена: <strong>{activeFasteners.retailCost || 0} ₽</strong>

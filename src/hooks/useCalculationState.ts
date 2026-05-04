@@ -28,6 +28,7 @@ export interface CalculationState {
   totalAreaWithKant: number;
   totalPrice: number;
   costPrice: number;
+  totalExpenses: number;
   totalMaterialInProduct: number;
   totalMaterialCut: number;
   totalOverspending: number;
@@ -123,6 +124,14 @@ export function useCalculationState(
     }, 0);
   }, [windows, activePrices]);
 
+  const totalExpenses = useMemo(() => {
+    return windows.reduce((sum, w) => {
+      const finance = calculateWindowFinance(w, activePrices);
+      // Суммируем результат нового поля из нашего ядра
+      return sum + finance.totalExpenses;
+    }, 0);
+  }, [windows, activePrices]);
+
   // Инъекция площади в объект клиента
   const clientDataWithArea = useMemo<ClientFormData>(
     () => ({ ...clientData, area: totalAreaMaterial }),
@@ -186,5 +195,6 @@ export function useCalculationState(
     totalMaterialCut,
     totalOverspending,
     totalProductionCost,
+    totalExpenses,
   };
 }

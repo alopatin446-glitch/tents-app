@@ -44,6 +44,7 @@ export interface FastenerConfig {
   sides: FastenerSides; // Используем интерфейс выше для синхронизации
   finish: FastenerFinish;
   priceRetail: number;
+  pointsCount?: number;
   priceCost: number;
   retailCost?: number;
   costCost?: number;
@@ -357,6 +358,7 @@ export interface WindowItem {
 
   fasteners?: FastenerConfig;
   additionalElements?: AdditionalElements;
+  
 
   /** 
    * ── PRICE SNAPSHOT (HARD COPY) ──

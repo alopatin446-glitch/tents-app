@@ -55,20 +55,18 @@ export function optimizeRollLayout(width: number, height: number, material: stri
     let roll = rolls.find(r => (w - SMART_TOLERANCE) <= r);
 
     if (roll) {
-      // Стандартный случай: деталь влезла в один из рулонов
-      const effectiveWidth = Math.max(roll, w);
+      // ПОГРАНИЧНИК-ЛОГИКА: Если влезли в рулон, списываем ВСЮ его ширину
       return {
         roll,
-        area: effectiveWidth * h, // Площадь в см²
+        area: roll * h,
         isOverSize: false
       };
     }
 
-    // Б) Кейс "Оверзайс": Деталь больше любого доступного рулона (напр. ТПУ 200 см)
-    // Берем самый широкий рулон материала, но площадь считаем по фактической ширине детали
+    // Б) Кейс "Оверзайс": Деталь шире всех рулонов
     return {
       roll: maxAvailableRoll,
-      area: w * h, // Площадь в см²
+      area: w * h,
       isOverSize: true
     };
   };
@@ -182,8 +180,11 @@ export interface WindowGeometry {
   kantAreaInProduct: number; /** Площадь канта, вошедшая в изделие, м². */
   kantWasteArea: number;     /** Перерасход канта, м². */
   kantTotalArea: number;     /** Весь расход канта, м². */
-  perimeter: number;      /** Периметр полотна в см. */
+  perimeter: number;         /** Периметр полотна в см. */
+  perimeterWithKant: number; /** ПЕРИМЕТР ИЗДЕЛИЯ С КАНТОМ (добавлено) */
   rollWidth: number;      // Ширина рулона
+  cutWidth: number;       // ШИРИНА ЗАГОТОВКИ (добавлено)
+  cutHeight: number;      // ВЫСОТА ЗАГОТОВКИ (добавлено)
   isRotated: boolean;     // Метка поворота
   isOverSize?: boolean;   // Метка негабарита (для ТПУ)
   isExact: boolean;       /** Флаг точности трапеции */
@@ -331,10 +332,13 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
     kantWasteArea: roundM2(kantWasteAreaCm2 / CM2_TO_M2),
     kantTotalArea: roundM2(kantTotalAreaCm2 / CM2_TO_M2),
 
-    perimeter,
+    perimeter: perimeter,
+    perimeterWithKant: kantedWidthTop + kantedHeightRight + kantedWidthBottom + kantedHeightLeft,
     rollWidth: finalRollWidth,
+    cutWidth: maxW + SOLDER_ALLOWANCE,  // Передаем реальный габарит заготовки
+    cutHeight: maxH + SOLDER_ALLOWANCE, // Передаем реальный габарит заготовки
     isRotated: finalIsRotated,
-    isOverSize: layout?.isOverSize || false, // ОБЯЗАТЕЛЬНО ДОБАВИТЬ ЭТО
+    isOverSize: layout?.isOverSize || false,
     isExact,
   };
 }

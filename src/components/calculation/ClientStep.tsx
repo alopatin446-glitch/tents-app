@@ -142,6 +142,7 @@ interface ClientStepProps {
   calculatedTotal?: number;   // Итого из ядра
   calculatedCost?: number;    // Себестоимость из ядра
   calculatedArea?: number;    // Точная площадь
+  calculatedTotalExpenses: number;
 
   materialInProductCost?: number;
   materialCutCost?: number;
@@ -241,6 +242,7 @@ export default function ClientStep({
   // ТЕПЕРЬ ОНИ ЗДЕСЬ ДОСТУПНЫ:
   calculatedTotal,
   calculatedCost,
+  calculatedTotalExpenses,
   calculatedArea,
   materialInProductCost,
   materialCutCost,
@@ -381,46 +383,6 @@ export default function ClientStep({
     };
   }, [clientId]);
 
-  // ⚡️ Директор: Исправленный Мост. Теперь он видит всё!
-  useEffect(() => {
-    if (isReadOnly) return;
-
-    setClientData((prev) => {
-      // 1. Считаем детализацию по изделиям (если они есть)
-      const itemsFinance = (prev.items || []).reduce((acc, item) => {
-        const f = calculateWindowFinance(item, priceMap);
-        return {
-          overspending: acc.overspending + f.overspending,
-          productionCost: acc.productionCost + f.productionCost
-        };
-      }, { overspending: 0, productionCost: 0 });
-
-      // 2. Сверяем базу из пропсов и детализацию
-      const hasTotalChanged = calculatedTotal !== undefined && calculatedTotal !== prev.totalPrice;
-      const hasCostChanged = calculatedCost !== undefined && calculatedCost !== prev.costPrice;
-      const hasAreaChanged = calculatedArea !== undefined && calculatedArea !== prev.area;
-      const hasDetailsChanged = prev.overspending !== itemsFinance.overspending || prev.productionCost !== itemsFinance.productionCost;
-
-      if (hasTotalChanged || hasCostChanged || hasAreaChanged || hasDetailsChanged) {
-        const nextData = {
-          ...prev,
-          totalPrice: hasTotalChanged ? calculatedTotal : prev.totalPrice,
-          costPrice: hasCostChanged ? calculatedCost : prev.costPrice,
-          area: hasAreaChanged ? calculatedArea : prev.area,
-          // 🛠 ВОТ ТУТ МЫ ОЖИВЛЯЕМ ПОЛЯ:
-          overspending: itemsFinance.overspending,
-          productionCost: itemsFinance.productionCost,
-        };
-
-        setTimeout(() => {
-          onDraftChange?.(nextData);
-        }, 0);
-        return nextData;
-      }
-      return prev;
-    });
-  }, [calculatedTotal, calculatedCost, calculatedArea, isReadOnly, onDraftChange]);
-
   // Вычисляем итоговые показатели заказа на основе всех изделий
   const orderFinancials = useMemo(() => {
     if (!clientData.items || clientData.items.length === 0) {
@@ -439,38 +401,41 @@ export default function ClientStep({
   }, [clientData.items, priceMap]);
 
   const financials = useMemo(() => {
-    // Считаем перерасход и производство прямо из изделий, чтобы не зависеть от лагов стейта
-    const sumsFromItems = (clientData.items || []).reduce((acc, item) => {
-      const f = calculateWindowFinance(item, priceMap);
-      return {
-        overspending: acc.overspending + f.overspending,
-        productionCost: acc.productionCost + f.productionCost
-      };
-    }, { overspending: 0, productionCost: 0 });
-
+    // 1. Базовые финансовые константы
     const retailPrice = toFinancialNumber(clientData.totalPrice);
     const advance = toFinancialNumber(clientData.advance);
-    const costPrice = toFinancialNumber(clientData.costPrice);
-
-    // ПРИОРИТЕТ: если в стейте пусто, берем то, что насчитал PricingLogic по изделиям
-    const overspending = toFinancialNumber(clientData.overspending) || sumsFromItems.overspending;
-    const productionCost = toFinancialNumber(clientData.productionCost) || sumsFromItems.productionCost;
-
     const mountingCost = toFinancialNumber(clientData.mountingCost);
+
+    // 2. Получаем готовые расчеты из пропсов (ядро)
+    const currentCostPrice = toFinancialNumber(calculatedCost);
+    const currentOverspending = toFinancialNumber(overspendingCost);
+    const currentProduction = toFinancialNumber(productionCost);
+    const totalExpenses = toFinancialNumber(calculatedTotalExpenses);
+
+    // 3. Расчет производных
     const balance = retailPrice - advance;
-    const totalExpenses = costPrice + mountingCost;
     const netProfit = retailPrice - totalExpenses;
 
     return {
-      retailPrice, advance, balance, costPrice,
-      overspending, productionCost, mountingCost,
-      totalExpenses, netProfit,
+      retailPrice,
+      advance,
+      balance,
+      costPrice: currentCostPrice,
+      overspending: currentOverspending,
+      productionCost: currentProduction,
+      mountingCost,
+      totalExpenses,
+      netProfit,
       isUnprofitable: netProfit < 0,
     };
   }, [
-    clientData.totalPrice, clientData.advance, clientData.costPrice,
-    clientData.overspending, clientData.productionCost, clientData.mountingCost,
-    clientData.items // ДОБАВИЛИ В ЗАВИСИМОСТИ
+    clientData.totalPrice,
+    clientData.advance,
+    clientData.mountingCost,
+    calculatedCost,
+    overspendingCost,
+    productionCost,
+    calculatedTotalExpenses
   ]);
 
   const toggleSection = useCallback((section: keyof OpenSections): void => {
@@ -1238,18 +1203,8 @@ export default function ClientStep({
                 <strong>{(calculatedArea ?? areaDisplay).toFixed(2)} м²</strong>
               </div>
 
-              <div className={styles.statLine}>
-                <span>Материал в изделии:</span>
-                <strong>{formatMoney(materialInProductCost ?? 0)}</strong>
-              </div>
-
-              <div className={styles.statLine}>
-                <span>Списано материала всего:</span>
-                <strong>{formatMoney(materialCutCost ?? 0)}</strong>
-              </div>
-
               <div className={styles.inputGroup}>
-                <label>Себестоимость</label>
+                <label>Стоимость изделия</label>
                 <input
                   type="number"
                   name="costPrice"
@@ -1261,7 +1216,7 @@ export default function ClientStep({
               </div>
 
               <div className={styles.inputGroup}>
-                <label>Перерасход</label>
+                <label>Стоимость перерасхода</label>
                 <input
                   type="number"
                   name="overspending"
@@ -1309,8 +1264,8 @@ export default function ClientStep({
 
               <div className={styles.statLine}>
                 <span>Чистая прибыль:</span>
-                <strong style={{ color: financials.isUnprofitable ? '#ff4d4d' : '#a3ff00' }}>
-                  {formatMoney(financials.netProfit)}
+                <strong style={{ color: ((calculatedTotal || 0) - (calculatedTotalExpenses || 0)) < 0 ? '#ff4d4d' : '#a3ff00' }}>
+                  {formatMoney((calculatedTotal || 0) - (calculatedTotalExpenses || 0))}
                 </strong>
               </div>
             </div>
@@ -1349,7 +1304,7 @@ export default function ClientStep({
 
           <div className={styles.sidebarTotal}>
             <span>Сумма заказа:</span>
-            <strong>{formatMoney(financials.retailPrice)}</strong>
+            <strong>{formatMoney(calculatedTotal || 0)}</strong>
           </div>
         </div>
 

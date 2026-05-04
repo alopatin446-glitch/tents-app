@@ -17,6 +17,7 @@ import { type WindowItem } from '@/types';
 import CuttingCanvas from './CuttingCanvas';
 import CuttingDiagnostics from '@/components/calculation/shared/CuttingDiagnostics';
 import styles from './ItemsStep.module.css';
+import { calculateWindowGeometry } from '@/lib/logic/windowCalculations';
 
 interface ProductionStepProps {
   windows: WindowItem[];
@@ -82,7 +83,11 @@ export default function ProductionStep({
         {/* Визуализация */}
         <div className={styles.drawingWrapper}>
           {activeWindow ? (
-            <CuttingCanvas windowItem={activeWindow} rollWidth={rollWidth} />
+            <CuttingCanvas
+              windowItem={activeWindow}
+              // Вместо стейта rollWidth берем реальную ширину списания из ядра
+              rollWidth={calculateWindowGeometry(activeWindow).rollWidth * 10}
+            />
           ) : (
             <div style={{ color: 'rgba(255,255,255,0.2)' }}>Выберите окно</div>
           )}

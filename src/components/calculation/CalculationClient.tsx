@@ -101,6 +101,7 @@ export default function CalculationClient({
     totalAreaWithKant,
     totalPrice,
     costPrice,
+    totalExpenses,
     totalMaterialInProduct,
     totalMaterialCut,
     totalOverspending,
@@ -224,6 +225,7 @@ export default function CalculationClient({
             priceMap={currentPrices}
             calculatedTotal={totalPrice}
             calculatedCost={costPrice}
+            calculatedTotalExpenses={totalExpenses}
             materialInProductCost={totalMaterialInProduct}
             materialCutCost={totalMaterialCut}
             overspendingCost={totalOverspending}

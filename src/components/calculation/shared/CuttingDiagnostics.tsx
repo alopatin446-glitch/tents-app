@@ -85,14 +85,12 @@ function buildDebugRow(item: WindowItem, index: number): WindowDebugRow {
   const geometry = calculateWindowGeometry(item);
   const innerWidth = Math.max(Number(item.widthTop), Number(item.widthBottom));
   const innerHeight = Math.max(Number(item.heightLeft), Number(item.heightRight));
+
+  // Припуски теперь живут только внутри ядра, здесь мы их просто визуализируем для мастера
   const cutWidthRaw = innerWidth + SOLDER_ALLOWANCE;
   const cutHeightRaw = innerHeight + SOLDER_ALLOWANCE;
-  const widthAcrossRoll = geometry.isRotated ? cutHeightRaw : cutWidthRaw;
-  const cutLength = geometry.isRotated ? cutWidthRaw : cutHeightRaw;
-  const chargedWidth = geometry.isOverSize
-    ? widthAcrossRoll
-    : Math.max(Number(geometry.rollWidth), widthAcrossRoll);
 
+  // Данные для мастера берем напрямую из Единого Мозга
   return {
     id: item.id,
     index,
@@ -102,9 +100,9 @@ function buildDebugRow(item: WindowItem, index: number): WindowDebugRow {
     innerHeight,
     cutWidthRaw,
     cutHeightRaw,
-    widthAcrossRoll,
-    cutLength,
-    chargedWidth,
+    widthAcrossRoll: geometry.cutWidth, // Берем из ядра
+    cutLength: geometry.cutHeight,     // Берем из ядра
+    chargedWidth: geometry.rollWidth,  // Ширина списания — это всегда ширина рулона
     geometry,
   };
 }
