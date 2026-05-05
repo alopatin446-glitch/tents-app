@@ -19,66 +19,64 @@ import { logger, LOG_MESSAGES } from '@/lib/logger';
 /** Коэффициент перевода см² → м². */
 const CM2_TO_M2 = 10_000;
 
-// 1. Добавляем припуск на припой (по 3 см с каждой стороны)
-export const SOLDER_ALLOWANCE = 6; // +6 см на припуски
-export const SMART_TOLERANCE = 4; // Допуск "натяжки"
+/** Припуск на припой (по 3 см с каждой стороны = 6 см суммарно). */
+export const SOLDER_ALLOWANCE = 6;
+
+/** Допуск «натяжки» при подборе рулона (см). */
+export const SMART_TOLERANCE = 4;
 
 /**
- * Единый справочник ширин рулонов (в см)
- * ТАМОЖНЯ: Цены и параметры здесь — это закон.
+ * Порог автоопределения трапеции по разнице высот (см).
+ * Если |heightLeft − heightRight| > порога → верхний край считается наклонным.
+ */
+const TRAPEZOID_HEIGHT_DELTA = 0.5;
+
+/**
+ * Порог автоопределения трапеции по разнице ширин (см).
+ * Если |widthTop − widthBottom| > порога → форма трапеция.
+ */
+const TRAPEZOID_WIDTH_DELTA = 0.5;
+
+/**
+ * Единый справочник ширин рулонов (в см).
+ * ТАМОЖНЯ: параметры здесь — закон.
  */
 export const ROLL_WIDTHS: Record<string, number[]> = {
-  'PVC_700': [140, 150, 180, 200, 220, 240], // Теперь это наш стандарт
-  'TPU': [140],
-  'TINTED': [140, 180, 200],
-  'MOSQUITO': [200],
+  PVC_700:  [140, 150, 180, 200, 220, 240],
+  TPU:      [140],
+  TINTED:   [140, 180, 200],
+  MOSQUITO: [200],
 };
 
-// --- СЕРЕДИНА ФАЙЛА (ЛОГИКА) ---
+// ---------------------------------------------------------------------------
+// Оптимизация раскроя
+// ---------------------------------------------------------------------------
 
 /**
- * Оптимизация раскроя: подбор рулона, вращение и обработка негабаритов.
- * 
- * Мы не удаляем старые правила, мы наращиваем их!
+ * Подбирает рулон, решает вопрос о повороте, помечает негабарит.
+ * Возвращает вариант с минимальной площадью списания.
  */
 export function optimizeRollLayout(width: number, height: number, material: string) {
-  const prodW = width + SOLDER_ALLOWANCE;
+  const prodW = width  + SOLDER_ALLOWANCE;
   const prodH = height + SOLDER_ALLOWANCE;
 
-  // Используем ПВХ 700 как безопасный fallback
-  const availableRolls = ROLL_WIDTHS[material] || ROLL_WIDTHS['PVC_700'];
-  const rolls = [...availableRolls].sort((a, b) => a - b);
+  const availableRolls = ROLL_WIDTHS[material] ?? ROLL_WIDTHS['PVC_700'];
+  const rolls          = [...availableRolls].sort((a, b) => a - b);
   const maxAvailableRoll = rolls[rolls.length - 1];
 
   const findFit = (w: number, h: number) => {
-    // А) Ищем рулон с учетом SMART_TOLERANCE
-    let roll = rolls.find(r => (w - SMART_TOLERANCE) <= r);
-
-    if (roll) {
-      // ПОГРАНИЧНИК-ЛОГИКА: Если влезли в рулон, списываем ВСЮ его ширину
-      return {
-        roll,
-        area: roll * h,
-        isOverSize: false
-      };
-    }
-
-    // Б) Кейс "Оверзайс": Деталь шире всех рулонов
-    return {
-      roll: maxAvailableRoll,
-      area: w * h,
-      isOverSize: true
-    };
+    const roll = rolls.find(r => (w - SMART_TOLERANCE) <= r);
+    if (roll) return { roll, area: roll * h, isOverSize: false };
+    return { roll: maxAvailableRoll, area: w * h, isOverSize: true };
   };
 
-  const normal = findFit(prodW, prodH);
+  const normal  = findFit(prodW, prodH);
   const rotated = findFit(prodH, prodW);
 
-  // ПОГРАНИЧНИК-ЛОГИКА: Выбираем вариант с МИНИМАЛЬНОЙ площадью списания
   if (normal && rotated) {
     return normal.area <= rotated.area
-      ? { ...normal, isRotated: false }
-      : { ...rotated, isRotated: true };
+      ? { ...normal,  isRotated: false }
+      : { ...rotated, isRotated: true  };
   }
 
   return normal ? { ...normal, isRotated: false } : null;
@@ -88,71 +86,11 @@ export function optimizeRollLayout(width: number, height: number, material: stri
 // Вспомогательные функции
 // ---------------------------------------------------------------------------
 
-/**
- * Вычисляет высоту трапеции по четырём сторонам методом аналитической геометрии.
- *
- * Задача: трапеция ABCD, AB = widthTop (верхнее основание),
- * CD = widthBottom (нижнее основание), BC = heightRight, AD = heightLeft.
- *
- * Алгоритм:
- * Размещаем AB на оси X: A = (0, 0), B = (a, 0).
- * D = (x, h), C = (x + b, h) — нижнее основание.
- *
- * Из длин боковых сторон:
- *   AD² = x² + h²            → уравнение 1
- *   BC² = (a − b − x)² + h²  → уравнение 2
- *
- * Вычитаем (1) из (2):
- *   BC² − AD² = (a − b − x)² − x²
- *   BC² − AD² = (a − b)² − 2(a − b)x
- *   x = [(a − b)² − (BC² − AD²)] / [2(a − b)]
- *
- * При a = b (прямоугольник): возвращаем среднее высот.
- *
- * @returns высота трапеции в сантиметрах, или null если геометрия невозможна
- */
-function computeTrapezoidHeight(
-  widthTop: number,
-  widthBottom: number,
-  heightLeft: number,
-  heightRight: number
-): number | null {
-  const a = widthTop;
-  const b = widthBottom;
-  const ad = heightLeft;
-  const bc = heightRight;
-
-  // Прямоугольник / параллелограмм — боковые стороны и есть высота
-  if (Math.abs(a - b) < 0.001) {
-    // Среднее двух высот как запасной вариант для не идеально прямоугольных окон
-    return (ad + bc) / 2;
-  }
-
-  const delta = a - b;
-  const numerator = delta * delta - (bc * bc - ad * ad);
-  const x = numerator / (2 * delta);
-
-  const h2 = ad * ad - x * x;
-
-  if (h2 <= 0 || Math.abs(bc - ad) > 5) {
-    // Геометрически невозможно (стороны не замыкаются или разница слишком велика)
-    logger.warn(LOG_MESSAGES.TRAPEZOID_IMPOSSIBLE, {
-      widthTop,
-      widthBottom,
-      heightLeft,
-      heightRight,
-    });
-    return null;
-  }
-
-  return Math.sqrt(h2);
-}
-
 function hasCompleteTrapezoidMeasurements(window: WindowItem): boolean {
   return (
-    Number(window.diagonalLeft) > 0 &&
+    Number(window.diagonalLeft)  > 0 &&
     Number(window.diagonalRight) > 0 &&
-    Number(window.crossbar) > 0
+    Number(window.crossbar)      > 0
   );
 }
 
@@ -165,233 +103,339 @@ function calculateBoxAreaCm2(
   return Math.max(widthTop, widthBottom) * Math.max(heightLeft, heightRight);
 }
 
+/**
+ * Длина верхней стороны изделия.
+ *
+ * «Наклонная крыша» (heightLeft ≠ heightRight):
+ *   Стороны вертикальны, верхний край наклонён.
+ *   Длина = √(widthTop² + (heightLeft − heightRight)²)
+ *
+ * Прямоугольник или «разноширинная» трапеция:
+ *   Длина = widthTop (горизонталь).
+ */
+function computeSideTop(
+  widthTop: number,
+  heightLeft: number,
+  heightRight: number,
+  isHeightTrapezoid: boolean,
+): number {
+  if (!isHeightTrapezoid) return widthTop;
+  return Math.sqrt(widthTop ** 2 + (heightLeft - heightRight) ** 2);
+}
+
 // ---------------------------------------------------------------------------
-// Публичный API
+// Публичный интерфейс результата
 // ---------------------------------------------------------------------------
 
 /**
  * Результат расчёта геометрии одного изделия.
+ *
+ * ═══ Закон Директора: разделение площадей ═══════════════════════════════════
+ *   retailArea    — Max W × Max H (прямоугольник).
+ *                   Для чека и расчёта розничной цены изделия.
+ *                   Точность: 4 знака.
+ *
+ *   productionArea — реальная площадь формы (трапеция или прямоугольник).
+ *                    Для ЗП сварщика: он получает за реальные м².
+ *                    Точность: 4 знака.
+ *
+ *   Все остальные площади — 2 знака (для отображения мастеру и менеджеру).
+ * ════════════════════════════════════════════════════════════════════════════
  */
 export interface WindowGeometry {
-  areaMaterial: number;   /** Площадь полотна в м². */
-  areaWithKant: number;   /** Площадь с учётом канта в м². */
-  cutArea: number;        /** Площадь прямоугольной заготовки в м². */
-  wasteArea: number;      /** Геометрический перерасход в м². */
-  kantAreaInProduct: number; /** Площадь канта, вошедшая в изделие, м². */
-  kantWasteArea: number;     /** Перерасход канта, м². */
-  kantTotalArea: number;     /** Весь расход канта, м². */
-  perimeter: number;         /** Периметр полотна в см. */
-  perimeterWithKant: number; /** ПЕРИМЕТР ИЗДЕЛИЯ С КАНТОМ (добавлено) */
-  rollWidth: number;      // Ширина рулона
-  cutWidth: number;       // ШИРИНА ЗАГОТОВКИ (добавлено)
-  cutHeight: number;      // ВЫСОТА ЗАГОТОВКИ (добавлено)
-  isRotated: boolean;     // Метка поворота
-  isOverSize?: boolean;   // Метка негабарита (для ТПУ)
-  isExact: boolean;       /** Флаг точности трапеции */
+  // ── Тип геометрии ──────────────────────────────────────────────────────────
+  /** Тип формы: прямоугольник или трапеция (определяется автоматически). */
+  type: 'rectangle' | 'trapezoid';
+
+  // ── Фактические длины сторон (см) ──────────────────────────────────────────
+  /** Высота левой стороны (см). */
+  leftHeight: number;
+  /** Высота правой стороны (см). */
+  rightHeight: number;
+  /**
+   * Точная длина верхней стороны (см).
+   * Для «наклонной крыши»: √(widthTop² + (heightLeft − heightRight)²).
+   * Для прямоугольника: widthTop.
+   */
+  sideTop: number;
+  /** Нижняя сторона (= widthBottom, всегда горизонталь, см). */
+  sideBottom: number;
+  /** Левая сторона (= heightLeft, см). */
+  sideLeft: number;
+  /** Правая сторона (= heightRight, см). */
+  sideRight: number;
+
+  // ── Площади — Закон Директора (4 знака) ────────────────────────────────────
+  /**
+   * Площадь для чека (м²): Max Width × Max Height.
+   * Клиент платит за габарит — всегда прямоугольник.
+   */
+  retailArea: number;
+  /**
+   * Реальная площадь изделия (м²).
+   * Сварщик получает за фактическую геометрию — трапецию или прямоугольник.
+   */
+  productionArea: number;
+
+  // ── Площади для раскроя и отображения (2 знака) ────────────────────────────
+  /** Площадь изделия с кантом (м²). */
+  areaWithKant: number;
+  /** Площадь прямоугольной заготовки из рулона (м²). */
+  cutArea: number;
+  /** Геометрический перерасход при раскрое (м²). */
+  wasteArea: number;
+  /** Площадь канта, вошедшая в изделие (м²). */
+  kantAreaInProduct: number;
+  /** Перерасход канта (м²). */
+  kantWasteArea: number;
+  /** Суммарный расход канта (м²). */
+  kantTotalArea: number;
+
+  // ── Периметр (см) ──────────────────────────────────────────────────────────
+  /** Периметр полотна (см). Учитывает наклон верхней стороны трапеции. */
+  perimeter: number;
+  /**
+   * Внешний периметр изделия с кантом (см).
+   * Для «наклонной крыши» включает sideTop через Пифагор.
+   * Используется в pricingLogic.ts для расчёта длины и стоимости канта.
+   */
+  perimeterWithKant: number;
+
+  // ── Параметры раскроя ──────────────────────────────────────────────────────
+  /** Ширина подобранного рулона (см). */
+  rollWidth: number;
+  /** Ширина заготовки = maxW + SOLDER_ALLOWANCE (см). */
+  cutWidth: number;
+  /** Высота заготовки = maxH + SOLDER_ALLOWANCE (см). */
+  cutHeight: number;
+  /** true = деталь повёрнута на 90° для экономии рулона. */
+  isRotated: boolean;
+  /** true = деталь шире максимального доступного рулона. */
+  isOverSize?: boolean;
+  /** false = приближённый расчёт (нет данных для точной трапеции). */
+  isExact: boolean;
 }
 
 /**
- * Расширенный результат для всего заказа (Цеховое планирование)
+ * Расширенный результат для всего заказа (цеховое планирование).
  */
 export interface OrderOptimization {
-  totalCutArea: number;   /** Общая площадь списания по заказу. */
-  totalWasteArea: number; /** Общий перерасход материала. */
+  /** Общая площадь списания по заказу (м²). */
+  totalCutArea: number;
+  /** Общий перерасход материала (м²). */
+  totalWasteArea: number;
   batches: MaterialBatch[];
 }
 
 interface MaterialBatch {
   material: string;
   rollWidth: number;
-  totalLength: number;    /** Общий погонаж отреза (см). */
-  windowIds: number[];    /** ID окон, входящих в этот отрез. */
+  /** Общий погонаж отреза (см). */
+  totalLength: number;
+  /** ID изделий, входящих в этот отрез. */
+  windowIds: number[];
 }
 
+// ---------------------------------------------------------------------------
+// Основная функция расчёта
+// ---------------------------------------------------------------------------
+
 /**
- * Вычисляет полную геометрию изделия.
+ * Вычисляет полную геометрию одного изделия.
  *
- * Для прямоугольника: площадь = ((T + B) / 2) * ((L + R) / 2)
- * Для трапеции: используем аналитический метод по 4 сторонам.
- * При невалидной геометрии — fallback на формулу прямоугольника с пометкой !isExact.
+ * Правило точности: промежуточные значения (areaCm2, retailAreaCm2)
+ * не округляются. Math.round применяется только в финальном return.
  *
- * Кант учитывается как дополнительный периметр сверху и снизу.
+ * Поддерживаемые формы:
+ *   Прямоугольник   — heightLeft ≈ heightRight, widthTop ≈ widthBottom.
+ *   Трапеция-высота — heightLeft ≠ heightRight (наклонный верх, Пифагор).
+ *   Трапеция-ширина — widthTop ≠ widthBottom (требует crossbar для точности).
  */
 export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
   const { widthTop, widthBottom, heightLeft, heightRight, isTrapezoid } = window;
   const { kantTop, kantRight, kantBottom, kantLeft } = window;
 
+  // ── Тип формы ──────────────────────────────────────────────────────────────
+  const isHeightTrapezoid = Math.abs(heightLeft - heightRight) > TRAPEZOID_HEIGHT_DELTA;
+  const isWidthTrapezoid  = Math.abs(widthTop   - widthBottom) > TRAPEZOID_WIDTH_DELTA;
+  const geometryType: 'rectangle' | 'trapezoid' =
+    isHeightTrapezoid || isWidthTrapezoid ? 'trapezoid' : 'rectangle';
+
+  // ── Физические длины сторон (см) ───────────────────────────────────────────
+  const sideLeft   = heightLeft;
+  const sideRight  = heightRight;
+  const sideBottom = widthBottom;
+  const sideTop    = computeSideTop(widthTop, heightLeft, heightRight, isHeightTrapezoid);
+
+  // ── Производственная площадь (не округляем до финального return) ────────────
   let areaCm2: number;
   let isExact = true;
 
   const canCalculateTrapezoid = isTrapezoid && hasCompleteTrapezoidMeasurements(window);
 
-
   if (canCalculateTrapezoid) {
     const h = Number(window.crossbar);
-
     if (!Number.isFinite(h) || h <= 0) {
       areaCm2 = calculateBoxAreaCm2(widthTop, widthBottom, heightLeft, heightRight);
-      isExact = false;
+      isExact  = false;
       logger.warn(LOG_MESSAGES.TRAPEZOID_IMPOSSIBLE, {
         windowId: window.id,
         windowName: window.name,
-        widthTop,
-        widthBottom,
-        heightLeft,
-        heightRight,
+        widthTop, widthBottom, heightLeft, heightRight,
       });
     } else {
-      // Для полной трапеции используем фактическую площадь:
-      // S = (верх + низ) / 2 × параллель.
       areaCm2 = ((widthTop + widthBottom) / 2) * h;
     }
+  } else if (isHeightTrapezoid) {
+    // «Наклонная крыша»: ширина одинакова, высоты разные.
+    // S = avgWidth × avgHeight
+    areaCm2 = ((widthTop + widthBottom) / 2) * ((heightLeft + heightRight) / 2);
   } else {
-    // Если трапеция не включена или не заполнены диагонали/параллель,
-    // считаем как обычное изделие по габариту.
     areaCm2 = calculateBoxAreaCm2(widthTop, widthBottom, heightLeft, heightRight);
   }
 
-  // --- НОВАЯ ЛОГИКА РАСКРОЯ ---
-  // 1. Берем максимальные габариты (ведь рулон должен закрыть всё окно)
-  const maxW = Math.max(widthTop, widthBottom);
-  const maxH = Math.max(heightLeft, heightRight);
+  // ── Розничная площадь (не округляем до финального return) ──────────────────
+  const maxW         = Math.max(widthTop, widthBottom);
+  const maxH         = Math.max(heightLeft, heightRight);
+  const retailAreaCm2 = maxW * maxH;
 
-  // 2. Вызываем наш оптимизатор. Передаем материал из объекта window
-  const layout = optimizeRollLayout(maxW, maxH, window.material || 'PVC_500');
+  // ── Раскрой ────────────────────────────────────────────────────────────────
+  const layout = optimizeRollLayout(maxW, maxH, window.material || 'PVC_700');
 
-  // 3. Определяем параметры списания
-  const finalRollWidth = layout ? layout.roll : (maxW + SOLDER_ALLOWANCE);
-  const finalCutAreaCm2 = layout ? layout.area : (finalRollWidth * (maxH + SOLDER_ALLOWANCE));
-  const finalIsRotated = layout ? layout.isRotated : false;
+  const finalRollWidth  = layout ? layout.roll        : (maxW + SOLDER_ALLOWANCE);
+  const finalCutAreaCm2 = layout ? layout.area        : (finalRollWidth * (maxH + SOLDER_ALLOWANCE));
+  const finalIsRotated  = layout ? layout.isRotated   : false;
 
-  // 4. Считаем честный перерасход (сколько рулона ушло в мусор)
   const wasteAreaCm2 = Math.max(0, finalCutAreaCm2 - areaCm2);
 
-  // Периметр полотна
-  const perimeter = widthTop + heightRight + widthBottom + heightLeft;
+  // ── Периметр ───────────────────────────────────────────────────────────────
+  const perimeter = sideTop + sideRight + sideBottom + sideLeft;
 
-  // Площадь с учётом канта (кант добавляет полосу по периметру)
-  const kantedWidthTop = widthTop + kantLeft + kantRight;
-  const kantedWidthBottom = widthBottom + kantLeft + kantRight;
-  const kantedHeightLeft = heightLeft + kantTop + kantBottom;
-  const kantedHeightRight = heightRight + kantTop + kantBottom;
+  // ── Площадь с кантом ───────────────────────────────────────────────────────
+  const kantedSideTop     = sideTop    + kantLeft + kantRight;
+  const kantedHeightRight = sideRight  + kantTop  + kantBottom;
+  const kantedWidthBottom = sideBottom + kantLeft + kantRight;
+  const kantedHeightLeft  = sideLeft   + kantTop  + kantBottom;
 
   let areaWithKantCm2: number;
-
   if (canCalculateTrapezoid && isExact) {
-    const hKanted = Number(window.crossbar) + kantTop + kantBottom;
-
-    areaWithKantCm2 = ((kantedWidthTop + kantedWidthBottom) / 2) * hKanted;
+    const hKanted    = Number(window.crossbar) + kantTop + kantBottom;
+    const wTopKanted = widthTop    + kantLeft + kantRight;
+    const wBotKanted = widthBottom + kantLeft + kantRight;
+    areaWithKantCm2  = ((wTopKanted + wBotKanted) / 2) * hKanted;
   } else {
-    const outerWidth = Math.max(widthTop, widthBottom) + kantLeft + kantRight;
-    const outerHeight = Math.max(heightLeft, heightRight) + kantTop + kantBottom;
-
-    areaWithKantCm2 = outerWidth * outerHeight;
+    areaWithKantCm2 = (maxW + kantLeft + kantRight) * (maxH + kantTop + kantBottom);
   }
 
-  // Площадь канта по сторонам.
-  // Кант считается как лента по каждой стороне в 2 слоя: лицо + тыл.
-  const topKantLength = widthTop + kantLeft + kantRight;
-  const rightKantLength = heightRight + kantTop + kantBottom;
-  const bottomKantLength = widthBottom + kantLeft + kantRight;
-  const leftKantLength = heightLeft + kantTop + kantBottom;
-
-  const topKantAreaCm2 = topKantLength * kantTop * 2;
-  const rightKantAreaCm2 = rightKantLength * kantRight * 2;
-  const bottomKantAreaCm2 = bottomKantLength * kantBottom * 2;
-  const leftKantAreaCm2 = leftKantLength * kantLeft * 2;
+  // ── Площадь канта по сторонам (2 слоя: лицо + тыл) ───────────────────────
+  const topKantAreaCm2    = kantedSideTop     * kantTop    * 2;
+  const rightKantAreaCm2  = kantedHeightRight * kantRight  * 2;
+  const bottomKantAreaCm2 = kantedWidthBottom * kantBottom * 2;
+  const leftKantAreaCm2   = kantedHeightLeft  * kantLeft   * 2;
 
   const kantAreaInProductCm2 =
-    topKantAreaCm2 +
-    rightKantAreaCm2 +
-    bottomKantAreaCm2 +
-    leftKantAreaCm2;
+    topKantAreaCm2 + rightKantAreaCm2 + bottomKantAreaCm2 + leftKantAreaCm2;
 
-  // Перерасход канта: +30 см на каждую ленту, тоже в 2 слоя.
+  // Технологический перерасход: +30 см на каждую ленту канта (допуск машины)
   const KANT_MACHINE_WASTE_CM = 30;
-
-  const topKantWasteCm2 = kantTop > 0 ? KANT_MACHINE_WASTE_CM * kantTop * 2 : 0;
-  const rightKantWasteCm2 = kantRight > 0 ? KANT_MACHINE_WASTE_CM * kantRight * 2 : 0;
-  const bottomKantWasteCm2 = kantBottom > 0 ? KANT_MACHINE_WASTE_CM * kantBottom * 2 : 0;
-  const leftKantWasteCm2 = kantLeft > 0 ? KANT_MACHINE_WASTE_CM * kantLeft * 2 : 0;
-
   const kantWasteAreaCm2 =
-    topKantWasteCm2 +
-    rightKantWasteCm2 +
-    bottomKantWasteCm2 +
-    leftKantWasteCm2;
+    (kantTop    > 0 ? KANT_MACHINE_WASTE_CM * kantTop    * 2 : 0) +
+    (kantRight  > 0 ? KANT_MACHINE_WASTE_CM * kantRight  * 2 : 0) +
+    (kantBottom > 0 ? KANT_MACHINE_WASTE_CM * kantBottom * 2 : 0) +
+    (kantLeft   > 0 ? KANT_MACHINE_WASTE_CM * kantLeft   * 2 : 0);
 
   const kantTotalAreaCm2 = kantAreaInProductCm2 + kantWasteAreaCm2;
 
+  // ── Финальный return — здесь применяем округление ─────────────────────────
   return {
-    areaMaterial: roundM2(areaCm2 / CM2_TO_M2),
-    areaWithKant: roundM2(areaWithKantCm2 / CM2_TO_M2),
-    cutArea: roundM2(finalCutAreaCm2 / CM2_TO_M2),
-    wasteArea: roundM2(wasteAreaCm2 / CM2_TO_M2),
+    type: geometryType,
 
+    leftHeight: sideLeft,
+    rightHeight: sideRight,
+    sideTop,
+    sideBottom,
+    sideLeft,
+    sideRight,
+
+    // Финансово значимые площади — 4 знака
+    retailArea:    round4(retailAreaCm2 / CM2_TO_M2),
+    productionArea: round4(areaCm2      / CM2_TO_M2),
+
+    // Отображаемые площади — 2 знака
+    areaWithKant:      roundM2(areaWithKantCm2     / CM2_TO_M2),
+    cutArea:           roundM2(finalCutAreaCm2      / CM2_TO_M2),
+    wasteArea:         roundM2(wasteAreaCm2         / CM2_TO_M2),
     kantAreaInProduct: roundM2(kantAreaInProductCm2 / CM2_TO_M2),
-    kantWasteArea: roundM2(kantWasteAreaCm2 / CM2_TO_M2),
-    kantTotalArea: roundM2(kantTotalAreaCm2 / CM2_TO_M2),
+    kantWasteArea:     roundM2(kantWasteAreaCm2     / CM2_TO_M2),
+    kantTotalArea:     roundM2(kantTotalAreaCm2     / CM2_TO_M2),
 
-    perimeter: perimeter,
-    perimeterWithKant: kantedWidthTop + kantedHeightRight + kantedWidthBottom + kantedHeightLeft,
+    perimeter,
+    perimeterWithKant: kantedSideTop + kantedHeightRight + kantedWidthBottom + kantedHeightLeft,
+
     rollWidth: finalRollWidth,
-    cutWidth: maxW + SOLDER_ALLOWANCE,  // Передаем реальный габарит заготовки
-    cutHeight: maxH + SOLDER_ALLOWANCE, // Передаем реальный габарит заготовки
+    cutWidth:  maxW + SOLDER_ALLOWANCE,
+    cutHeight: maxH + SOLDER_ALLOWANCE,
     isRotated: finalIsRotated,
-    isOverSize: layout?.isOverSize || false,
+    isOverSize: layout?.isOverSize ?? false,
     isExact,
   };
 }
 
-/**
- * Быстрый расчёт площади одного изделия в м².
- * Используется в тех местах, где нужно только это значение.
- */
-export function calculateArea(window: WindowItem): number {
-  return calculateWindowGeometry(window).areaMaterial;
-}
+// ---------------------------------------------------------------------------
+// Агрегирующие функции
+// ---------------------------------------------------------------------------
 
 /**
- * Суммирует площади всех изделий в заказе.
- *
- * @param windows - массив изделий
- * @returns общая площадь в м²
+ * Суммирует производственные площади всех изделий.
+ * Используется для расчёта ЗП цеха и производственного планирования.
  */
 export function calculateTotalArea(windows: WindowItem[]): number {
-  return roundM2(
-    windows.reduce((sum, w) => sum + calculateWindowGeometry(w).areaMaterial, 0)
+  return round4(
+    windows.reduce((sum, w) => sum + calculateWindowGeometry(w).productionArea, 0),
   );
 }
 
 /**
- * Суммирует площади с учётом канта для всех изделий.
- *
- * @param windows - массив изделий
- * @returns общая площадь с кантом в м²
+ * Суммирует розничные площади всех изделий (Max W × Max H).
+ * Используется для формирования чека и расчёта итоговой розничной стоимости.
+ */
+export function calculateTotalRetailArea(windows: WindowItem[]): number {
+  return round4(
+    windows.reduce((sum, w) => sum + calculateWindowGeometry(w).retailArea, 0),
+  );
+}
+
+/**
+ * Суммирует площади с кантом для всех изделий.
  */
 export function calculateTotalAreaWithKant(windows: WindowItem[]): number {
   return roundM2(
-    windows.reduce((sum, w) => sum + calculateWindowGeometry(w).areaWithKant, 0)
+    windows.reduce((sum, w) => sum + calculateWindowGeometry(w).areaWithKant, 0),
   );
 }
 
+/**
+ * Быстрый доступ к производственной площади одного изделия.
+ */
+export function calculateArea(window: WindowItem): number {
+  return calculateWindowGeometry(window).productionArea;
+}
+
 // ---------------------------------------------------------------------------
-// Утилиты
+// Оптимизация заказа (цеховое планирование)
 // ---------------------------------------------------------------------------
 
 /**
- * Глобальный оптимизатор заказа.
- * ТАМОЖНЯ: Группирует окна по материалу и ширине рулона для минимизации остатков.[cite: 1]
+ * Группирует изделия по материалу и ширине рулона.
+ * Минимизирует количество смен рулона на производстве.
  */
 export function calculateOrderOptimization(windows: WindowItem[]): OrderOptimization {
-  // 1. Получаем индивидуальные расчеты для каждого окна[cite: 1]
   const results = windows.map(w => ({
-    id: w.id,
-    geo: calculateWindowGeometry(w),
-    material: w.material || 'PVC_700' // Наш новый стандарт вместо 500[cite: 1]
+    id:       w.id,
+    geo:      calculateWindowGeometry(w),
+    material: w.material || 'PVC_700',
   }));
 
-  // 2. Группируем по Материалу + Ширине рулона[cite: 1]
   const batchMap: Record<string, MaterialBatch> = {};
 
   results.forEach(res => {
@@ -399,42 +443,51 @@ export function calculateOrderOptimization(windows: WindowItem[]): OrderOptimiza
 
     if (!batchMap[key]) {
       batchMap[key] = {
-        material: res.material,
-        rollWidth: res.geo.rollWidth,
+        material:    res.material,
+        rollWidth:   res.geo.rollWidth,
         totalLength: 0,
-        windowIds: []
+        windowIds:   [],
       };
     }
 
-    // Находим исходное окно для получения точных размеров[cite: 1]
-    const originalWindow = windows.find(w => w.id === res.id)!;
-
-    // Длина отреза зависит от того, повернули мы деталь или нет[cite: 1]
+    const orig   = windows.find(w => w.id === res.id)!;
     const length = res.geo.isRotated
-      ? (Number(originalWindow.widthTop) + SOLDER_ALLOWANCE)
-      : (Math.max(Number(originalWindow.heightLeft), Number(originalWindow.heightRight)) + SOLDER_ALLOWANCE);
+      ? (Number(orig.widthTop) + SOLDER_ALLOWANCE)
+      : (Math.max(Number(orig.heightLeft), Number(orig.heightRight)) + SOLDER_ALLOWANCE);
 
     batchMap[key].totalLength += length;
     batchMap[key].windowIds.push(res.id);
   });
 
   return {
-    totalCutArea: results.reduce((sum, r) => sum + r.geo.cutArea, 0),
+    totalCutArea:   results.reduce((sum, r) => sum + r.geo.cutArea,   0),
     totalWasteArea: results.reduce((sum, r) => sum + r.geo.wasteArea, 0),
-    batches: Object.values(batchMap)
+    batches: Object.values(batchMap),
   };
 }
 
+// ---------------------------------------------------------------------------
+// Утилиты
+// ---------------------------------------------------------------------------
+
 /**
- * Округляет значение площади до 2 знаков после запятой.
- * Централизованное место для управления точностью.
+ * Округление до 4 знаков.
+ * Только для финансово значимых площадей: retailArea, productionArea.
+ */
+function round4(value: number): number {
+  return Math.round(value * 10_000) / 10_000;
+}
+
+/**
+ * Округление до 2 знаков.
+ * Для отображаемых площадей: раскрой, кант, перерасход.
  */
 function roundM2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
 /**
- * Форматирует площадь для отображения в UI.
+ * Форматирует площадь для UI.
  * @example formatArea(1.5) → "1.50 м²"
  */
 export function formatArea(areaM2: number): string {

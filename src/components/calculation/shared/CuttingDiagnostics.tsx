@@ -6,7 +6,7 @@
  * Показывает мастеру на производстве ту же математику раскроя,
  * которая была рассчитана при создании заказа:
  *  — параметры раскроя каждого изделия (поворот, длина отреза, ширина списания)
- *  — площади (полотно / с кантом / итоговое списание)
+ *  — площади: productionArea (реальный расход) и retailArea (чек клиента)
  *  — детализацию перерасхода канта
  *  — сводку по группам из calculateOrderOptimization()
  *
@@ -22,6 +22,7 @@ import {
   calculateWindowGeometry,
   calculateOrderOptimization,
   formatArea,
+  SOLDER_ALLOWANCE,
   type WindowGeometry,
   type OrderOptimization,
 } from '@/lib/logic/windowCalculations';
@@ -47,21 +48,16 @@ interface WindowDebugRow {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Вспомогательные функции форматирования
+// Форматирование
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getMaterialLabel(material: string): string {
   switch (material) {
-    case 'PVC_700':
-      return 'ПВХ 700';
-    case 'TINTED':
-      return 'Тонировка';
-    case 'TPU':
-      return 'TPU';
-    case 'MOSQUITO':
-      return 'Москитка';
-    default:
-      return material || '—';
+    case 'PVC_700':  return 'ПВХ 700';
+    case 'TINTED':   return 'Тонировка';
+    case 'TPU':      return 'TPU';
+    case 'MOSQUITO': return 'Москитка';
+    default:         return material || '—';
   }
 }
 
@@ -76,33 +72,30 @@ function formatM(valueCm: number): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Построение строки диагностики по одному изделию
+// Построение строки диагностики
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SOLDER_ALLOWANCE = 6; // +6 см на припуски — дублируем константу, чтобы не создавать циклическую зависимость
-
 function buildDebugRow(item: WindowItem, index: number): WindowDebugRow {
-  const geometry = calculateWindowGeometry(item);
-  const innerWidth = Math.max(Number(item.widthTop), Number(item.widthBottom));
-  const innerHeight = Math.max(Number(item.heightLeft), Number(item.heightRight));
+  const geometry    = calculateWindowGeometry(item);
+  const innerWidth  = Math.max(Number(item.widthTop),    Number(item.widthBottom));
+  const innerHeight = Math.max(Number(item.heightLeft),  Number(item.heightRight));
 
-  // Припуски теперь живут только внутри ядра, здесь мы их просто визуализируем для мастера
-  const cutWidthRaw = innerWidth + SOLDER_ALLOWANCE;
+  // Припуски берём из ядра через SOLDER_ALLOWANCE — никакого хардкода
+  const cutWidthRaw  = innerWidth  + SOLDER_ALLOWANCE;
   const cutHeightRaw = innerHeight + SOLDER_ALLOWANCE;
 
-  // Данные для мастера берем напрямую из Единого Мозга
   return {
-    id: item.id,
+    id:             item.id,
     index,
-    name: item.name,
-    material: item.material || 'PVC_700',
+    name:           item.name,
+    material:       item.material || 'PVC_700',
     innerWidth,
     innerHeight,
     cutWidthRaw,
     cutHeightRaw,
-    widthAcrossRoll: geometry.cutWidth, // Берем из ядра
-    cutLength: geometry.cutHeight,     // Берем из ядра
-    chargedWidth: geometry.rollWidth,  // Ширина списания — это всегда ширина рулона
+    widthAcrossRoll: geometry.cutWidth,   // из ядра
+    cutLength:       geometry.cutHeight,  // из ядра
+    chargedWidth:    geometry.rollWidth,  // ширина рулона = ширина списания
     geometry,
   };
 }
@@ -112,7 +105,6 @@ function buildDebugRow(item: WindowItem, index: number): WindowDebugRow {
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CuttingDiagnosticsProps {
-  /** Все изделия заказа. На их основе строятся строки раскроя и сводка групп. */
   windows: WindowItem[];
 }
 
@@ -133,14 +125,14 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
 
   return (
     <div className={styles.root}>
-      {/* Заголовок */}
       <h4 className={styles.heading}>План раскроя заказа</h4>
 
-      {/* Пояснение */}
       <div className={styles.description}>
         Диагностика показывает текущий ответ{' '}
         <b>calculateWindowGeometry()</b> по каждому изделию.
-        Алгоритм расчёта здесь не меняется — только выводится наружу.
+        <br />
+        <b>Производство</b> — реальная площадь (основа ЗП сварщика).{' '}
+        <b>Чек</b> — площадь по габариту Max W × Max H (основа розничной цены).
       </div>
 
       {/* Карточки изделий */}
@@ -154,10 +146,15 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
                 : styles.windowCard
             }
           >
-            {/* Шапка карточки */}
+            {/* Шапка */}
             <div className={styles.cardHeader}>
               <span className={styles.cardTitle}>
                 Окно {row.index + 1}: {row.name}
+                {row.geometry.type === 'trapezoid' && (
+                  <span style={{ color: '#FFD600', marginLeft: 6, fontSize: '0.65rem' }}>
+                    ◆ трапеция
+                  </span>
+                )}
               </span>
               <span className={styles.cardMaterial}>
                 {getMaterialLabel(row.material)} / рулон {row.geometry.rollWidth} см
@@ -175,9 +172,9 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
                 </span>
               </div>
 
-              {/* Заготовка +6 см */}
+              {/* Заготовка */}
               <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Заготовка +6 см:</span>
+                <span className={styles.paramLabel}>Заготовка +{SOLDER_ALLOWANCE} см:</span>
                 <span className={styles.paramValue}>
                   {formatCm(row.cutWidthRaw)} × {formatCm(row.cutHeightRaw)}
                 </span>
@@ -215,15 +212,25 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
                 <span className={styles.paramValue}>{formatCm(row.chargedWidth)}</span>
               </div>
 
-              {/* Площадь полотна */}
+              {/* ── Разделение площадей (Закон Директора) ───────────────── */}
+
+              {/* Производство: реальная площадь → ЗП сварщика */}
               <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Полотно:</span>
+                <span className={styles.paramLabel}>Производство:</span>
                 <span className={styles.paramValue}>
-                  {formatArea(row.geometry.areaMaterial)}
+                  {row.geometry.productionArea.toFixed(4)} м²
                 </span>
               </div>
 
-              {/* Площадь с кантом */}
+              {/* Чек: Max W × Max H → розничная цена */}
+              <div className={styles.paramRow}>
+                <span className={styles.paramLabel}>Чек (габарит):</span>
+                <span className={styles['paramValue--ok']}>
+                  {row.geometry.retailArea.toFixed(4)} м²
+                </span>
+              </div>
+
+              {/* С кантом */}
               <div className={styles.paramRow}>
                 <span className={styles.paramLabel}>С кантом:</span>
                 <span className={styles.paramValue}>
@@ -231,7 +238,7 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
                 </span>
               </div>
 
-              {/* Итоговое списание */}
+              {/* Списание по рулону */}
               <div className={styles.paramRow}>
                 <span className={styles.paramLabel}>Списание:</span>
                 <span className={styles['paramValue--ok']}>
@@ -239,7 +246,7 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
                 </span>
               </div>
 
-              {/* Детализация перерасхода + итог */}
+              {/* Детализация канта и перерасхода */}
               <div className={styles.overflowCell}>
                 <div className={styles.diagnosticRow}>
                   <span>Кант в изделии:</span>
@@ -254,7 +261,7 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
                   <strong>{row.geometry.kantTotalArea.toFixed(2)} м²</strong>
                 </div>
                 <div className={styles.paramRow} style={{ marginTop: 2 }}>
-                  <span className={styles.paramLabel}>Перерасход:</span>
+                  <span className={styles.paramLabel}>Перерасход плёнки:</span>
                   <span
                     className={
                       row.geometry.wasteArea > 0
@@ -266,6 +273,26 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
                   </span>
                 </div>
               </div>
+
+              {/* Длины сторон (для трапеции) */}
+              {row.geometry.type === 'trapezoid' && (
+                <div className={styles.overflowCell}>
+                  <div className={styles.diagnosticRow}>
+                    <span>Верх (sideTop):</span>
+                    <strong>{row.geometry.sideTop.toFixed(1)} см</strong>
+                  </div>
+                  <div className={styles.diagnosticRow}>
+                    <span>Низ:</span>
+                    <strong>{row.geometry.sideBottom.toFixed(1)} см</strong>
+                  </div>
+                  <div className={styles.diagnosticRow}>
+                    <span>Лево / Право:</span>
+                    <strong>
+                      {row.geometry.sideLeft.toFixed(1)} / {row.geometry.sideRight.toFixed(1)} см
+                    </strong>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Предупреждения */}
@@ -273,14 +300,13 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
               <div className={styles.warnings}>
                 {row.geometry.isOverSize && (
                   <div className={styles.warnOversize}>
-                    ⚠ Негабарит: текущий алгоритм берёт максимальный рулон материала,
-                    но площадь считает по фактической ширине заготовки.
+                    ⚠ Негабарит: алгоритм берёт максимальный рулон,
+                    площадь считается по фактической ширине заготовки.
                   </div>
                 )}
                 {!row.geometry.isExact && (
                   <div className={styles.warnApprox}>
-                    ⚠ Приближённый расчёт: трапеция включена, но точных данных для неё
-                    не хватает.
+                    ⚠ Приближённый расчёт: трапеция включена, но данных crossbar нет.
                   </div>
                 )}
               </div>
@@ -291,7 +317,7 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
 
       {/* Сводка по группам */}
       <div className={styles.groupsHeading}>
-        Группы, которые сейчас возвращает calculateOrderOptimization()
+        Группы раскроя (calculateOrderOptimization)
       </div>
 
       {orderSummary.batches.length > 0 ? (

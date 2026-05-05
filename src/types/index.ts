@@ -4,13 +4,21 @@
  * Contains:
  * - Fastener types: FastenerType, FastenerFinish, FastenerConfig
  * - Extras types: StrapConfig, ZipperItem, DividerItem, CutoutItem, WeldingItem, AdditionalElements
- * - WindowItem extended with additionalElements
+ * - WindowItem (единственное объявление, все поля собраны здесь)
  * - Client, Stage for UI layer
+ *
+ * Разделение площадей (реэкспорт из ядра):
+ *   WindowGeometry.retailArea    — Max W × Max H (чек клиента).
+ *   WindowGeometry.productionArea — реальная площадь (ЗП цеха).
  *
  * @module src/types/index.ts
  */
 
 import { type ClientStatus } from '@/lib/logic/statusDictionary';
+
+// Реэкспортируем WindowGeometry, чтобы импортировать её из '@/types'
+// вместо прямого пути к windowCalculations.ts.
+export type { WindowGeometry, OrderOptimization } from '@/lib/logic/windowCalculations';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fastener types
@@ -26,44 +34,39 @@ export type FastenerType =
 
 export type FastenerFinish = 'zinc' | 'black' | 'color' | null;
 
-/** 
+/**
  * 'default' — автоматический выбор (например, люверс 10мм для верха)
- * boolean — принудительное включение/выключение
+ * boolean   — принудительное включение/выключение
  */
 export type FastenerSideState = 'default' | boolean;
 
 export interface FastenerSides {
-  top: FastenerSideState; // ЗДЕСЬ МЫ РАЗРЕШАЕМ 'default'
-  right: boolean;
+  top:    FastenerSideState;
+  right:  boolean;
   bottom: boolean;
-  left: boolean;
+  left:   boolean;
 }
 
 export interface FastenerConfig {
-  type: FastenerType; // Используем строгий Union тип вместо string
-  sides: FastenerSides; // Используем интерфейс выше для синхронизации
-  finish: FastenerFinish;
-  priceRetail: number;
+  type:         FastenerType;
+  sides:        FastenerSides;
+  finish:       FastenerFinish;
+  priceRetail:  number;
   pointsCount?: number;
-  priceCost: number;
-  retailCost?: number;
-  costCost?: number;
+  priceCost:    number;
+  retailCost?:  number;
+  costCost?:    number;
 }
 
 export function getInitialFastener(): FastenerConfig {
   return {
     type: 'none',
-    sides: {
-      top: false,
-      right: false,
-      bottom: false,
-      left: false
-    },
+    sides: { top: false, right: false, bottom: false, left: false },
     finish: null,
     priceRetail: 0,
-    priceCost: 0,
-    retailCost: 0,
-    costCost: 0,
+    priceCost:   0,
+    retailCost:  0,
+    costCost:    0,
   };
 }
 
@@ -76,17 +79,10 @@ export const getDefaultFastenerConfig = getInitialFastener;
 
 export type StrapType = 'grommet' | 'fastex';
 
-/**
- * Strap configuration for a window.
- * `count` is derived automatically from the outer top dimension unless
- * `isManual` is true, in which case the manager's override is used.
- */
 export interface StrapConfig {
-  /** Resolved strap count (derived or manually overridden). */
-  count: number;
-  /** When true, `count` is a manual manager override; otherwise derived. */
+  count:    number;
   isManual: boolean;
-  type: StrapType;
+  type:     StrapType;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,48 +91,27 @@ export interface StrapConfig {
 
 export type ElementOrientation = 'horizontal' | 'vertical';
 
-/**
- * Zipper element (UI/Canvas only — does NOT affect cut-plan).
- *
- * Coordinate reference: origin = TOP-LEFT of light opening.
- * - horizontal: positionFromStart = Y from top; offsetStart = trim from left; offsetEnd = trim from right
- * - vertical:   positionFromStart = X from left; offsetStart = trim from top; offsetEnd = trim from bottom
- *
- * Edge rule: if positionFromStart === 0 or === max dimension,
- * the visual border extends by managerBorder + 2 cm.
- */
 export interface ZipperItem {
-  id: string;
-  orientation: ElementOrientation;
-  /** Distance from the start edge (top for horizontal, left for vertical) in cm. */
+  id:               string;
+  orientation:      ElementOrientation;
   positionFromStart: number;
-  /** Trim from the first perpendicular edge in cm (left for H, top for V). */
-  offsetStart: number;
-  /** Trim from the second perpendicular edge in cm (right for H, bottom for V). */
-  offsetEnd: number;
-  /** Width of the zipper tape on the "start" side of the seam in cm. */
-  bandLeft: number;
-  /** Width of the zipper tape on the "end" side of the seam in cm. */
-  bandRight: number;
+  offsetStart:      number;
+  offsetEnd:        number;
+  bandLeft:         number;
+  bandRight:        number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Extras — Dividers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Divider element (UI/Canvas marker only).
- * Same coordinate conventions as ZipperItem.
- */
 export interface DividerItem {
-  id: string;
+  id:          string;
   orientation: ElementOrientation;
-  /** Distance from the start edge in cm. */
-  position: number;
+  position:    number;
   offsetStart: number;
-  offsetEnd: number;
-  /** Visual width of the divider band in cm. */
-  width: number;
+  offsetEnd:   number;
+  width:       number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,19 +120,12 @@ export interface DividerItem {
 
 export type CutoutType = 'cut' | 'patch';
 
-/**
- * Cutout or patch element.
- * `x`, `y` = top-left corner of the rectangle in window space (cm).
- * All four fields are strictly required — missing fields BLOCK calculation.
- */
 export interface CutoutItem {
-  id: string;
-  type: CutoutType;
-  /** X of top-left corner from left edge of light opening, cm. */
-  x: number;
-  /** Y of top-left corner from top edge of light opening, cm. */
-  y: number;
-  width: number;
+  id:     string;
+  type:   CutoutType;
+  x:      number;
+  y:      number;
+  width:  number;
   height: number;
 }
 
@@ -165,37 +133,24 @@ export interface CutoutItem {
 // Extras — Technical Welding
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Technical welding marker (UI/Canvas domain only).
- * Does NOT split sections, does NOT alter zipper/divider geometry,
- * does NOT trigger cut-plan or production recalculation.
- */
 export interface WeldingItem {
-  id: string;
+  id:          string;
   orientation: ElementOrientation;
-  /** Distance from the start edge in cm. */
-  position: number;
+  position:    number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Extras — Skirt & Weight flags
+// Extras — Skirt & Weight
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Container for all additional (extras) elements of a window.
- * Always fully initialized — never undefined.
- */
 export interface AdditionalElements {
-  straps: StrapConfig;
-  zippers: ZipperItem[];
+  straps:   StrapConfig;
+  zippers:  ZipperItem[];
   dividers: DividerItem[];
-  cutouts: CutoutItem[];
-  welding: WeldingItem[];
-  /** Whether a skirt is present. If true, `skirtWidth` is required. */
+  cutouts:  CutoutItem[];
+  welding:  WeldingItem[];
   hasSkirt: boolean;
-  /** Skirt height in cm. Required when hasSkirt = true. */
   skirtWidth: number;
-  /** Whether a weight bar is present along the outer bottom. */
   hasWeight: boolean;
 }
 
@@ -221,36 +176,62 @@ export type KantColor =
 
 export type WindowNumericField =
   | 'widthTop' | 'heightRight' | 'widthBottom' | 'heightLeft'
-  | 'kantTop' | 'kantRight' | 'kantBottom' | 'kantLeft'
+  | 'kantTop'  | 'kantRight'   | 'kantBottom'  | 'kantLeft'
   | 'diagonalLeft' | 'diagonalRight' | 'crossbar';
 
-export type WindowTextField = 'name' | 'kantColor' | 'material';
+export type WindowTextField   = 'name' | 'kantColor' | 'material';
 export type WindowBooleanField = 'isTrapezoid';
 export type WindowEditableField = WindowNumericField | WindowTextField | WindowBooleanField;
 
+/**
+ * Изделие ПВХ-шторы.
+ *
+ * Одно объявление — единственный источник истины.
+ * Все поля собраны здесь: геометрия, кант, крепёж, доп. элементы,
+ * снимок цен (price snapshot).
+ */
 export interface WindowItem {
-  id: number;
-  name: string;
-  widthTop: number;
+  id:          number;
+  name:        string;
+  widthTop:    number;
   heightRight: number;
   widthBottom: number;
-  heightLeft: number;
-  kantTop: number;
-  kantRight: number;
-  kantBottom: number;
-  kantLeft: number;
-  kantColor: KantColor;
-  material: WindowMaterial;
+  heightLeft:  number;
+  kantTop:     number;
+  kantRight:   number;
+  kantBottom:  number;
+  kantLeft:    number;
+  kantColor:   KantColor;
+  material:    WindowMaterial;
   isTrapezoid: boolean;
-  diagonalLeft: number;
+  diagonalLeft:  number;
   diagonalRight: number;
-  crossbar: number;
+  crossbar:      number;
+
   fasteners?: FastenerConfig;
+
   /**
-   * Additional elements. Always present after normalization.
-   * Optional only to allow legacy DB records to exist before normalization.
+   * Дополнительные элементы. Всегда присутствуют после нормализации.
+   * Optional для совместимости с legacy-записями в БД.
    */
   additionalElements?: AdditionalElements;
+
+  // ── Снимок цен (price snapshot) ──────────────────────────────────────────
+  // Заполняется автоматически при сохранении изделия.
+  // Защищает закрытые сделки от изменения прайса.
+
+  /** Розничная цена крепежа за 1 ед. (₽) */
+  fastenerPriceRetail?: number;
+  /** Себестоимость крепежа за 1 ед. (₽) */
+  fastenerPriceCost?: number;
+  /** Slug из DEFAULT_PRICE_ROWS */
+  fastenerSlug?: string;
+  /** Итоговая стоимость крепежа по заказу (розница, ₽) */
+  totalFastenersRetail?: number;
+  /** Итоговая себестоимость крепежа (₽) */
+  totalFastenersCost?: number;
+  /** Метка времени фиксации цен (ISO 8601) */
+  pricesCapturedAt?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -259,36 +240,36 @@ export interface WindowItem {
 
 export function createDefaultAdditionalElements(): AdditionalElements {
   return {
-    straps: { count: 2, isManual: false, type: 'grommet' },
-    zippers: [],
+    straps:   { count: 2, isManual: false, type: 'grommet' },
+    zippers:  [],
     dividers: [],
-    cutouts: [],
-    welding: [],
-    hasSkirt: false,
+    cutouts:  [],
+    welding:  [],
+    hasSkirt:  false,
     skirtWidth: 0,
-    hasWeight: false,
+    hasWeight:  false,
   };
 }
 
 export function createDefaultWindowItem(id: number, index: number): WindowItem {
   return {
     id,
-    name: `Окно ${index}`,
-    widthTop: 200,
-    heightRight: 200,
-    widthBottom: 200,
-    heightLeft: 200,
-    kantTop: 5,
-    kantRight: 5,
-    kantBottom: 5,
-    kantLeft: 5,
-    kantColor: 'Коричневый',
-    material: 'ПВХ 700 мкм (Прозрачная)',
-    isTrapezoid: false,
-    diagonalLeft: 0,
+    name:         `Окно ${index}`,
+    widthTop:     200,
+    heightRight:  200,
+    widthBottom:  200,
+    heightLeft:   200,
+    kantTop:      5,
+    kantRight:    5,
+    kantBottom:   5,
+    kantLeft:     5,
+    kantColor:    'Коричневый',
+    material:     'ПВХ 700 мкм (Прозрачная)',
+    isTrapezoid:  false,
+    diagonalLeft:  0,
     diagonalRight: 0,
-    crossbar: 0,
-    fasteners: getInitialFastener(),
+    crossbar:      0,
+    fasteners:     getInitialFastener(),
     additionalElements: createDefaultAdditionalElements(),
   };
 }
@@ -298,18 +279,18 @@ export function isWindowItem(value: unknown): value is WindowItem {
   const obj = value as Record<string, unknown>;
   const numericFields: WindowNumericField[] = [
     'widthTop', 'heightRight', 'widthBottom', 'heightLeft',
-    'kantTop', 'kantRight', 'kantBottom', 'kantLeft',
+    'kantTop',  'kantRight',   'kantBottom',  'kantLeft',
     'diagonalLeft', 'diagonalRight', 'crossbar',
   ];
   const allNumericValid = numericFields.every(
     (field) => typeof obj[field] === 'number' && Number.isFinite(obj[field] as number),
   );
   return (
-    typeof obj['id'] === 'number' &&
-    typeof obj['name'] === 'string' &&
+    typeof obj['id']          === 'number'  &&
+    typeof obj['name']        === 'string'  &&
     typeof obj['isTrapezoid'] === 'boolean' &&
-    typeof obj['kantColor'] === 'string' &&
-    typeof obj['material'] === 'string' &&
+    typeof obj['kantColor']   === 'string'  &&
+    typeof obj['material']    === 'string'  &&
     allNumericValid
   );
 }
@@ -323,8 +304,7 @@ export function parseWindowItems(raw: unknown): WindowItem[] {
     }
     acc.push({
       ...item,
-      fasteners: item.fasteners ?? getInitialFastener(),
-      // additionalElements normalized separately by normalizeWindowExtras
+      fasteners:         item.fasteners         ?? getInitialFastener(),
       additionalElements: item.additionalElements ?? undefined,
     });
     return acc;
@@ -336,7 +316,9 @@ export function parseWindowItems(raw: unknown): WindowItem[] {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** @deprecated Use WindowItem */
-export interface Product { id: string; name: string; quantity: number; price: number; }
+export interface Product {
+  id: string; name: string; quantity: number; price: number;
+}
 
 export interface Client {
   id: string; fio: string; phone: string; address: string | null;
@@ -348,36 +330,3 @@ export interface Client {
 }
 
 export interface Stage { id: ClientStatus; title: string; }
-
-// Внутри интерфейса WindowItem в src/types/index.ts
-
-export interface WindowItem {
-  id: number;
-  name: string;
-  // ... (существующие поля: размеры, канты и т.д.)
-
-  fasteners?: FastenerConfig;
-  additionalElements?: AdditionalElements;
-  
-
-  /** 
-   * ── PRICE SNAPSHOT (HARD COPY) ──
-   * Фиксация цен на момент расчета/сохранения изделия.
-   * Эти поля заполняются автоматически при вызове calculateWindowGeometry.
-   */
-
-  /** Розничная цена выбранного крепежа за 1 единицу (₽) */
-  fastenerPriceRetail?: number;
-  /** Себестоимость выбранного крепежа за 1 единицу (₽) */
-  fastenerPriceCost?: number;
-  /** Slug из DEFAULT_PRICE_ROWS для идентификации в справочнике */
-  fastenerSlug?: string;
-
-  /** Общая стоимость крепежа для этого окна (Розница) */
-  totalFastenersRetail?: number;
-  /** Общая себестоимость крепежа для этого окна (Себес) */
-  totalFastenersCost?: number;
-
-  /** Метка времени фиксации цен */
-  pricesCapturedAt?: string;
-}

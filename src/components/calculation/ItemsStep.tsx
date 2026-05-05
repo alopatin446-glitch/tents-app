@@ -9,6 +9,11 @@
  *   - resolveDraftToWindowItem теперь сохраняет поле fasteners.
  *   - Внутренний useState для activeWindowId удалён.
  *
+ * Разделение площадей (Закон Директора):
+ *   bottomInfoBar показывает обе площади:
+ *   «Производство» — productionArea (реальная геометрия → ЗП цеха).
+ *   «Чек»          — retailArea (Max W × Max H → основа розничной цены).
+ *
  * @module src/components/calculation/ItemsStep.tsx
  */
 
@@ -29,8 +34,9 @@ import {
 
 import {
   calculateWindowGeometry,
-  calculateOrderOptimization, // ← Добавь это
+  calculateOrderOptimization,
   formatArea,
+  SOLDER_ALLOWANCE,
   type WindowGeometry,
 } from '@/lib/logic/windowCalculations';
 
@@ -53,24 +59,24 @@ function resolveNumericField(value: number | string): number {
 
 function resolveDraftToWindowItem(draft: WindowItemDraft): WindowItem {
   return {
-    id: draft.id,
-    name: draft.name,
-    kantColor: draft.kantColor,
-    material: draft.material,
-    isTrapezoid: draft.isTrapezoid,
-    fasteners: draft.fasteners,
-    additionalElements: draft.additionalElements, // ← добавить эту строку
-    widthTop: resolveNumericField(draft.widthTop),
-    heightRight: resolveNumericField(draft.heightRight),
-    widthBottom: resolveNumericField(draft.widthBottom),
-    heightLeft: resolveNumericField(draft.heightLeft),
-    kantTop: resolveNumericField(draft.kantTop),
-    kantRight: resolveNumericField(draft.kantRight),
-    kantBottom: resolveNumericField(draft.kantBottom),
-    kantLeft: resolveNumericField(draft.kantLeft),
-    diagonalLeft: resolveNumericField(draft.diagonalLeft),
-    diagonalRight: resolveNumericField(draft.diagonalRight),
-    crossbar: resolveNumericField(draft.crossbar),
+    id:                draft.id,
+    name:              draft.name,
+    kantColor:         draft.kantColor,
+    material:          draft.material,
+    isTrapezoid:       draft.isTrapezoid,
+    fasteners:         draft.fasteners,
+    additionalElements: draft.additionalElements,
+    widthTop:          resolveNumericField(draft.widthTop),
+    heightRight:       resolveNumericField(draft.heightRight),
+    widthBottom:       resolveNumericField(draft.widthBottom),
+    heightLeft:        resolveNumericField(draft.heightLeft),
+    kantTop:           resolveNumericField(draft.kantTop),
+    kantRight:         resolveNumericField(draft.kantRight),
+    kantBottom:        resolveNumericField(draft.kantBottom),
+    kantLeft:          resolveNumericField(draft.kantLeft),
+    diagonalLeft:      resolveNumericField(draft.diagonalLeft),
+    diagonalRight:     resolveNumericField(draft.diagonalRight),
+    crossbar:          resolveNumericField(draft.crossbar),
   };
 }
 
@@ -81,9 +87,9 @@ function toWindowItemDraft(item: WindowItem): WindowItemDraft {
 function getTrapezoidWarning(item: WindowItemDraft | undefined): string | null {
   if (!item) return null;
 
-  const widthTop = resolveNumericField(item.widthTop);
+  const widthTop    = resolveNumericField(item.widthTop);
   const widthBottom = resolveNumericField(item.widthBottom);
-  const heightLeft = resolveNumericField(item.heightLeft);
+  const heightLeft  = resolveNumericField(item.heightLeft);
   const heightRight = resolveNumericField(item.heightRight);
 
   const hasTrapezoidDifference =
@@ -95,9 +101,9 @@ function getTrapezoidWarning(item: WindowItemDraft | undefined): string | null {
   }
 
   if (item.isTrapezoid) {
-    const diagonalLeft = resolveNumericField(item.diagonalLeft);
+    const diagonalLeft  = resolveNumericField(item.diagonalLeft);
     const diagonalRight = resolveNumericField(item.diagonalRight);
-    const crossbar = resolveNumericField(item.crossbar);
+    const crossbar      = resolveNumericField(item.crossbar);
 
     if (diagonalLeft <= 0 || diagonalRight <= 0 || crossbar <= 0) {
       return '⚠ Для точного расчёта трапеции нужно заполнить: диагональ A-C, диагональ B-D и параллель.';
@@ -112,22 +118,21 @@ function getTrapezoidWarning(item: WindowItemDraft | undefined): string | null {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const geometryFields: Array<{ label: string; field: WindowNumericField }> = [
-  { label: 'Верх', field: 'widthTop' },
+  { label: 'Верх',  field: 'widthTop'    },
   { label: 'Право', field: 'heightRight' },
-  { label: 'Низ', field: 'widthBottom' },
-  { label: 'Лево', field: 'heightLeft' },
+  { label: 'Низ',   field: 'widthBottom' },
+  { label: 'Лево',  field: 'heightLeft'  },
 ];
 
 const kantFields: Array<{ label: string; field: WindowNumericField }> = [
-  { label: 'Верх', field: 'kantTop' },
-  { label: 'Право', field: 'kantRight' },
-  { label: 'Низ', field: 'kantBottom' },
-  { label: 'Лево', field: 'kantLeft' },
+  { label: 'Верх',  field: 'kantTop'    },
+  { label: 'Право', field: 'kantRight'  },
+  { label: 'Низ',   field: 'kantBottom' },
+  { label: 'Лево',  field: 'kantLeft'   },
 ];
 
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Диагностический вывод текущего расчёта
+// Диагностика раскроя
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface WindowCalculationDebugRow {
@@ -147,16 +152,11 @@ interface WindowCalculationDebugRow {
 
 function getMaterialLabel(material: string): string {
   switch (material) {
-    case 'PVC_700':
-      return 'ПВХ 700';
-    case 'TINTED':
-      return 'Тонировка';
-    case 'TPU':
-      return 'TPU';
-    case 'MOSQUITO':
-      return 'Москитка';
-    default:
-      return material || '—';
+    case 'PVC_700':  return 'ПВХ 700';
+    case 'TINTED':   return 'Тонировка';
+    case 'TPU':      return 'TPU';
+    case 'MOSQUITO': return 'Москитка';
+    default:         return material || '—';
   }
 }
 
@@ -171,21 +171,24 @@ function formatM(valueCm: number): string {
 }
 
 function buildDebugRow(item: WindowItem, index: number): WindowCalculationDebugRow {
-  const geometry = calculateWindowGeometry(item);
-  const innerWidth = Math.max(Number(item.widthTop), Number(item.widthBottom));
-  const innerHeight = Math.max(Number(item.heightLeft), Number(item.heightRight));
-  const cutWidthRaw = innerWidth + 6;
-  const cutHeightRaw = innerHeight + 6;
+  const geometry    = calculateWindowGeometry(item);
+  const innerWidth  = Math.max(Number(item.widthTop),   Number(item.widthBottom));
+  const innerHeight = Math.max(Number(item.heightLeft),  Number(item.heightRight));
+
+  // Припуск из ядра — никакого хардкода
+  const cutWidthRaw  = innerWidth  + SOLDER_ALLOWANCE;
+  const cutHeightRaw = innerHeight + SOLDER_ALLOWANCE;
+
   const widthAcrossRoll = geometry.isRotated ? cutHeightRaw : cutWidthRaw;
-  const cutLength = geometry.isRotated ? cutWidthRaw : cutHeightRaw;
-  const chargedWidth = geometry.isOverSize
+  const cutLength       = geometry.isRotated ? cutWidthRaw  : cutHeightRaw;
+  const chargedWidth    = geometry.isOverSize
     ? widthAcrossRoll
     : Math.max(Number(geometry.rollWidth), widthAcrossRoll);
 
   return {
     id: item.id,
     index,
-    name: item.name,
+    name:     item.name,
     material: item.material || 'PVC_700',
     innerWidth,
     innerHeight,
@@ -226,18 +229,11 @@ export default function ItemsStep({
   onActiveWindowChange,
 }: ItemsStepProps) {
   const [localWindows, setLocalWindows] = useState<WindowItemDraft[]>(() => {
-    if (windows && windows.length > 0) {
-      return windows.map(toWindowItemDraft);
-    }
-
-    if (isReadOnly) {
-      return [];
-    }
-
+    if (windows && windows.length > 0) return windows.map(toWindowItemDraft);
+    if (isReadOnly) return [];
     return [toWindowItemDraft(createDefaultWindowItem(Date.now(), 1))];
   });
 
-  // Синхронизация при внешнем обновлении windows (например, после сохранения)
   useEffect(() => {
     if (windows && windows.length > 0) {
       setLocalWindows(windows.map(toWindowItemDraft));
@@ -246,18 +242,13 @@ export default function ItemsStep({
 
   useEffect(() => {
     if (localWindows.length === 0 || isReadOnly) return;
-
     const hasActiveWindow = localWindows.some((w) => w.id === activeWindowId);
-
-    if (!hasActiveWindow) {
-      onActiveWindowChange(localWindows[0].id);
-    }
+    if (!hasActiveWindow) onActiveWindowChange(localWindows[0].id);
   }, [localWindows, activeWindowId, onActiveWindowChange, isReadOnly]);
 
   useEffect(() => {
     if (localWindows.length === 0 || isReadOnly) return;
     if (windows && windows.length > 0) return;
-
     onDraftChange?.(localWindows.map(resolveDraftToWindowItem));
   }, [localWindows.length, windows, onDraftChange, isReadOnly]);
 
@@ -269,36 +260,38 @@ export default function ItemsStep({
     return calculateWindowGeometry(resolveDraftToWindowItem(activeItem));
   }, [activeItem]);
 
-  const resolvedWindows = useMemo(() => {
-    return localWindows.map(resolveDraftToWindowItem);
-  }, [localWindows]);
+  const resolvedWindows = useMemo(
+    () => localWindows.map(resolveDraftToWindowItem),
+    [localWindows],
+  );
 
-  // Глобальный расчет всего заказа для блока "Итого рулонов"
-  const orderSummary = useMemo(() => {
-    return calculateOrderOptimization(resolvedWindows);
-  }, [resolvedWindows]);
+  const orderSummary = useMemo(
+    () => calculateOrderOptimization(resolvedWindows),
+    [resolvedWindows],
+  );
 
-  const debugRows = useMemo(() => {
-    return resolvedWindows.map((item, index) => buildDebugRow(item, index));
-  }, [resolvedWindows]);
+  const debugRows = useMemo(
+    () => resolvedWindows.map((item, index) => buildDebugRow(item, index)),
+    [resolvedWindows],
+  );
 
   const trapezoidWarning = useMemo(
     () => getTrapezoidWarning(activeItem),
     [activeItem],
   );
 
-  // ─── Обновление состояния ────────────────────────────────────────────────
+  // ── Обновление состояния ──────────────────────────────────────────────────
 
   const updateAll = (updated: WindowItemDraft[]): void => {
     setLocalWindows(updated);
     onDraftChange?.(updated.map(resolveDraftToWindowItem));
   };
 
-  // ─── Обработчики ─────────────────────────────────────────────────────────
+  // ── Обработчики ───────────────────────────────────────────────────────────
 
   const addWindow = (): void => {
     if (isReadOnly) return;
-    const newId = Date.now();
+    const newId     = Date.now();
     const newWindow = createDefaultWindowItem(newId, localWindows.length + 1);
     updateAll([...localWindows, toWindowItemDraft(newWindow)]);
     onActiveWindowChange(newId);
@@ -325,7 +318,11 @@ export default function ItemsStep({
     updateAll(updated);
   };
 
-  const handleNumberInputChange = (id: number, field: WindowNumericField, rawValue: string): void => {
+  const handleNumberInputChange = (
+    id: number,
+    field: WindowNumericField,
+    rawValue: string,
+  ): void => {
     if (isReadOnly) return;
     let value = rawValue.replace(',', '.').replace(/[^0-9.]/g, '');
     const parts = value.split('.');
@@ -337,7 +334,7 @@ export default function ItemsStep({
     onSave(localWindows.map(resolveDraftToWindowItem));
   };
 
-  // ─── Рендер ──────────────────────────────────────────────────────────────
+  // ── Рендер ────────────────────────────────────────────────────────────────
 
   return (
     <div className={styles.itemsGrid}>
@@ -378,7 +375,9 @@ export default function ItemsStep({
                 <select
                   className={styles.selectInput}
                   value={activeItem.material}
-                  onChange={(e) => handleChange(activeItem.id, 'material', e.target.value as WindowMaterial)}
+                  onChange={(e) =>
+                    handleChange(activeItem.id, 'material', e.target.value as WindowMaterial)
+                  }
                   disabled={isReadOnly}
                 >
                   {/* ПВХ 500 УДАЛЕН ПО ПРИКАЗУ ВЛАДЕЛЬЦА */}
@@ -388,7 +387,8 @@ export default function ItemsStep({
                   <option value="MOSQUITO">Москитная сетка</option>
                 </select>
                 <div className={styles.selectArrow}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </div>
@@ -408,11 +408,10 @@ export default function ItemsStep({
                     cursor: 'default',
                     textAlign: 'left',
                     background: 'rgba(15, 23, 42, 0.6)',
-                    // КРАСНЫЙ если оверзайс, ЗЕЛЕНЫЙ если норма
                     color: activeItemGeometry?.isOverSize ? '#ff4d4f' : '#7BFF00',
                     fontWeight: '700',
                     border: activeItemGeometry?.isOverSize ? '1px solid #ff4d4f' : 'none',
-                    transition: 'all 0.3s ease'
+                    transition: 'all 0.3s ease',
                   }}
                 />
                 <div className={styles.selectArrow}>
@@ -436,7 +435,9 @@ export default function ItemsStep({
                     <input
                       type="text"
                       value={activeItem[input.field]}
-                      onChange={(e) => handleNumberInputChange(activeItem.id, input.field, e.target.value)}
+                      onChange={(e) =>
+                        handleNumberInputChange(activeItem.id, input.field, e.target.value)
+                      }
                       disabled={isReadOnly}
                     />
                   </div>
@@ -454,7 +455,9 @@ export default function ItemsStep({
                     <input
                       type="text"
                       value={activeItem[input.field]}
-                      onChange={(e) => handleNumberInputChange(activeItem.id, input.field, e.target.value)}
+                      onChange={(e) =>
+                        handleNumberInputChange(activeItem.id, input.field, e.target.value)
+                      }
                       disabled={isReadOnly}
                     />
                   </div>
@@ -469,15 +472,21 @@ export default function ItemsStep({
                 <select
                   className={styles.selectInput}
                   value={activeItem.kantColor}
-                  onChange={(e) => handleChange(activeItem.id, 'kantColor', e.target.value as KantColor)}
+                  onChange={(e) =>
+                    handleChange(activeItem.id, 'kantColor', e.target.value as KantColor)
+                  }
                   disabled={isReadOnly}
                 >
-                  {(['Белый', 'Светло-серый', 'Серый', 'Графит', 'Черный', 'Коричневый', 'Бежевый', 'Синий'] as KantColor[]).map((color) => (
+                  {(
+                    ['Белый', 'Светло-серый', 'Серый', 'Графит', 'Черный',
+                      'Коричневый', 'Бежевый', 'Синий'] as KantColor[]
+                  ).map((color) => (
                     <option key={color} value={color}>{color}</option>
                   ))}
                 </select>
                 <div className={styles.selectArrow}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
                 </div>
@@ -490,7 +499,9 @@ export default function ItemsStep({
                 <input
                   type="checkbox"
                   checked={activeItem.isTrapezoid}
-                  onChange={(e) => handleChange(activeItem.id, 'isTrapezoid', e.target.checked)}
+                  onChange={(e) =>
+                    handleChange(activeItem.id, 'isTrapezoid', e.target.checked)
+                  }
                   disabled={isReadOnly}
                 />
                 Трапеция
@@ -499,15 +510,39 @@ export default function ItemsStep({
                 <div className={styles.trapezoidFields}>
                   <div className={styles.inputGroup}>
                     <label>ДИАГОНАЛЬ A-C (см)</label>
-                    <input type="text" value={activeItem.diagonalRight === 0 ? '' : activeItem.diagonalRight} placeholder="0" onChange={(e) => handleNumberInputChange(activeItem.id, 'diagonalRight', e.target.value)} disabled={isReadOnly} />
+                    <input
+                      type="text"
+                      value={activeItem.diagonalRight === 0 ? '' : activeItem.diagonalRight}
+                      placeholder="0"
+                      onChange={(e) =>
+                        handleNumberInputChange(activeItem.id, 'diagonalRight', e.target.value)
+                      }
+                      disabled={isReadOnly}
+                    />
                   </div>
                   <div className={styles.inputGroup}>
                     <label>ДИАГОНАЛЬ B-D (см)</label>
-                    <input type="text" value={activeItem.diagonalLeft === 0 ? '' : activeItem.diagonalLeft} placeholder="0" onChange={(e) => handleNumberInputChange(activeItem.id, 'diagonalLeft', e.target.value)} disabled={isReadOnly} />
+                    <input
+                      type="text"
+                      value={activeItem.diagonalLeft === 0 ? '' : activeItem.diagonalLeft}
+                      placeholder="0"
+                      onChange={(e) =>
+                        handleNumberInputChange(activeItem.id, 'diagonalLeft', e.target.value)
+                      }
+                      disabled={isReadOnly}
+                    />
                   </div>
                   <div className={styles.inputGroup}>
                     <label>ПАРАЛЛЕЛЬ (см)</label>
-                    <input type="text" value={activeItem.crossbar === 0 ? '' : activeItem.crossbar} placeholder="0" onChange={(e) => handleNumberInputChange(activeItem.id, 'crossbar', e.target.value)} disabled={isReadOnly} />
+                    <input
+                      type="text"
+                      value={activeItem.crossbar === 0 ? '' : activeItem.crossbar}
+                      placeholder="0"
+                      onChange={(e) =>
+                        handleNumberInputChange(activeItem.id, 'crossbar', e.target.value)
+                      }
+                      disabled={isReadOnly}
+                    />
                   </div>
                 </div>
               )}
@@ -516,7 +551,11 @@ export default function ItemsStep({
         )}
 
         {!isReadOnly && (
-          <button className={styles.saveButton} onClick={handleSaveClick} style={{ marginTop: 'auto' }}>
+          <button
+            className={styles.saveButton}
+            onClick={handleSaveClick}
+            style={{ marginTop: 'auto' }}
+          >
             СОХРАНИТЬ ВСЕ ИЗДЕЛИЯ
           </button>
         )}
@@ -533,7 +572,12 @@ export default function ItemsStep({
             >
               Окно {index + 1}
               {!isReadOnly && localWindows.length > 1 && (
-                <span className={styles.closeTab} onClick={(e) => removeWindow(windowItem.id, e)}>×</span>
+                <span
+                  className={styles.closeTab}
+                  onClick={(e) => removeWindow(windowItem.id, e)}
+                >
+                  ×
+                </span>
               )}
             </div>
           ))}
@@ -547,17 +591,58 @@ export default function ItemsStep({
             <div className={styles.drawingWrapper}>
               <DrawingCanvas item={resolveDraftToWindowItem(activeItem)} showFasteners={false} />
             </div>
-            <div className={styles.bottomInfoBar}>
-              <div className={styles.statLabel}>Выбрано: <span>{activeItem.name}</span></div>
-              <div className={styles.statLabel}>Полотно: <span>{formatArea(activeItemGeometry.areaMaterial)}</span></div>
-              <div className={styles.statLabel}>С кантом: <span>{formatArea(activeItemGeometry.areaWithKant)}</span></div>
 
-              {/* Новая метрика для контроля перерасхода */}
+            {/* ── Инфо-бар: две площади для прозрачности перед менеджером ── */}
+            <div className={styles.bottomInfoBar}>
               <div className={styles.statLabel}>
-                Раскрой: <span style={{ color: activeItemGeometry.isOverSize ? '#ff4d4f' : '#7BFF00' }}>
+                Выбрано: <span>{activeItem.name}</span>
+              </div>
+
+              {/* productionArea: реальная геометрия → ЗП цеха */}
+              <div className={styles.statLabel}>
+                Производство:{' '}
+                <span title="Реальная площадь изделия (основа ЗП сварщика)">
+                  {activeItemGeometry.productionArea.toFixed(4)} м²
+                </span>
+              </div>
+
+              {/* retailArea: Max W × Max H → основа розничной цены */}
+              <div className={styles.statLabel}>
+                Чек (габарит):{' '}
+                <span
+                  style={{ color: '#7BFF00' }}
+                  title="Max Width × Max Height — основа розничной цены"
+                >
+                  {activeItemGeometry.retailArea.toFixed(4)} м²
+                </span>
+              </div>
+
+              {/* С кантом — для контроля материала */}
+              <div className={styles.statLabel}>
+                С кантом: <span>{formatArea(activeItemGeometry.areaWithKant)}</span>
+              </div>
+
+              {/* Раскрой — метрика списания рулона */}
+              <div className={styles.statLabel}>
+                Раскрой:{' '}
+                <span style={{ color: activeItemGeometry.isOverSize ? '#ff4d4f' : '#7BFF00' }}>
                   {formatArea(activeItemGeometry.cutArea)}
                 </span>
               </div>
+
+              {/* Тип формы — видно только когда отличается от прямоугольника */}
+              {activeItemGeometry.type === 'trapezoid' && (
+                <div className={styles.statLabel} style={{ color: '#FFD600' }}>
+                  ◆ Трапеция
+                  {activeItemGeometry.productionArea !== activeItemGeometry.retailArea && (
+                    <span style={{ fontSize: '0.65rem', marginLeft: 4 }}>
+                      (−{(
+                        (1 - activeItemGeometry.productionArea / activeItemGeometry.retailArea) * 100
+                      ).toFixed(1)}% ЗП)
+                    </span>
+                  )}
+                </div>
+              )}
 
               {!activeItemGeometry.isExact && (
                 <div className={styles.statLabel} style={{ color: '#ff9900', fontSize: '0.7rem' }}>

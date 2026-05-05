@@ -2,19 +2,24 @@
  * Calculation state hook.
  * ЦЕНОВОЙ СУВЕРЕНИТЕТ ВОССТАНОВЛЕН: Расчеты переведены на единое ядро pricingLogic.
  * Реализована защита истории: закрытые сделки не пересчитываются по новым ценам.
+ *
+ * Разделение площадей (Закон Директора):
+ *   totalAreaMaterial — сумма productionArea всех изделий (реальная геометрия → ЗП цеха).
+ *   totalRetailArea   — сумма retailArea всех изделий (Max W × Max H → чек клиента).
  */
 import { useCallback, useMemo, useState } from 'react';
 import { type WindowItem } from '@/types';
 import { type ClientFormData } from '@/components/calculation/ClientStep';
 import {
   calculateTotalArea,
+  calculateTotalRetailArea,
   calculateTotalAreaWithKant,
+  calculateWindowGeometry,
 } from '@/lib/logic/windowCalculations';
 import {
   normalizeAllWindowExtras,
   normalizeExtrasOnResize,
 } from '@/lib/logic/extrasCalculations';
-// ФИНАНСОВЫЙ МОСТ: Импорт единственно верного источника цен
 import { calculateWindowFinance } from '@/lib/logic/pricingLogic';
 
 // ---------------------------------------------------------------------------
@@ -24,8 +29,14 @@ import { calculateWindowFinance } from '@/lib/logic/pricingLogic';
 export interface CalculationState {
   windows: WindowItem[];
   clientDataWithArea: ClientFormData;
+
+  /** Сумма productionArea всех изделий (м²). Для ЗП цеха и производственного учёта. */
   totalAreaMaterial: number;
+  /** Сумма retailArea всех изделий (м²). Для чека клиента и расчёта розничной цены. */
+  totalRetailArea: number;
+  /** Сумма areaWithKant всех изделий (м²). */
   totalAreaWithKant: number;
+
   totalPrice: number;
   costPrice: number;
   totalExpenses: number;
@@ -33,6 +44,7 @@ export interface CalculationState {
   totalMaterialCut: number;
   totalOverspending: number;
   totalProductionCost: number;
+
   handleWindowsChange: (updated: WindowItem[]) => void;
   handleClientDataChange: (updated: ClientFormData) => void;
   handleExtrasChange: (windowId: number, extras: WindowItem['additionalElements']) => void;
@@ -45,30 +57,39 @@ export interface CalculationState {
 export function useCalculationState(
   initialClientData: ClientFormData,
   initialWindows: WindowItem[],
-  currentPrices: Record<string, number> // Цены из БД (передаются из CalculationClient)
+  currentPrices: Record<string, number>,
 ): CalculationState {
   const [windows, setWindows] = useState<WindowItem[]>(
     () => normalizeAllWindowExtras(initialWindows),
   );
   const [clientData, setClientData] = useState<ClientFormData>(initialClientData);
 
-  // ── ОПРЕДЕЛЕНИЕ ПРАЙС-ЛИСТА (Архив vs Живой) ──────────────────────────────
+  // ── Прайс-лист (Архив vs Живой) ───────────────────────────────────────────
 
   const activePrices = useMemo(() => {
-    // Если статус сделки "Успешно" или "Провалено" — пытаемся взять сохраненный снапшот
     const isClosed = clientData.status === 'done' || clientData.status === 'cancelled';
-
-    // ВАЖНО: Предполагаем, что снапшот цен хранится в clientData.savedPrices
-    // Если сделка открыта или снапшота нет — используем живые цены из БД
-    return isClosed && (clientData as any).savedPrices
-      ? (clientData as any).savedPrices
+    return isClosed && (clientData as Record<string, unknown>)['savedPrices']
+      ? (clientData as Record<string, unknown>)['savedPrices'] as Record<string, number>
       : currentPrices;
-  }, [clientData.status, (clientData as any).savedPrices, currentPrices]);
+  }, [clientData.status, (clientData as Record<string, unknown>)['savedPrices'], currentPrices]);
 
-  // ── Расчеты площадей (Мозг) ─────────────────────────────────────────────
+  // ── Площади ───────────────────────────────────────────────────────────────
 
+  /**
+   * Производственная площадь: сумма реальной геометрии всех изделий.
+   * Используется для учёта ЗП цеха.
+   */
   const totalAreaMaterial = useMemo(
     () => calculateTotalArea(windows),
+    [windows],
+  );
+
+  /**
+   * Розничная площадь: сумма Max W × Max H всех изделий.
+   * Используется для чека клиента и формирования итоговой цены.
+   */
+  const totalRetailArea = useMemo(
+    () => calculateTotalRetailArea(windows),
     [windows],
   );
 
@@ -77,18 +98,15 @@ export function useCalculationState(
     [windows],
   );
 
-  // ── Финансовое ядро (ОШИБКИ ИСПРАВЛЕНЫ) ──────────────────────────────────
+  // ── Финансовое ядро ───────────────────────────────────────────────────────
 
-  // Розница: Сумма всех изделий с учетом живого или архивного прайса
   const totalPrice = useMemo(() => {
     return windows.reduce((sum, w) => {
-      // Теперь передаем второй аргумент — activePrices (Живой или Снапшот)
       const finance = calculateWindowFinance(w, activePrices);
       return sum + finance.retailPrice;
     }, 0);
   }, [windows, activePrices]);
 
-  // Себестоимость: Сумма затрат
   const costPrice = useMemo(() => {
     return windows.reduce((sum, w) => {
       const finance = calculateWindowFinance(w, activePrices);
@@ -127,31 +145,31 @@ export function useCalculationState(
   const totalExpenses = useMemo(() => {
     return windows.reduce((sum, w) => {
       const finance = calculateWindowFinance(w, activePrices);
-      // Суммируем результат нового поля из нашего ядра
       return sum + finance.totalExpenses;
     }, 0);
   }, [windows, activePrices]);
 
-  // Инъекция площади в объект клиента
+  // ── Инъекция площади в данные клиента ────────────────────────────────────
+  // На чек идёт totalRetailArea — клиент видит прямоугольный габарит.
   const clientDataWithArea = useMemo<ClientFormData>(
-    () => ({ ...clientData, area: totalAreaMaterial }),
-    [clientData, totalAreaMaterial],
+    () => ({ ...clientData, area: totalRetailArea }),
+    [clientData, totalRetailArea],
   );
 
-  // ── Обработчики (Handlers) ─────────────────────────────────────────────
+  // ── Обработчики ───────────────────────────────────────────────────────────
 
   const handleWindowsChange = useCallback((updated: WindowItem[]): void => {
     setWindows((prev) => {
-      const prevById = new Map(prev.map((w) => [w.id, w]));
+      const prevById   = new Map(prev.map((w) => [w.id, w]));
       const normalized = normalizeAllWindowExtras(updated);
       return normalized.map((curr) => {
         const prevWindow = prevById.get(curr.id);
         if (!prevWindow) return curr;
         const dimsChanged =
-          curr.widthTop !== prevWindow.widthTop ||
-          curr.widthBottom !== prevWindow.widthBottom ||
-          curr.heightLeft !== prevWindow.heightLeft ||
-          curr.heightRight !== prevWindow.heightRight;
+          curr.widthTop     !== prevWindow.widthTop    ||
+          curr.widthBottom  !== prevWindow.widthBottom ||
+          curr.heightLeft   !== prevWindow.heightLeft  ||
+          curr.heightRight  !== prevWindow.heightRight;
         if (!dimsChanged) return curr;
         return { ...curr, additionalElements: normalizeExtrasOnResize(curr, prevWindow) };
       });
@@ -185,16 +203,17 @@ export function useCalculationState(
     windows,
     clientDataWithArea,
     totalAreaMaterial,
+    totalRetailArea,
     totalAreaWithKant,
     totalPrice,
     costPrice,
-    handleWindowsChange,
-    handleClientDataChange,
-    handleExtrasChange,
+    totalExpenses,
     totalMaterialInProduct,
     totalMaterialCut,
     totalOverspending,
     totalProductionCost,
-    totalExpenses,
+    handleWindowsChange,
+    handleClientDataChange,
+    handleExtrasChange,
   };
 }
