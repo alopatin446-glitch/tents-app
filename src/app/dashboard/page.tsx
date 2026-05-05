@@ -34,10 +34,11 @@ export default function DashboardPage() {
   const canAccess = (perm: string): boolean => {
     const userRole = String(role || '').toUpperCase();
 
-    // 1. АДМИНУ можно всё
-    if (userRole === 'ADMIN') return true;
+    // ВРЕМЕННЫЙ BETA-FALLBACK:
+    // пока permissions не загружаются стабильно во фронт,
+    // ADMIN и MANAGER получают доступ к рабочим разделам дашборда.
+    if (userRole === 'ADMIN' || userRole === 'MANAGER') return true;
 
-    // 2. ЕСЛИ ПРАВА ЕСТЬ В МАССИВЕ (из базы)
     if (permissions && Array.isArray(permissions) && permissions.length > 0) {
       const searchKey = perm.split(':')[0].toLowerCase();
       const hasDirectPerm = permissions.some(p => {
@@ -47,8 +48,6 @@ export default function DashboardPage() {
       if (hasDirectPerm) return true;
     }
 
-    // 3. ЗАПАСНОЙ ВАРИАНТ (по роли)
-    // Если массив прав пуст, но юзер — сотрудник (USER/ENGINEER), открываем базу
     if (userRole === 'USER' || userRole === 'ENGINEER') {
       const standardPaths = ['calculations:write', 'clients:read', 'archive:read', 'calendar:read'];
       return standardPaths.includes(perm);
@@ -87,7 +86,7 @@ export default function DashboardPage() {
           {/* Внутри секции headerActions */}
           <div className={styles.headerActions}>
             {/* Доступ к прайсу только Админу */}
-            {role === 'ADMIN' && (
+            {String(role).toUpperCase() === 'ADMIN' || String(role).toUpperCase() === 'MANAGER' ? (
               <button
                 onClick={() => router.push('/dashboard/prices')}
                 className={styles.heroButton}
@@ -95,7 +94,7 @@ export default function DashboardPage() {
               >
                 ПРАЙС-ЛИСТ
               </button>
-            )}
+            ) : null}
 
             {/* ... остальной код (шестеренка, аватар, выйти) */}
           </div>
