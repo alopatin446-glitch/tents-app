@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth/requireAuth';
 import styles from './archive.module.css';
 
 export const dynamic = 'force-dynamic';
@@ -54,10 +55,14 @@ function getStatusMeta(status: string) {
 }
 
 export default async function ArchivePage({ searchParams }: ArchivePageProps) {
+  const user = await requireAuth();
+  const orgId = user.organizationId;
+
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const query = (resolvedSearchParams?.q || '').trim();
 
   const archiveWhere = {
+    organizationId: orgId,
     status: {
       in: ['completed', 'rejected'],
     },
@@ -81,6 +86,7 @@ export default async function ArchivePage({ searchParams }: ArchivePageProps) {
       }),
       prisma.client.count({
         where: {
+          organizationId: orgId,
           status: {
             in: ['completed', 'rejected'],
           },
@@ -88,11 +94,13 @@ export default async function ArchivePage({ searchParams }: ArchivePageProps) {
       }),
       prisma.client.count({
         where: {
+          organizationId: orgId,
           status: 'completed',
         },
       }),
       prisma.client.count({
         where: {
+          organizationId: orgId,
           status: 'rejected',
         },
       }),

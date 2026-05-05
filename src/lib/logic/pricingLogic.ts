@@ -146,13 +146,6 @@ export function calculateWindowFinance(
   const kantPriceM2 = priceMap['c_pr_4'] || 0; // Кант за м²
   const laborPriceM2 = priceMap['c_produc_1'] || 0; // ЗП сварщика за м²
 
-  console.log('--- ОТЧЕТ БУХГАЛТЕРИИ ---');
-  console.log('Плёнка (c_pr_1):', buyPrice, '| Кант (c_pr_4):', kantPriceM2);
-  console.log('ЗП (c_produc_1):', laborPriceM2);
-  console.log('Тип:', geo.type, '| sideTop:', geo.sideTop.toFixed(2), 'см');
-  console.log('retailArea:', geo.retailArea, 'м² | productionArea:', geo.productionArea, 'м²');
-  console.log('------------------------');
-
   // 3. Розничный слаг и коэффициент верхнего крепежа
   const { slug: retailSlug, topFactor } = getRetailProductSlug(window);
   const retailPriceM2 = priceMap[retailSlug] || 0;

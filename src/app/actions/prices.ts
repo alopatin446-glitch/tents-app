@@ -1,20 +1,20 @@
 'use server';
 
-import { prisma } from '@/lib/prisma'; // ЕДИНЫЙ МОЗГ: Используем правильный инстанс
+import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireAuth } from '@/lib/auth/requireAuth';
-import { DEFAULT_PRICE_ROWS } from '@/constants/defaultPrices'; // ГРОССБУХ: Ссылка на эталон[cite: 3, 4]
+import { DEFAULT_PRICE_ROWS } from '@/constants/defaultPrices';
+import { logger } from '@/lib/logger';
 
 /**
  * Получение цен с автоматической инициализацией
  */
 export async function getPrices() {
-  console.log('--- [START] getPrices ---');
   try {
     const user = await requireAuth();
     const orgId = user.organizationId;
 
-    // ТАМОЖНЯ: Проверяем наличие записей. Если пусто — наполняем из эталона[cite: 3]
+    // Проверяем наличие записей. Если пусто — наполняем из эталона
     const existingPrices = await prisma.price.findMany({
       where: { organizationId: orgId },
       select: { slug: true },
@@ -25,7 +25,7 @@ export async function getPrices() {
     const missingPrices = DEFAULT_PRICE_ROWS.filter((p) => !existingSlugs.has(p.slug));
 
     if (missingPrices.length > 0) {
-      console.log('--- [SYNC] Adding missing default prices for org:', orgId);
+      logger.info('[getPrices] Добавляем недостающие цены для организации', { orgId, count: missingPrices.length });
 
       await prisma.price.createMany({
         data: missingPrices.map((p) => ({
@@ -45,25 +45,21 @@ export async function getPrices() {
       orderBy: { category: 'asc' },
     });
 
-    console.log('--- [SUCCESS] Prices loaded ---');
     return { success: true, data: prices };
   } catch (error) {
-    console.error('--- [CRITICAL ERROR] getPrices:', error);
+    logger.error('[getPrices] Ошибка загрузки цен', error);
     return { success: false, error: 'Ошибка загрузки цен', data: [] };
   }
 }
 
 /**
- * ПОГРАНИЧНИК-СИНТАКСИС: Восстанавливаем экспорт для устранения ошибки 2305
- * ТАМОЖНЯ: Только обновление цен (value), структура (slug) неприкосновенна[cite: 3]
+ * Только обновление цен (value), структура (slug) неприкосновенна
  */
 export async function updatePrices(data: any[]) {
-  console.log('--- [START] updatePrices ---');
   try {
     const user = await requireAuth();
     const orgId = user.organizationId;
 
-    // Используем транзакцию для массового обновления
     await prisma.$transaction(
       data.map((item) =>
         prisma.price.update({
@@ -80,11 +76,10 @@ export async function updatePrices(data: any[]) {
       )
     );
 
-    console.log('--- [SUCCESS] Prices updated ---');
     revalidatePath('/dashboard/prices');
     return { success: true };
   } catch (error) {
-    console.error('--- [ERROR] updatePrices:', error);
+    logger.error('[updatePrices] Ошибка сохранения цен', error);
     return { success: false, error: 'Не удалось сохранить изменения' };
   }
 }

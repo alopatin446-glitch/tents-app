@@ -1,4 +1,5 @@
 import { ClientProvider } from "@/providers/ClientProvider";
+import ToastContainer from "@/components/ui/ToastContainer";
 
 /** * Layout для /dashboard/
  * Теперь он правильно оборачивает все страницы в ClientProvider
@@ -13,6 +14,7 @@ export default function DashboardLayout({
       <div className="dashboard-wrapper">
         {children}
       </div>
+      <ToastContainer />
     </ClientProvider>
   );
 }
