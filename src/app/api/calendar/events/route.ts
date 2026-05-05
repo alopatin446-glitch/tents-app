@@ -22,8 +22,14 @@ function normalizeDate(value: unknown): Date | null {
 
 export async function GET() {
   try {
-    // any нужен до полной пересборки Prisma Client после миграции.
-    const events = await (prisma as any).calendarEvent.findMany({
+    const user = await getCurrentUser();
+
+    if (!user || user.status !== 'ACTIVE' || !user.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const events = await prisma.calendarEvent.findMany({
+      where: { organizationId: user.organizationId },
       orderBy: { date: 'asc' },
     });
 
@@ -61,7 +67,7 @@ export async function POST(req: Request) {
     const isGlobal = Boolean(body.isGlobal);
     const memberId = isGlobal ? null : normalizeString(body.memberId);
 
-    const event = await (prisma as any).calendarEvent.create({
+    const event = await prisma.calendarEvent.create({
       data: {
         type,
         title: normalizeString(body.title) || (type === 'dayOff' ? 'Выходной' : 'Личное событие'),
@@ -98,9 +104,22 @@ export async function DELETE(req: Request) {
       );
     }
 
-    await (prisma as any).calendarEvent.delete({
-      where: { id },
+    const user = await getCurrentUser();
+
+    if (!user || user.status !== 'ACTIVE' || !user.organizationId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const deleted = await prisma.calendarEvent.deleteMany({
+      where: { id, organizationId: user.organizationId },
     });
+
+    if (deleted.count === 0) {
+      return NextResponse.json(
+        { error: 'Событие не найдено' },
+        { status: 404 },
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -18,6 +18,14 @@ export const DEFAULT_PRICE_ROWS: DefaultPriceRow[] = [
     { slug: 'c_fa_8', name: 'Люверс 37 + металл скоба (цинк)', value: 85, unit: 'Шт', category: 'cost_fasteners' },
     { slug: 'c_fa_9', name: 'Люверс 37 + полиамидная скоба (цветной)', value: 110, unit: 'Шт', category: 'cost_fasteners' },
 
+    // ── Системные ключи для алгоритма расчёта крепежа (pricingLogic.ts) ──
+    // Базовый вариант: цинк. Дифференциация по finish (цветной/чёрный) — отдельный патч.
+    { slug: 'fast_eyelet_cost',    name: 'Расчёт: Люверс 10мм (цинк) — себес',           value: 3,   unit: 'Шт', category: 'cost_fasteners' },
+    { slug: 'fast_strap_cost',     name: 'Расчёт: Ремешок (цинк) — себес',               value: 65,  unit: 'Шт', category: 'cost_fasteners' },
+    { slug: 'fast_staple_pa_cost', name: 'Расчёт: Полиамид. скоба (цинк) — себес',       value: 75,  unit: 'Шт', category: 'cost_fasteners' },
+    { slug: 'fast_staple_m_cost',  name: 'Расчёт: Металл. скоба (цинк) — себес',         value: 85,  unit: 'Шт', category: 'cost_fasteners' },
+    { slug: 'fast_french_cost',    name: 'Расчёт: Французская скоба (цинк) — себес',     value: 120, unit: 'Шт', category: 'cost_fasteners' },
+
     // ── Системные строки для алгоритма себестоимости монтажа ──
     { slug: 'team_cost_pro', name: 'Себес: бригада Про', value: 350, unit: 'м2', category: 'cost_install' },
     { slug: 'team_cost_mid', name: 'Себес: бригада Стандарт', value: 280, unit: 'м2', category: 'cost_install' },
@@ -74,6 +82,14 @@ export const DEFAULT_PRICE_ROWS: DefaultPriceRow[] = [
     { slug: 'fast_7', name: 'Люверс 27+ скоба + ремень (цветной)', value: 210, unit: 'Шт', category: 'retail_fasteners' },
     { slug: 'fast_8', name: 'Люверс 37 + полиамидная скоба (цветной)', value: 240, unit: 'Шт', category: 'retail_fasteners' },
     { slug: 'fast_9', name: 'Люверс 37 + металл скоба (цветной)', value: 300, unit: 'Шт', category: 'retail_fasteners' },
+
+    // ── Системные ключи для алгоритма расчёта крепежа (pricingLogic.ts) ──
+    // Базовый вариант: цинк. Дифференциация по finish (цветной/чёрный) — отдельный патч.
+    { slug: 'fast_eyelet_retail',  name: 'Расчёт: Люверс 10мм (цинк) — розница', value: 4.8, unit: 'Шт', category: 'retail_fasteners' },
+    { slug: 'fast_strap_retail',   name: 'Расчёт: Ремешок (цинк) — розница',     value: 105,  unit: 'Шт', category: 'retail_fasteners' },
+    { slug: 'fast_staple_pa_retail', name: 'Расчёт: Полиамид. скоба (цинк) — розница', value: 120, unit: 'Шт', category: 'retail_fasteners' },
+    { slug: 'fast_staple_m_retail',  name: 'Расчёт: Металл. скоба (цинк) — розница',   value: 150, unit: 'Шт', category: 'retail_fasteners' },
+    { slug: 'fast_french_retail',    name: 'Расчёт: Французская скоба (цинк) — розница', value: 190, unit: 'Шт', category: 'retail_fasteners' },
 
     // ── Системные строки для алгоритма розничного монтажа ──
     { slug: 'team_retail_pro', name: 'Бригада Про', value: 850, unit: 'м2', category: 'retail_install' },

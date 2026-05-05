@@ -43,9 +43,8 @@ async function fetchCalendarEvents(
       orderBy: { updatedAt: 'desc' },
     });
 
-    // ВАЖНО: any здесь нужен, пока Prisma Client в VS Code может быть не пересобран
-    // после добавления модели CalendarEvent. После npx prisma generate типы обновятся.
-    const extraEvents = await (prisma as any).calendarEvent.findMany({
+    const extraEvents = await prisma.calendarEvent.findMany({
+      where: { organizationId },
       orderBy: { date: 'asc' },
     });
 

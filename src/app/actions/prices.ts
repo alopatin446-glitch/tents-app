@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { requireAuth } from '@/lib/auth/requireAuth';
+import { requireAuth, requireRole } from '@/lib/auth/requireAuth';
 import { DEFAULT_PRICE_ROWS } from '@/constants/defaultPrices';
 import { logger } from '@/lib/logger';
 
@@ -53,11 +53,12 @@ export async function getPrices() {
 }
 
 /**
- * Только обновление цен (value), структура (slug) неприкосновенна
+ * Только обновление цен (value), структура (slug) неприкосновенна.
+ * Доступно только ADMIN и MANAGER.
  */
 export async function updatePrices(data: any[]) {
   try {
-    const user = await requireAuth();
+    const user = await requireRole(['ADMIN', 'MANAGER']);
     const orgId = user.organizationId;
 
     await prisma.$transaction(
