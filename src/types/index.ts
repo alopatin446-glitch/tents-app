@@ -15,6 +15,7 @@
  */
 
 import { type ClientStatus } from '@/lib/logic/statusDictionary';
+import { type ServiceItem }  from '@/logic/orders/Order';
 
 // Реэкспортируем WindowGeometry, чтобы импортировать её из '@/types'
 // вместо прямого пути к windowCalculations.ts.
@@ -60,8 +61,8 @@ export interface FastenerConfig {
 
 export function getInitialFastener(): FastenerConfig {
   return {
-    type: 'none',
-    sides: { top: false, right: false, bottom: false, left: false },
+    type:   'none',
+    sides:  { top: false, right: false, bottom: false, left: false },
     finish: null,
     priceRetail: 0,
     priceCost:   0,
@@ -92,13 +93,13 @@ export interface StrapConfig {
 export type ElementOrientation = 'horizontal' | 'vertical';
 
 export interface ZipperItem {
-  id:               string;
-  orientation:      ElementOrientation;
+  id:                string;
+  orientation:       ElementOrientation;
   positionFromStart: number;
-  offsetStart:      number;
-  offsetEnd:        number;
-  bandLeft:         number;
-  bandRight:        number;
+  offsetStart:       number;
+  offsetEnd:         number;
+  bandLeft:          number;
+  bandRight:         number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -144,14 +145,14 @@ export interface WeldingItem {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface AdditionalElements {
-  straps:   StrapConfig;
-  zippers:  ZipperItem[];
-  dividers: DividerItem[];
-  cutouts:  CutoutItem[];
-  welding:  WeldingItem[];
-  hasSkirt: boolean;
+  straps:     StrapConfig;
+  zippers:    ZipperItem[];
+  dividers:   DividerItem[];
+  cutouts:    CutoutItem[];
+  welding:    WeldingItem[];
+  hasSkirt:   boolean;
   skirtWidth: number;
-  hasWeight: boolean;
+  hasWeight:  boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -179,7 +180,7 @@ export type WindowNumericField =
   | 'kantTop'  | 'kantRight'   | 'kantBottom'  | 'kantLeft'
   | 'diagonalLeft' | 'diagonalRight' | 'crossbar';
 
-export type WindowTextField   = 'name' | 'kantColor' | 'material';
+export type WindowTextField    = 'name' | 'kantColor' | 'material';
 export type WindowBooleanField = 'isTrapezoid';
 export type WindowEditableField = WindowNumericField | WindowTextField | WindowBooleanField;
 
@@ -188,7 +189,7 @@ export type WindowEditableField = WindowNumericField | WindowTextField | WindowB
  *
  * Одно объявление — единственный источник истины.
  * Все поля собраны здесь: геометрия, кант, крепёж, доп. элементы,
- * снимок цен (price snapshot).
+ * снимок цен (price snapshot), привязанные услуги.
  */
 export interface WindowItem {
   id:          number;
@@ -216,6 +217,16 @@ export interface WindowItem {
    */
   additionalElements?: AdditionalElements;
 
+  /**
+   * Услуги, привязанные к конкретному окну (вырезы, молнии и т.д.).
+   *
+   * Заполняется из OrderLedger через extractWindowServices() перед сохранением.
+   * Позволяет видеть в спецификации окна точный состав и стоимость его допов.
+   *
+   * Optional: отсутствует в legacy-записях и при отсутствии допов.
+   */
+  services?: ServiceItem[];
+
   // ── Снимок цен (price snapshot) ──────────────────────────────────────────
   // Заполняется автоматически при сохранении изделия.
   // Защищает закрытые сделки от изменения прайса.
@@ -240,12 +251,12 @@ export interface WindowItem {
 
 export function createDefaultAdditionalElements(): AdditionalElements {
   return {
-    straps:   { count: 2, isManual: false, type: 'grommet' },
-    zippers:  [],
-    dividers: [],
-    cutouts:  [],
-    welding:  [],
-    hasSkirt:  false,
+    straps:     { count: 2, isManual: false, type: 'grommet' },
+    zippers:    [],
+    dividers:   [],
+    cutouts:    [],
+    welding:    [],
+    hasSkirt:   false,
     skirtWidth: 0,
     hasWeight:  false,
   };
@@ -254,22 +265,22 @@ export function createDefaultAdditionalElements(): AdditionalElements {
 export function createDefaultWindowItem(id: number, index: number): WindowItem {
   return {
     id,
-    name:         `Окно ${index}`,
-    widthTop:     200,
-    heightRight:  200,
-    widthBottom:  200,
-    heightLeft:   200,
-    kantTop:      5,
-    kantRight:    5,
-    kantBottom:   5,
-    kantLeft:     5,
-    kantColor:    'Коричневый',
-    material:     'ПВХ 700 мкм (Прозрачная)',
-    isTrapezoid:  false,
+    name:          `Окно ${index}`,
+    widthTop:      200,
+    heightRight:   200,
+    widthBottom:   200,
+    heightLeft:    200,
+    kantTop:       5,
+    kantRight:     5,
+    kantBottom:    5,
+    kantLeft:      5,
+    kantColor:     'Коричневый',
+    material:      'ПВХ 700 мкм (Прозрачная)',
+    isTrapezoid:   false,
     diagonalLeft:  0,
     diagonalRight: 0,
     crossbar:      0,
-    fasteners:     getInitialFastener(),
+    fasteners:         getInitialFastener(),
     additionalElements: createDefaultAdditionalElements(),
   };
 }
@@ -304,8 +315,9 @@ export function parseWindowItems(raw: unknown): WindowItem[] {
     }
     acc.push({
       ...item,
-      fasteners:         item.fasteners         ?? getInitialFastener(),
-      additionalElements: item.additionalElements ?? undefined,
+      fasteners:          item.fasteners          ?? getInitialFastener(),
+      additionalElements: item.additionalElements  ?? undefined,
+      services:           item.services            ?? undefined,
     });
     return acc;
   }, []);

@@ -201,6 +201,18 @@ export interface WindowGeometry {
    */
   perimeterWithKant: number;
 
+  // ── Максимальные габариты (базис для retailArea и раскроя) ────────────────
+  /**
+   * Max(widthTop, widthBottom) — максимальная ширина изделия (см).
+   * Используется в UI вместо ручного Math.max().
+   */
+  maxWidth: number;
+  /**
+   * Max(heightLeft, heightRight) — максимальная высота изделия (см).
+   * Используется в UI вместо ручного Math.max().
+   */
+  maxHeight: number;
+
   // ── Параметры раскроя ──────────────────────────────────────────────────────
   /** Ширина подобранного рулона (см). */
   rollWidth: number;
@@ -371,6 +383,9 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
 
     perimeter,
     perimeterWithKant: kantedSideTop + kantedHeightRight + kantedWidthBottom + kantedHeightLeft,
+
+    maxWidth:  maxW,
+    maxHeight: maxH,
 
     rollWidth: finalRollWidth,
     cutWidth:  maxW + SOLDER_ALLOWANCE,

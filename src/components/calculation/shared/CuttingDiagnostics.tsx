@@ -76,13 +76,13 @@ function formatM(valueCm: number): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildDebugRow(item: WindowItem, index: number): WindowDebugRow {
-  const geometry    = calculateWindowGeometry(item);
-  const innerWidth  = Math.max(Number(item.widthTop),    Number(item.widthBottom));
-  const innerHeight = Math.max(Number(item.heightLeft),  Number(item.heightRight));
+  const geometry = calculateWindowGeometry(item);
 
-  // Припуски берём из ядра через SOLDER_ALLOWANCE — никакого хардкода
-  const cutWidthRaw  = innerWidth  + SOLDER_ALLOWANCE;
-  const cutHeightRaw = innerHeight + SOLDER_ALLOWANCE;
+  // Все размерные параметры — только из ядра, никакой ручной арифметики в UI
+  const innerWidth  = geometry.maxWidth;
+  const innerHeight = geometry.maxHeight;
+  const cutWidthRaw  = geometry.cutWidth;
+  const cutHeightRaw = geometry.cutHeight;
 
   return {
     id:             item.id,

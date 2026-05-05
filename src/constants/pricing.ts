@@ -29,15 +29,15 @@ export const MOUNTING_PRICES = {
 
   /** Розничная ставка по категории бригады (₽/м²) */
   TEAM_RETAIL_RATES: {
-    pro: 850,
-    mid: 720,
+    pro:    850,
+    mid:    720,
     junior: 600,
   } as const,
 
   /** Себестоимостная ставка по категории бригады (₽/м²) */
   TEAM_COST_RATES: {
-    pro: 350,
-    mid: 280,
+    pro:    350,
+    mid:    280,
     junior: 200,
   } as const,
 
@@ -55,50 +55,50 @@ export const MOUNTING_PRICES = {
   // ── Типы оснований ───────────────────────────────────────────────────────
 
   /**
- * Ставка базового основания (₽/м²).
- * Сайдинг требует ручной цены → 9999.
- */
+   * Ставка базового основания (₽/м²).
+   * Сайдинг требует ручной цены → 9999.
+   */
   BASE_FOUNDATION_SURCHARGE: {
-    wood: 0,
-    concrete: 0,
-    brick: 0,
-    metal: 0,
+    wood:       0,
+    concrete:   0,
+    brick:      0,
+    metal:      0,
     round_wood: 0,
-    siding: 9999,
+    siding:     9999,
   } as const,
 
   /** Стоимость дополнительного основания (₽/м.п.) */
   EXTRA_FOUNDATION_PRICE_PER_M: {
-    wood: 0,
-    concrete: 0,
-    brick: 0,
-    metal: 100,
+    wood:       0,
+    concrete:   0,
+    brick:      0,
+    metal:      100,
     round_wood: 0,
-    siding: 9999,
+    siding:     9999,
   } as const,
 
   // ── Монтажные балки ───────────────────────────────────────────────────────
 
   /**
- * Стоимость монтажной балки (₽/м.п.).
- * custom_wood и custom_metal = 9999 → обязателен customPrice от менеджера.
- */
+   * Стоимость монтажной балки (₽/м.п.).
+   * custom_wood и custom_metal = 9999 → обязателен customPrice от менеджера.
+   */
   MOUNTING_BEAMS: {
-    custom_wood: 9999,
-    wood_50x50: 0,
-    planed_wood_50x50: 0,
-    timber_100x100: 0,
-    timber_150x150: 0,
-    custom_metal: 9999,
+    custom_wood:        9999,
+    wood_50x50:         0,
+    planed_wood_50x50:  0,
+    timber_100x100:     0,
+    timber_150x150:     0,
+    custom_metal:       9999,
   } as const,
 
   // ── Высотные работы ───────────────────────────────────────────────────────
 
   /** Надбавка за высотные работы (₽/день) */
   HEIGHT_WORK: {
-    stairs: 0,
+    stairs:   0,
     scaffold: 0,
-    both: 0,
+    both:     0,
   } as const,
 
   // ── Себестоимость доп. работ ──────────────────────────────────────────────
@@ -111,24 +111,149 @@ export const MOUNTING_PRICES = {
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Дополнительные элементы изделия (допы)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Метаданные одного типа допа: ключи в PriceMap, отображаемое название, единица.
+ *
+ * Ключи PriceMap:
+ *   retailKey — розничная цена (₽/ед.)
+ *   costKey   — себестоимость (₽/ед.)
+ *
+ * Конвенция: addo_{slug}_retail / addo_{slug}_cost.
+ * Реальные числа живут в PriceMap (БД). Здесь — только ключи и метаданные.
+ */
+export interface AddonPriceMeta {
+  readonly retailKey:  string;
+  readonly costKey:    string;
+  readonly nameRetail: string;
+  /** Единица измерения: 'шт', 'м.п.' */
+  readonly unit:       string;
+}
+
+/**
+ * SSOT для ключей прайс-карты дополнительных элементов.
+ *
+ * Как использовать:
+ *   const retail = priceMap[ADDON_PRICE_CONFIG.zipper.retailKey] ?? 9999;
+ *
+ * slug-список (согласован с extrasCalculations.ts):
+ *   zipper        — молния (шт.)
+ *   divider       — разделитель (шт.)
+ *   cut           — вырез (шт.)
+ *   patch         — заплатка (шт.)
+ *   skirt         — юбка (м.п. внешней нижней ширины)
+ *   weight        — утяжелитель (м.п. внешней нижней ширины)
+ *   strap_grommet — стяжка-люверс (шт.)
+ *   strap_fastex  — стяжка-фастекс (шт.)
+ *   welding       — технологическая пайка (шт.)
+ */
+export const ADDON_PRICE_CONFIG = {
+  zipper: {
+    retailKey:  'addo_zipper_retail',
+    costKey:    'addo_zipper_cost',
+    nameRetail: 'Молния',
+    unit:       'шт',
+  },
+  divider: {
+    retailKey:  'addo_divider_retail',
+    costKey:    'addo_divider_cost',
+    nameRetail: 'Разделитель',
+    unit:       'шт',
+  },
+  cut: {
+    retailKey:  'addo_cut_retail',
+    costKey:    'addo_cut_cost',
+    nameRetail: 'Вырез',
+    unit:       'шт',
+  },
+  patch: {
+    retailKey:  'addo_patch_retail',
+    costKey:    'addo_patch_cost',
+    nameRetail: 'Заплатка',
+    unit:       'шт',
+  },
+  skirt: {
+    retailKey:  'addo_skirt_retail',
+    costKey:    'addo_skirt_cost',
+    nameRetail: 'Юбка',
+    unit:       'м.п.',
+  },
+  weight: {
+    retailKey:  'addo_weight_retail',
+    costKey:    'addo_weight_cost',
+    nameRetail: 'Утяжелитель',
+    unit:       'м.п.',
+  },
+  strap_grommet: {
+    retailKey:  'addo_strap_grommet_retail',
+    costKey:    'addo_strap_grommet_cost',
+    nameRetail: 'Стяжка (люверс)',
+    unit:       'шт',
+  },
+  strap_fastex: {
+    retailKey:  'addo_strap_fastex_retail',
+    costKey:    'addo_strap_fastex_cost',
+    nameRetail: 'Стяжка (фастекс)',
+    unit:       'шт',
+  },
+  welding: {
+    retailKey:  'addo_welding_retail',
+    costKey:    'addo_welding_cost',
+    nameRetail: 'Технологическая пайка',
+    unit:       'шт',
+  },
+} as const satisfies Record<string, AddonPriceMeta>;
+
+/** Тип для slug-ключей ADDON_PRICE_CONFIG */
+export type AddonSlug = keyof typeof ADDON_PRICE_CONFIG;
+
+/**
+ * Значения по умолчанию для PriceMap — допы.
+ * 9999 = «не установлено». Подставляется при первом сидировании БД.
+ * Администратор меняет через панель настроек.
+ */
+export const DEFAULT_ADDON_PRICE_MAP: Record<string, number> = {
+  addo_zipper_retail:        9999,
+  addo_zipper_cost:          9999,
+  addo_divider_retail:       9999,
+  addo_divider_cost:         9999,
+  addo_cut_retail:           9999,
+  addo_cut_cost:             9999,
+  addo_patch_retail:         9999,
+  addo_patch_cost:           9999,
+  addo_skirt_retail:         9999,
+  addo_skirt_cost:           9999,
+  addo_weight_retail:        9999,
+  addo_weight_cost:          9999,
+  addo_strap_grommet_retail: 9999,
+  addo_strap_grommet_cost:   9999,
+  addo_strap_fastex_retail:  9999,
+  addo_strap_fastex_cost:    9999,
+  addo_welding_retail:       9999,
+  addo_welding_cost:         9999,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Статические конфиги бригады (члены команды)
 // Расширяется через панель администратора в следующей итерации
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface TeamMemberConfig {
-  id: string;
-  name: string;
+  id:       string;
+  name:     string;
   category: 'pro' | 'mid' | 'junior';
   /** Цвет для карточки в календаре */
-  color: string;
+  color:    string;
 }
 
 export const TEAM_MEMBERS: TeamMemberConfig[] = [
-  { id: 'tm-001', name: 'Алексей Петров', category: 'pro', color: '#7BFF00' },
-  { id: 'tm-002', name: 'Дмитрий Сидоров', category: 'pro', color: '#00E5FF' },
-  { id: 'tm-003', name: 'Сергей Козлов', category: 'mid', color: '#FFD600' },
-  { id: 'tm-004', name: 'Николай Иванов', category: 'mid', color: '#FF6D00' },
-  { id: 'tm-005', name: 'Михаил Смирнов', category: 'junior', color: '#EA80FC' },
+  { id: 'tm-001', name: 'Алексей Петров',   category: 'pro',    color: '#7BFF00' },
+  { id: 'tm-002', name: 'Дмитрий Сидоров',  category: 'pro',    color: '#00E5FF' },
+  { id: 'tm-003', name: 'Сергей Козлов',    category: 'mid',    color: '#FFD600' },
+  { id: 'tm-004', name: 'Николай Иванов',   category: 'mid',    color: '#FF6D00' },
+  { id: 'tm-005', name: 'Михаил Смирнов',   category: 'junior', color: '#EA80FC' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -136,46 +261,46 @@ export const TEAM_MEMBERS: TeamMemberConfig[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const BEAM_TYPE_LABELS: Record<string, string> = {
-  custom_wood: 'Брусок нестандартный',
-  wood_50x50: 'Брусок обычный 50×50',
-  planed_wood_50x50: 'Брусок строганный 50×50',
-  timber_100x100: 'Брус обычный 10×10',
-  timber_150x150: 'Брус обычный 15×15',
-  custom_metal: 'Металл под заказ',
+  custom_wood:        'Брусок нестандартный',
+  wood_50x50:         'Брусок обычный 50×50',
+  planed_wood_50x50:  'Брусок строганный 50×50',
+  timber_100x100:     'Брус обычный 10×10',
+  timber_150x150:     'Брус обычный 15×15',
+  custom_metal:       'Металл под заказ',
 };
 
 export const FOUNDATION_TYPE_LABELS: Record<string, string> = {
-  wood: 'Брус',
-  concrete: 'Бетон',
-  brick: 'Кирпич',
-  metal: 'Металл',
+  wood:       'Брус',
+  concrete:   'Бетон',
+  brick:      'Кирпич',
+  metal:      'Металл',
   round_wood: 'Круглый брус',
-  siding: 'Сайдинг',
+  siding:     'Сайдинг',
 };
 
 export const EXTRA_FOUNDATION_LABELS: Record<string, string> = {
-  wood: 'Брус',
-  concrete: 'Бетон',
-  brick: 'Кирпич',
-  metal: 'Металл',
+  wood:       'Брус',
+  concrete:   'Бетон',
+  brick:      'Кирпич',
+  metal:      'Металл',
   round_wood: 'Круглый брус',
-  siding: 'Сайдинг',
+  siding:     'Сайдинг',
 };
 
 export const TEAM_CATEGORY_LABELS: Record<string, string> = {
-  pro: 'Бригада Про',
-  mid: 'Бригада Стандарт',
+  pro:    'Бригада Про',
+  mid:    'Бригада Стандарт',
   junior: 'Бригада Эконом',
 };
 
 export const HEIGHT_WORK_LABELS: Record<string, string> = {
-  stairs: 'Лестница',
+  stairs:   'Лестница',
   scaffold: 'Леса',
-  both: 'Лестница + леса',
+  both:     'Лестница + леса',
 };
 
 export const MOUNTING_STATUS_LABELS: Record<string, string> = {
-  pending: 'Ожидает',
+  pending:   'Ожидает',
   confirmed: 'Подтверждён',
   completed: 'Выполнен',
 };

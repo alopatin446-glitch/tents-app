@@ -3,8 +3,8 @@ import { calculateWindowGeometry } from './windowCalculations';
 
 export interface WindowFinance {
   costPrice: number;               // Чистое изделие: плёнка + кант
-  totalExpenses: number;           // Все расходы: материал + перерасход + ЗП
-  retailPrice: number;             // Розничная цена клиента (по retailArea)
+  totalExpenses: number;           // Все расходы: материал + перерасход + ЗП + крепёж
+  retailPrice: number;             // Розничная цена клиента (изделие + крепёж)
   profit: number;                  // Чистая прибыль
 
   materialPriceM2: number;         // Закупочная цена плёнки за м²
@@ -18,6 +18,9 @@ export interface WindowFinance {
   kantLaborCost: number;           // Отходы ленты канта
 
   productionCost: number;          // ЗП сварщика (по productionArea)
+
+  fastenersRetail: number;         // Стоимость крепежа (розница, ₽)
+  fastenersCost: number;           // Стоимость крепежа (себестоимость, ₽)
 }
 
 export type PriceMap = Record<string, number>;
@@ -34,6 +37,91 @@ const KANT_STRIP_WIDTH_M = 0.1;
  */
 const KANT_WASTE_STRIPS = 4;
 const KANT_WASTE_LENGTH_M = 0.4; // 40 см на отрезок
+
+/**
+ * Ключи в priceMap для конкретного типа крепежа.
+ * retailKey — розничная цена за 1 точку крепления (₽).
+ * costKey   — себестоимость за 1 точку крепления (₽).
+ */
+interface FastenerPriceKeys {
+  readonly retailKey: string;
+  readonly costKey:   string;
+}
+
+/**
+ * Маппинг типа крепежа → ключи в PriceMap.
+ * ID — только здесь. Функции ниже обращаются к priceMap через этот объект.
+ */
+const FASTENER_PRICE_KEYS: Readonly<Record<string, FastenerPriceKeys>> = {
+  eyelet_10:    { retailKey: 'fast_eyelet_retail',     costKey: 'fast_eyelet_cost' },
+  strap:        { retailKey: 'fast_strap_retail',      costKey: 'fast_strap_cost' },
+  staple_pa:    { retailKey: 'fast_staple_pa_retail',  costKey: 'fast_staple_pa_cost' },
+  staple_metal: { retailKey: 'fast_staple_m_retail',   costKey: 'fast_staple_m_cost' },
+  french_lock:  { retailKey: 'fast_french_retail',     costKey: 'fast_french_cost' },
+  none:         { retailKey: '',                        costKey: '' },
+} as const;
+
+/**
+ * Возвращает ключи priceMap для типа крепежа.
+ * Неизвестный тип → пустые ключи (цена = 0).
+ */
+function resolveFastenerKeys(type: string): FastenerPriceKeys {
+  return FASTENER_PRICE_KEYS[type] ?? { retailKey: '', costKey: '' };
+}
+
+/**
+ * Считает суммарную стоимость крепежа по прайс-карте.
+ * Если priceMap не содержит ключа — падает на значения из FastenerConfig
+ * (snapshot из базы, уже захваченный при сохранении заказа).
+ */
+function calculateFastenerCosts(
+  window: WindowItem,
+  priceMap: PriceMap,
+): { fastenersRetail: number; fastenersCost: number } {
+  const fasteners = window.fasteners;
+  if (!fasteners || fasteners.type === 'none') {
+    return { fastenersRetail: 0, fastenersCost: 0 };
+  }
+
+  const keys        = resolveFastenerKeys(fasteners.type);
+  const pointsCount = fasteners.pointsCount ?? 0;
+
+  const unitRetail = keys.retailKey
+    ? (priceMap[keys.retailKey] ?? fasteners.priceRetail)
+    : fasteners.priceRetail;
+  const unitCost   = keys.costKey
+    ? (priceMap[keys.costKey] ?? fasteners.priceCost)
+    : fasteners.priceCost;
+
+  return {
+    fastenersRetail: pointsCount * unitRetail,
+    fastenersCost:   pointsCount * unitCost,
+  };
+}
+
+/**
+ * Публичный хелпер: розничная и себестоимостная цена за 1 точку крепления.
+ *
+ * Используется в FastenersStep при выборе типа крепежа,
+ * обеспечивая тот же маппинг ключей, что и calculateWindowFinance.
+ *
+ * Приоритет: priceMap[key] → fallback.
+ */
+export function getFastenerUnitPrices(
+  type: string,
+  priceMap: PriceMap,
+  fallback: { retail: number; cost: number } = { retail: 0, cost: 0 },
+): { unitRetail: number; unitCost: number } {
+  const keys = resolveFastenerKeys(type);
+  return {
+    unitRetail: keys.retailKey
+      ? (priceMap[keys.retailKey] ?? fallback.retail)
+      : fallback.retail,
+    unitCost: keys.costKey
+      ? (priceMap[keys.costKey] ?? fallback.cost)
+      : fallback.cost,
+  };
+}
 
 /**
  * ФИНАНСОВЫЙ МОСТ:
@@ -97,17 +185,23 @@ export function calculateWindowFinance(
   //    Для трапеции productionArea < retailArea → сварщик получает меньше за реальный объём.
   const productionCost = geo.productionArea * laborPriceM2;
 
-  // 8. Розничная цена
+  // 8. Розничная цена изделия (полотно)
   //    Закон Директора: клиент платит за габарит → строго по retailArea.
-  const totalRetail = geo.retailArea * retailPriceM2 * topFactor;
+  const productRetail = geo.retailArea * retailPriceM2 * topFactor;
 
-  // 9. Себестоимость изделия (плёнка + кант, без перерасхода и ЗП)
+  // 9. Стоимость крепежа
+  const { fastenersRetail, fastenersCost } = calculateFastenerCosts(window, priceMap);
+
+  // 10. Итоговая розничная цена = изделие + крепёж
+  const totalRetail = productRetail + fastenersRetail;
+
+  // 11. Себестоимость изделия (плёнка + кант, без перерасхода и ЗП)
   const totalCost = materialInProductCost + kantMaterialProductCost;
 
-  // 10. Полные расходы
-  const totalExpenses = totalCost + overspending + productionCost;
+  // 12. Полные расходы = материал + перерасход + ЗП + крепёж
+  const totalExpenses = totalCost + overspending + productionCost + fastenersCost;
 
-  // 11. Вспомогательные метрики для бухгалтерии
+  // 13. Вспомогательные метрики для бухгалтерии
   const materialCutCost = rollWidthM * cutHeightM * buyPrice;
   const kantMaterialCost = kantMaterialProductCost + overspendingKant;
 
@@ -130,6 +224,9 @@ export function calculateWindowFinance(
     kantLaborCost: Math.round(overspendingKant),
 
     productionCost: Math.round(productionCost),
+
+    fastenersRetail: Math.round(fastenersRetail),
+    fastenersCost:   Math.round(fastenersCost),
   };
 }
 

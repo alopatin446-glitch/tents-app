@@ -257,6 +257,7 @@ export default function CalculationClient({
             onActiveWindowChange={setActiveWindowId}
             onWindowsChange={handleWindowsChange}
             onSave={handleSaveAll}
+            priceMap={currentPrices}
             isReadOnly={isReadOnly}
           />
         )}

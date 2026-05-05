@@ -36,7 +36,6 @@ import {
   calculateWindowGeometry,
   calculateOrderOptimization,
   formatArea,
-  SOLDER_ALLOWANCE,
   type WindowGeometry,
 } from '@/lib/logic/windowCalculations';
 
@@ -171,19 +170,19 @@ function formatM(valueCm: number): string {
 }
 
 function buildDebugRow(item: WindowItem, index: number): WindowCalculationDebugRow {
-  const geometry    = calculateWindowGeometry(item);
-  const innerWidth  = Math.max(Number(item.widthTop),   Number(item.widthBottom));
-  const innerHeight = Math.max(Number(item.heightLeft),  Number(item.heightRight));
+  const geometry = calculateWindowGeometry(item);
 
-  // Припуск из ядра — никакого хардкода
-  const cutWidthRaw  = innerWidth  + SOLDER_ALLOWANCE;
-  const cutHeightRaw = innerHeight + SOLDER_ALLOWANCE;
+  // Все размерные параметры — только из ядра, никакой ручной арифметики в UI
+  const innerWidth  = geometry.maxWidth;
+  const innerHeight = geometry.maxHeight;
+  const cutWidthRaw  = geometry.cutWidth;
+  const cutHeightRaw = geometry.cutHeight;
 
   const widthAcrossRoll = geometry.isRotated ? cutHeightRaw : cutWidthRaw;
   const cutLength       = geometry.isRotated ? cutWidthRaw  : cutHeightRaw;
   const chargedWidth    = geometry.isOverSize
     ? widthAcrossRoll
-    : Math.max(Number(geometry.rollWidth), widthAcrossRoll);
+    : Math.max(geometry.rollWidth, widthAcrossRoll);
 
   return {
     id: item.id,
