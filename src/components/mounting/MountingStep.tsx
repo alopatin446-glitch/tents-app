@@ -31,6 +31,7 @@ import type {
 import { logger } from "@/lib/logger";
 import { getPrices } from "@/app/actions/prices";
 import styles from "./MountingStep.module.css";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Дефолтная конфигурация
@@ -298,6 +299,10 @@ export default function MountingStep({
     useState<CalendarBlockCheck>(EMPTY_BLOCK_CHECK);
   const [isCheckingDayBlock, setIsCheckingDayBlock] = useState(false);
   const [mountingPriceMap, setMountingPriceMap] = useState<Record<string, number>>({});
+  // ── Диалоги подтверждения ────────────────────────────────────────────────
+  const [confirmUpdatePricesOpen, setConfirmUpdatePricesOpen] = useState(false);
+  const [confirmBlockedSaveOpen, setConfirmBlockedSaveOpen] = useState(false);
+  const [blockedSaveMessage, setBlockedSaveMessage] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -565,9 +570,11 @@ export default function MountingStep({
 
   const handleUpdatePrices = () => {
     if (isReadOnly) return;
-    if (!window.confirm("Сбросить ручную цену и зафиксировать текущий прайс?"))
-      return;
+    setConfirmUpdatePricesOpen(true);
+  };
 
+  const handleUpdatePricesConfirmed = () => {
+    setConfirmUpdatePricesOpen(false);
     const oldEffectiveRetail = effectiveRetail;
     const nextSnapshot = captureCurrentPriceSnapshot(config.team.category, mountingPriceMap);
     const nextConfig: MountingConfig = {
@@ -614,14 +621,15 @@ export default function MountingStep({
       const details = actualDayBlockCheck.details.length
         ? `\n\n${actualDayBlockCheck.details.map((item) => `• ${item}`).join("\n")}`
         : "";
-
-      const shouldSaveAnyway = window.confirm(
-        `${actualDayBlockCheck.message}${details}\n\nСохранить монтаж всё равно?`,
-      );
-
-      if (!shouldSaveAnyway) return;
+      setBlockedSaveMessage(`${actualDayBlockCheck.message}${details}`);
+      setConfirmBlockedSaveOpen(true);
+      return;
     }
 
+    await executeSave();
+  };
+
+  const executeSave = async () => {
     setIsSaving(true);
     try {
       await onSave(config);
@@ -1374,6 +1382,31 @@ export default function MountingStep({
             )}
           </div>
         )}
+
+      <ConfirmDialog
+        open={confirmUpdatePricesOpen}
+        title="Сбросить ручную цену?"
+        description="Ручная цена будет удалена и заменена текущими тарифами прайса."
+        confirmLabel="Обновить"
+        cancelLabel="Отмена"
+        variant="default"
+        onConfirm={handleUpdatePricesConfirmed}
+        onCancel={() => setConfirmUpdatePricesOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmBlockedSaveOpen}
+        title="Дата монтажа занята"
+        description={`${blockedSaveMessage}\n\nСохранить монтаж всё равно?`}
+        confirmLabel="Сохранить"
+        cancelLabel="Отмена"
+        variant="danger"
+        onConfirm={async () => {
+          setConfirmBlockedSaveOpen(false);
+          await executeSave();
+        }}
+        onCancel={() => setConfirmBlockedSaveOpen(false)}
+      />
       </div>
     </div>
   );

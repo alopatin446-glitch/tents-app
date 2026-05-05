@@ -19,6 +19,7 @@ import { prisma } from '@/lib/prisma';
 import { parseWindowItems } from '@/types';
 import { logger } from '@/lib/logger';
 import CalculationClient from '@/components/calculation/CalculationClient';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import type { ClientFormData } from '@/components/calculation/ClientStep';
 import type { MountingConfig } from '@/types/mounting';
 import { requireAuth } from '@/lib/auth/requireAuth';
@@ -85,13 +86,15 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
     };
 
     return (
-      <CalculationClient
-        clientId=""
-        initialClientData={emptyClientData}
-        initialWindows={[]}
-        currentUserId={user.id}
-        isReadOnly={false}
-      />
+      <ErrorBoundary label="расчёта">
+        <CalculationClient
+          clientId=""
+          initialClientData={emptyClientData}
+          initialWindows={[]}
+          currentUserId={user.id}
+          isReadOnly={false}
+        />
+      </ErrorBoundary>
     );
   }
 
@@ -179,12 +182,14 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
   };
 
   return (
-    <CalculationClient
-      clientId={clientId}
-      initialClientData={initialClientData}
-      initialWindows={initialWindows}
-      currentUserId={user.id}
-      isReadOnly={isReadOnly}
-    />
+    <ErrorBoundary label="расчёта">
+      <CalculationClient
+        clientId={clientId}
+        initialClientData={initialClientData}
+        initialWindows={initialWindows}
+        currentUserId={user.id}
+        isReadOnly={isReadOnly}
+      />
+    </ErrorBoundary>
   );
 }

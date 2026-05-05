@@ -24,13 +24,22 @@ export default function CreateClientModal({
   const handleFinalSave = async (formData: ClientFormData): Promise<void> => {
     try {
       const result = await createClientAction({
-        fio: formData.fio,
-        phone: formData.phone,
-        address: formData.address,
-        source: formData.source,
-        totalPrice: formData.totalPrice,
-        advance: formData.advance,
-        status: formData.status ?? 'negotiation',
+        fio:             formData.fio,
+        phone:           formData.phone,
+        address:         formData.address,
+        source:          formData.source,
+        status:          formData.status ?? 'negotiation',
+        paymentType:     formData.paymentType,
+        managerComment:  formData.managerComment,
+        engineerComment: formData.engineerComment,
+        totalPrice:      formData.totalPrice,
+        advance:         formData.advance,
+        costPrice:       formData.costPrice,
+        overspending:    formData.overspending,
+        productionCost:  formData.productionCost,
+        mountingCost:    formData.mountingCost,
+        measurementDate: formData.measurementDate,
+        installDate:     formData.installDate,
       });
 
       if (result.success) {
@@ -59,8 +68,7 @@ export default function CreateClientModal({
       } else {
         notifyError(result.error || 'Ошибка при сохранении карточки');
       }
-    } catch (err) {
-      console.error('[CreateClientModal] Ошибка:', err);
+    } catch {
       notifyError('Ошибка при сохранении карточки');
     }
   };

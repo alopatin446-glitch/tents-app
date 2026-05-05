@@ -5,6 +5,7 @@ import { parseWindowItems } from '@/types';
 import { normalizeStatus } from '@/lib/logic/statusDictionary';
 import type { Client } from '@/types';
 import { requireAuth } from '@/lib/auth/requireAuth';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 export default async function ClientsPage() {
   // 1. ТАМОЖНЯ: Проверка авторизации
@@ -51,7 +52,9 @@ export default async function ClientsPage() {
   return (
     <ClientProvider initialClients={clients}>
       {/* Передаем выровненный priceMap в Канбан */}
-      <KanbanBoard priceMap={priceMap} />
+      <ErrorBoundary label="канбана">
+        <KanbanBoard priceMap={priceMap} />
+      </ErrorBoundary>
     </ClientProvider>
   );
 }

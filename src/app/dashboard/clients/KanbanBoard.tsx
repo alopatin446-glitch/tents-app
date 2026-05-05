@@ -24,6 +24,7 @@ import styles from './KanbanBoard.module.css';
 import StageColumn from './StageColumn';
 import EditModal from './EditModal';
 import CreateClientModal from './CreateClientModal';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 // Типы
 import { type Client, type Stage } from '@/types';
@@ -60,6 +61,7 @@ export default function KanbanBoard({ priceMap }: KanbanBoardProps) {
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -99,8 +101,12 @@ export default function KanbanBoard({ priceMap }: KanbanBoardProps) {
 
   const deleteSelected = async (): Promise<void> => {
     if (selectedIds.length === 0) return;
-    const confirmed = confirm(`Удалить выбранных клиентов (${selectedIds.length} шт.)?`);
-    if (!confirmed) return;
+    setConfirmDeleteOpen(true);
+  };
+
+  const handleDeleteConfirmed = async (): Promise<void> => {
+    setConfirmDeleteOpen(false);
+    if (selectedIds.length === 0) return;
 
     try {
       const idsToDelete = selectedIds.map((id) => String(id));
@@ -222,6 +228,17 @@ export default function KanbanBoard({ priceMap }: KanbanBoardProps) {
             onClose={() => setIsAddingNew(false)} 
           />
         )}
+
+        <ConfirmDialog
+          open={confirmDeleteOpen}
+          title={`Удалить выбранных клиентов (${selectedIds.length} шт.)?`}
+          description="Это действие необратимо. Все данные карточек будут удалены."
+          confirmLabel="Удалить"
+          cancelLabel="Отмена"
+          variant="danger"
+          onConfirm={handleDeleteConfirmed}
+          onCancel={() => setConfirmDeleteOpen(false)}
+        />
       </div>
     </DndContext>
   );

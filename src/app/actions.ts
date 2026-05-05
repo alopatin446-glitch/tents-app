@@ -217,21 +217,41 @@ export async function createClientAction(data: {
   phone: unknown;
   address?: unknown;
   source?: unknown;
+  status?: unknown;
   totalPrice?: unknown;
   advance?: unknown;
-  status?: unknown;
+  paymentType?: unknown;
+  measurementDate?: unknown;
+  installDate?: unknown;
+  costPrice?: unknown;
+  overspending?: unknown;
+  productionCost?: unknown;
+  mountingCost?: unknown;
+  managerComment?: unknown;
+  engineerComment?: unknown;
 }): Promise<{ success: true; id: string } | { success: false; error: string }> {
   try {
     const user = await requireAuth();
 
-    const fio = toRequiredString(data.fio, 'Без имени');
-    const phone = toRequiredString(data.phone, '');
-    const address = toNullableString(data.address);
-    const source = toNullableString(data.source);
-    const status = normalizeStatus(data.status ?? 'negotiation');
-    const totalPrice = toFinancialNumber(data.totalPrice as string | number | null | undefined, 0);
-    const advance = toFinancialNumber(data.advance as string | number | null | undefined, 0);
-    const balance = calculateClientBalance(totalPrice, advance);
+    const fio          = toRequiredString(data.fio, 'Без имени');
+    const phone        = toRequiredString(data.phone, '');
+    const address      = toNullableString(data.address);
+    const source       = toNullableString(data.source);
+    const status       = normalizeStatus(data.status ?? 'negotiation');
+    const paymentType  = toNullableString(data.paymentType);
+    const managerComment  = toNullableString(data.managerComment);
+    const engineerComment = toNullableString(data.engineerComment);
+
+    const totalPrice     = toFinancialNumber(data.totalPrice     as string | number | null | undefined, 0);
+    const advance        = toFinancialNumber(data.advance        as string | number | null | undefined, 0);
+    const costPrice      = toFinancialNumber(data.costPrice      as string | number | null | undefined, 0);
+    const overspending   = toFinancialNumber(data.overspending   as string | number | null | undefined, 0);
+    const productionCost = toFinancialNumber(data.productionCost as string | number | null | undefined, 0);
+    const mountingCost   = toFinancialNumber(data.mountingCost   as string | number | null | undefined, 0);
+    const balance        = calculateClientBalance(totalPrice, advance);
+
+    const measurementDate = toNullableDate(data.measurementDate);
+    const installDate     = toNullableDate(data.installDate);
 
     const created = await prisma.client.create({
       data: {
@@ -241,9 +261,18 @@ export async function createClientAction(data: {
         address,
         source,
         status,
+        paymentType,
+        managerComment,
+        engineerComment,
         totalPrice,
         advance,
         balance,
+        costPrice,
+        overspending,
+        productionCost,
+        mountingCost,
+        measurementDate,
+        installDate,
 
         createdById: user.id,
         createdByName: user.name,
