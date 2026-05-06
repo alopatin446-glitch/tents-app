@@ -161,6 +161,14 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
     engineerComment: client.engineerComment,
     mountingConfig: (client.mountingConfig ?? null) as MountingConfig | null,
 
+    /**
+     * Снапшот прайса из БД.
+     * NULL для старых записей — useCalculationState увидит null и
+     * автоматически переключится на currentPrices (текущий справочник).
+     * После первого сохранения этого заказа поле заполнится.
+     */
+    savedPrices: client.savedPrices ?? null,
+
     createdAt: client.createdAt.toISOString(),
     updatedAt: client.updatedAt.toISOString(),
 

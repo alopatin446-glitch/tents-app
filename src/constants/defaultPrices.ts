@@ -142,4 +142,16 @@ export const DEFAULT_PRICE_ROWS: DefaultPriceRow[] = [
     { slug: 'prod_7', name: 'Окно на ремешках ТПУ', value: 3000, unit: 'м2', category: 'retail_products' },
     { slug: 'prod_8', name: 'Окно на полиамидной скобе ТПУ', value: 3400, unit: 'м2', category: 'retail_products' },
     { slug: 'prod_9', name: 'Окно на металлической скоба ТПУ', value: 3800, unit: 'м2', category: 'retail_products' },
-];
+
+    // ── CORE-3B: Тонировка (TINTED) — отдельная розница ──────────────────────
+    // Значения = соответствующий ПВХ + 200 ₽/м².
+    // Крепёжная логика та же, что у ПВХ (mapTINTED зеркалит mapPVC).
+    // Slug-маппинг: none→prod_18, eyelet_10→prod_13, strap→prod_14,
+    //              staple_pa→prod_15, staple_metal→prod_16, french_lock→prod_17.
+    { slug: 'prod_13', name: 'Окно Глухое Тонировка', value: 1800, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_14', name: 'Окно на ремешках Тонировка', value: 2200, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_15', name: 'Окно на полиамидной скобе Тонировка', value: 2600, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_16', name: 'Окно на металлической скобе Тонировка', value: 3000, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_17', name: 'Окно на французской скобе Тонировка', value: 3200, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_18', name: 'Окно без люверсов Тонировка', value: 1500, unit: 'м2', category: 'retail_products' },
+];  

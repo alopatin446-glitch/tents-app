@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { type WindowItem } from '@/types';
@@ -21,6 +21,7 @@ import ProductionStep from '@/components/calculation/ProductionStep';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { calculateMounting } from '@/lib/logic/mountingCalculations';
 import { getPrices } from '@/app/actions/prices';
+import { buildMaterialDiagnostics } from '@/lib/logic/materialDiagnostics';
 
 type Step =
   | 'client'
@@ -110,6 +111,15 @@ export default function CalculationClient({
     handleClientDataChange,
     handleExtrasChange,
   } = useCalculationState(initialClientData, initialWindows, currentPrices);
+
+  // ── ДИАГНОСТИКА МАТЕРИАЛОВ (временная, только чтение) ───────────────────
+  // Вычисляет расхождение между текущим и ожидаемым расчётом после
+  // исправления материальных slug в pricingLogic. Не влияет на totalPrice,
+  // costPrice, balance, savedPrices, items или сохранение.
+  const materialDiagnostics = useMemo(
+    () => buildMaterialDiagnostics(windows, currentPrices),
+    [windows, currentPrices],
+  );
 
   /**
    * 🔥 ЕДИНОЕ СОХРАНЕНИЕ ВСЕГО ЗАКАЗА
@@ -235,6 +245,7 @@ export default function CalculationClient({
             onDraftChange={handleClientDataChange}
             onClose={() => router.back()}
             isReadOnly={isReadOnly}
+            materialDiagnostics={materialDiagnostics}
           />
         )}
 

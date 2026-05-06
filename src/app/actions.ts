@@ -53,6 +53,54 @@ function toJsonItems(value: unknown): Prisma.InputJsonValue {
   return validated as unknown as Prisma.InputJsonValue;
 }
 
+/**
+ * Валидирует снапшот прайса перед записью в БД.
+ *
+ * Контракт возврата:
+ *   Record<string, number> — объект валиден, можно писать в поле savedPrices.
+ *   undefined               — данные невалидны; поле savedPrices НЕ включается в data.
+ *
+ * Принцип: мы не очищаем существующий снапшот принудительно.
+ * Либо запишем проверенный объект — либо вообще не тронем поле.
+ * Prisma.JsonNull здесь не используется: это исключает случайную
+ * потерю снапшота при невалидном вводе (пустом объекте, сетевом сбое и т.п.).
+ *
+ * Невалидные случаи (все возвращают undefined):
+ *   — undefined / null
+ *   — не объект (число, строка, массив)
+ *   — пустой объект {}
+ *   — объект с нечисловыми или бесконечными значениями
+ */
+function normalizeSavedPrices(value: unknown): Record<string, number> | undefined {
+  if (value === undefined || value === null) return undefined;
+
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    logger.warn(
+      '[actions.normalizeSavedPrices] Некорректный тип — ожидается объект',
+      { type: typeof value },
+    );
+    return undefined;
+  }
+
+  const obj  = value as Record<string, unknown>;
+  const keys = Object.keys(obj);
+
+  if (keys.length === 0) return undefined;
+
+  const hasInvalidValues = keys.some(
+    (k) => typeof obj[k] !== 'number' || !Number.isFinite(obj[k] as number),
+  );
+
+  if (hasInvalidValues) {
+    logger.warn(
+      '[actions.normalizeSavedPrices] savedPrices содержит нечисловые значения — поле не будет обновлено',
+    );
+    return undefined;
+  }
+
+  return obj as Record<string, number>;
+}
+
 // ---------------------------------------------------------------------------
 // Тип полезной нагрузки
 // ---------------------------------------------------------------------------
@@ -78,6 +126,12 @@ type UpdateClientPayload = {
   overspending?: unknown;
   productionCost?: unknown;
   mountingCost?: unknown;
+  /**
+   * Снапшот прайса: плоский объект { slug: number }.
+   * Попадает в БД только если прошёл normalizeSavedPrices.
+   * При невалидном значении поле не обновляется (существующий снапшот сохраняется).
+   */
+  savedPrices?: unknown;
 };
 
 function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknown> {
@@ -125,6 +179,11 @@ function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknow
   if (data.productionCost !== undefined) out.productionCost = toFinancialNumber(data.productionCost as string | number | null | undefined, 0);
   if (data.mountingCost !== undefined) out.mountingCost = toFinancialNumber(data.mountingCost as string | number | null | undefined, 0);
 
+  // savedPrices попадает в out только если normalizeSavedPrices вернул валидный объект.
+  // При undefined — поле не включается в data, Prisma не трогает существующее значение в БД.
+  const validSavedPrices = normalizeSavedPrices(data.savedPrices);
+  if (validSavedPrices !== undefined) out.savedPrices = validSavedPrices;
+
   return out;
 }
 
@@ -150,6 +209,10 @@ export async function updateClientAction(
   try {
     const user = await requireAuth(); // Получаем данные пользователя из сессии
     let finalId: string;
+
+    // Валидируем снапшот один раз до ветвления.
+    // undefined → снапшот невалиден или не передан → поле не записывается ни в create, ни в update.
+    const validSavedPrices = normalizeSavedPrices(data.savedPrices);
 
     if (!id || id.trim() === '') {
       // СОЗДАНИЕ НОВОГО КЛИЕНТА
@@ -179,13 +242,19 @@ export async function updateClientAction(
           updatedByName: user.name,
           updatedByRole: user.role,
           contentUpdatedAt: new Date(),
+
+          // savedPrices включается только если снапшот валиден.
+          // Если не передан или невалиден — поле остаётся NULL (Prisma default для Json?).
+          ...(validSavedPrices !== undefined ? { savedPrices: validSavedPrices } : {}),
         },
       });
       finalId = newClient.id;
       logger.info('[updateClientAction] Создан новый клиент', { id: finalId, orgId: user.organizationId });
     } else {
       // ОБНОВЛЕНИЕ СУЩЕСТВУЮЩЕГО КЛИЕНТА
-      // Добавляем проверку, что клиент принадлежит организации пользователя
+      // Добавляем проверку, что клиент принадлежит организации пользователя.
+      // buildUpdateClientData вызывает normalizeSavedPrices внутри себя — это осознанное
+      // дублирование: два вызова на одних данных идемпотентны и дают одинаковый результат.
       const prismaData = {
         ...buildUpdateClientData(data),
         updatedById: user.id,

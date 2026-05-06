@@ -124,6 +124,57 @@ export function getFastenerUnitPrices(
 }
 
 /**
+ * Определяет закупочную цену плёнки за м² по коду материала.
+ *
+ * ─── CORE-3A: TPU ────────────────────────────────────────────────────────────
+ * Использует c_pr_3 (750 ₽/м²).
+ * Валидно: присутствует, > 0, ≠ 9999.
+ * Fallback на c_pr_1 если c_pr_3 не настроен — сохраняет поведение до CORE-3A.
+ *
+ * ─── CORE-3B: TINTED ─────────────────────────────────────────────────────────
+ * Использует c_pr_2 (400 ₽/м²).
+ * Без fallback на ПВХ: если c_pr_2 не настроен → 0 (видимая проблема).
+ * Диагностика materialDiagnostics покажет price_missing / price_not_configured.
+ *
+ * ─── Остальные материалы ────────────────────────────────────────────────────
+ * PVC_700  → c_pr_1  (без изменений)
+ * MOSQUITO → c_pr_1  (без изменений — до бизнес-решения CORE-3C)
+ * ────────────────────────────────────────────────────────────────────────────
+ */
+function resolveBuyPrice(material: string, priceMap: PriceMap): number {
+  if (material === 'TPU') {
+    const tpuPrice = priceMap['c_pr_3'];
+    if (tpuPrice !== undefined && tpuPrice > 0 && tpuPrice !== 9999) {
+      return tpuPrice;
+    }
+    // c_pr_3 не настроен → fallback (не обнуляем себестоимость)
+    return priceMap['c_pr_1'] || 0;
+  }
+
+  if (material === 'TINTED') {
+    const tintedPrice = priceMap['c_pr_2'];
+    if (tintedPrice !== undefined && tintedPrice > 0 && tintedPrice !== 9999) {
+      return tintedPrice;
+    }
+    // c_pr_2 не настроен → 0 (без fallback на ПВХ: делаем проблему видимой)
+    return 0;
+  }
+
+  return priceMap['c_pr_1'] || 0;
+}
+
+/**
+ * Разрешает розничную цену за м² для слага.
+ * Возвращает 0 при: slug отсутствует в priceMap, значение = 0, значение = 9999.
+ * 9999 — sentinel «цена не установлена», не должен участвовать в расчёте.
+ */
+function resolveRetailPriceM2(slug: string, priceMap: PriceMap): number {
+  const price = priceMap[slug];
+  if (price === undefined || price === 0 || price === 9999) return 0;
+  return price;
+}
+
+/**
  * ФИНАНСОВЫЙ МОСТ:
  * Расчёт экономики окна на основе фактической геометрии и живого прайса.
  *
@@ -142,13 +193,13 @@ export function calculateWindowFinance(
   const geo = calculateWindowGeometry(window);
 
   // 2. Ставки из справочника
-  const buyPrice = priceMap['c_pr_1'] || 0; // Закупка плёнки за м²
-  const kantPriceM2 = priceMap['c_pr_4'] || 0; // Кант за м²
+  const buyPrice     = resolveBuyPrice(window.material, priceMap); // Закупка плёнки за м²
+  const kantPriceM2  = priceMap['c_pr_4']     || 0; // Кант за м²
   const laborPriceM2 = priceMap['c_produc_1'] || 0; // ЗП сварщика за м²
 
   // 3. Розничный слаг и коэффициент верхнего крепежа
   const { slug: retailSlug, topFactor } = getRetailProductSlug(window);
-  const retailPriceM2 = priceMap[retailSlug] || 0;
+  const retailPriceM2 = resolveRetailPriceM2(retailSlug, priceMap);
 
   // 4. Стоимость плёнки в изделии
   //    Плёнка всегда кроится из прямоугольника: (maxW + припуск) × (maxH + припуск).
@@ -157,7 +208,7 @@ export function calculateWindowFinance(
 
   // 5. Перерасход плёнки (рулон шире заготовки → разница в мусор)
   const rollWidthM = geo.rollWidth / 100;
-  const cutWidthM = geo.cutWidth / 100;
+  const cutWidthM  = geo.cutWidth  / 100;
   const cutHeightM = geo.cutHeight / 100;
 
   const overspendingFilm = (rollWidthM - cutWidthM) * cutHeightM * buyPrice;
@@ -195,26 +246,25 @@ export function calculateWindowFinance(
   const totalExpenses = totalCost + overspending + productionCost + fastenersCost;
 
   // 13. Вспомогательные метрики для бухгалтерии
-  const materialCutCost = rollWidthM * cutHeightM * buyPrice;
+  const materialCutCost  = rollWidthM * cutHeightM * buyPrice;
   const kantMaterialCost = kantMaterialProductCost + overspendingKant;
 
   return {
-    costPrice: Math.round(totalCost),
+    costPrice:     Math.round(totalCost),
     totalExpenses: Math.round(totalExpenses),
-    retailPrice: Math.round(totalRetail),
-    profit: Math.round(totalRetail - totalExpenses),
+    retailPrice:   Math.round(totalRetail),
+    profit:        Math.round(totalRetail - totalExpenses),
 
-    // Исправляем здесь: подтягиваем цену из входящих данных (buyPrice)
     materialPriceM2: Math.round(buyPrice),
 
     materialInProductCost: Math.round(materialInProductCost),
-    materialCutCost: Math.round(materialCutCost),
-    overspending: Math.round(overspending),
+    materialCutCost:       Math.round(materialCutCost),
+    overspending:          Math.round(overspending),
 
     kantPriceM2,
-    kantMaterialCost: Math.round(kantMaterialCost),
+    kantMaterialCost:        Math.round(kantMaterialCost),
     kantMaterialProductCost: Math.round(kantMaterialProductCost),
-    kantLaborCost: Math.round(overspendingKant),
+    kantLaborCost:           Math.round(overspendingKant),
 
     productionCost: Math.round(productionCost),
 
@@ -228,35 +278,56 @@ export function calculateWindowFinance(
 // ---------------------------------------------------------------------------
 
 function getRetailProductSlug(item: WindowItem): { slug: string; topFactor: number } {
-  const material = item.material;
+  const material     = item.material;
   const fastenerType = item.fasteners?.type ?? 'none';
 
-  const leftEnabled = item.fasteners?.sides?.left === true;
+  const leftEnabled  = item.fasteners?.sides?.left  === true;
   const rightEnabled = item.fasteners?.sides?.right === true;
-  const topState = item.fasteners?.sides?.top ?? false;
-  const topEnabled = topState === true;
+  const topState     = item.fasteners?.sides?.top   ?? false;
+  const topEnabled   = topState === true;
 
-  const baseType = leftEnabled && rightEnabled ? fastenerType : 'none';
+  const baseType  = leftEnabled && rightEnabled ? fastenerType : 'none';
   const topFactor = topEnabled && baseType !== 'none' ? 4 / 3 : 1;
 
-  const isTPU = material === 'ТПУ Полиуретан';
+  // ─── CORE-3B: TINTED — собственная розница ────────────────────────────────
+  // Тонировка продаётся дороже ПВХ на +200 ₽/м². Крепёжная логика та же.
+  // mapTINTED зеркалит mapPVC: одинаковые ключи, новые slug prod_13..prod_18.
+  // CORE-3C (MOSQUITO) — отдельный этап, здесь не затронут.
+  if (material === 'TINTED') {
+    const mapTINTED: Record<string, string> = {
+      none:         'prod_18',
+      eyelet_10:    'prod_13',
+      strap:        'prod_14',
+      staple_pa:    'prod_15',
+      staple_metal: 'prod_16',
+      french_lock:  'prod_17',
+    };
+    const slug = mapTINTED[baseType];
+    return { slug: slug || 'prod_18', topFactor };
+  }
+
+  // ─── CORE-3A: isTPU исправлен ────────────────────────────────────────────
+  // До исправления: material === 'ТПУ Полиуретан' — всегда false после нормализации.
+  // После исправления: material === 'TPU' — правильный короткий код.
+  // MOSQUITO не затронут — остаётся на mapPVC до CORE-3C.
+  const isTPU = material === 'TPU';
 
   const mapPVC: Record<string, string> = {
-    none: 'prod_11',
-    eyelet_10: 'prod_1',
-    strap: 'prod_2',
-    staple_pa: 'prod_3',
+    none:         'prod_11',
+    eyelet_10:    'prod_1',
+    strap:        'prod_2',
+    staple_pa:    'prod_3',
     staple_metal: 'prod_4',
-    french_lock: 'prod_5',
+    french_lock:  'prod_5',
   };
 
   const mapTPU: Record<string, string> = {
-    none: 'prod_12',
-    eyelet_10: 'prod_6',
-    strap: 'prod_7',
-    staple_pa: 'prod_8',
+    none:         'prod_12',
+    eyelet_10:    'prod_6',
+    strap:        'prod_7',
+    staple_pa:    'prod_8',
     staple_metal: 'prod_9',
-    french_lock: 'prod_10',
+    french_lock:  'prod_10',
   };
 
   const slug = (isTPU ? mapTPU : mapPVC)[baseType];

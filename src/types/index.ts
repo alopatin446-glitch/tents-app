@@ -156,14 +156,79 @@ export interface AdditionalElements {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WindowItem
+// WindowMaterial — канонические короткие коды
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Канонические коды материала. Единственный формат внутри приложения.
+ *
+ * История: до нормализации в БД хранились длинные русские строки
+ * ('ТПУ Полиуретан', 'ПВХ 700 мкм (Прозрачная)' и т.д.).
+ * Теперь parseWindowItems приводит любой формат к этим кодам при чтении.
+ * В UI ItemsStep уже использует эти же коды как option value.
+ * Для отображения используется getMaterialLabel в ItemsStep и CuttingDiagnostics.
+ */
 export type WindowMaterial =
-  | 'ПВХ 700 мкм (Прозрачная)'
-  | 'ПВХ 700 мкм (Тонированная)'
-  | 'ТПУ Полиуретан'
-  | 'Москитная сетка';
+  | 'PVC_700'   // ПВХ 700 мкм прозрачная
+  | 'TINTED'    // ПВХ тонированная
+  | 'TPU'       // ТПУ Полиуретан
+  | 'MOSQUITO'; // Москитная сетка
+
+/**
+ * Нормализует произвольное значение к каноническому коду WindowMaterial.
+ *
+ * Принимает unknown — потому что данные из БД могут содержать любой тип
+ * (старые длинные строки, короткие коды, null, undefined из повреждённых записей).
+ *
+ * Таблица маппинга (исчерпывающая):
+ *   Короткие коды (новые записи, pass-through):
+ *     'PVC_700'  → 'PVC_700'
+ *     'TINTED'   → 'TINTED'
+ *     'TPU'      → 'TPU'
+ *     'MOSQUITO' → 'MOSQUITO'
+ *
+ *   Длинные строки (старые записи в БД):
+ *     'ПВХ 700 мкм (Прозрачная)'   → 'PVC_700'
+ *     'ПВХ 700 мкм (Тонированная)' → 'TINTED'
+ *     'ТПУ Полиуретан'             → 'TPU'
+ *     'Москитная сетка'            → 'MOSQUITO'
+ *
+ *   Всё остальное → 'PVC_700' + console.warn (только в dev, не в production)
+ *   (безопасный fallback: обычный ПВХ, не ноль, не краш)
+ */
+export function toMaterialCode(raw: unknown): WindowMaterial {
+  if (typeof raw !== 'string') {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[toMaterialCode] Некорректный тип material — ожидается string', { raw, type: typeof raw });
+    }
+    return 'PVC_700';
+  }
+
+  switch (raw) {
+    // ── Короткие коды (новые записи) ────────────────────────────────────────
+    case 'PVC_700':  return 'PVC_700';
+    case 'TINTED':   return 'TINTED';
+    case 'TPU':      return 'TPU';
+    case 'MOSQUITO': return 'MOSQUITO';
+
+    // ── Длинные строки (старые записи в БД) ─────────────────────────────────
+    case 'ПВХ 700 мкм (Прозрачная)':   return 'PVC_700';
+    case 'ПВХ 700 мкм (Тонированная)': return 'TINTED';
+    case 'ТПУ Полиуретан':             return 'TPU';
+    case 'Москитная сетка':            return 'MOSQUITO';
+
+    // ── Неизвестная строка ──────────────────────────────────────────────────
+    default:
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[toMaterialCode] Неизвестный код материала — используется PVC_700', { raw });
+      }
+      return 'PVC_700';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WindowItem
+// ─────────────────────────────────────────────────────────────────────────────
 
 export type KantColor =
   | 'Белый'
@@ -275,12 +340,12 @@ export function createDefaultWindowItem(id: number, index: number): WindowItem {
     kantBottom:    5,
     kantLeft:      5,
     kantColor:     'Коричневый',
-    material:      'ПВХ 700 мкм (Прозрачная)',
+    material:      'PVC_700',
     isTrapezoid:   false,
     diagonalLeft:  0,
     diagonalRight: 0,
     crossbar:      0,
-    fasteners:         getInitialFastener(),
+    fasteners:          getInitialFastener(),
     additionalElements: createDefaultAdditionalElements(),
   };
 }
@@ -315,6 +380,12 @@ export function parseWindowItems(raw: unknown): WindowItem[] {
     }
     acc.push({
       ...item,
+      // Нормализуем material при чтении из БД.
+      // Это единственная точка входа данных из хранилища —
+      // после этой строки весь код работает только с каноническими короткими кодами.
+      // Старые длинные строки ('ТПУ Полиуретан', 'ПВХ 700 мкм (Прозрачная)' и т.д.)
+      // прозрачно конвертируются в 'TPU', 'PVC_700' и т.д.
+      material:           toMaterialCode(item.material),
       fasteners:          item.fasteners          ?? getInitialFastener(),
       additionalElements: item.additionalElements  ?? undefined,
       services:           item.services            ?? undefined,

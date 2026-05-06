@@ -122,6 +122,15 @@ model Client {
   lastOpenedByName String?
   lastOpenedByRole String?
   lastOpenedAt     DateTime?
+
+  /**
+   * Снапшот прайса на момент сохранения заказа.
+   * Формат: { slug: number, ... } — плоский объект.
+   * NULL для старых записей и открытых заказов (они считаются по currentPrices).
+   * Для закрытых (done/cancelled) — защищает расчёт от изменения справочника цен.
+   */
+  savedPrices      Json?
+
   organization     Organization @relation(fields: [organizationId], references: [id])
   files            ClientFile[]
 }

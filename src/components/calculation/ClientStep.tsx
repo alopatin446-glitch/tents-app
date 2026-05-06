@@ -23,6 +23,10 @@ import {
 } from '@/lib/logic/financialCalculations';
 
 import { calculateWindowFinance, type PriceMap } from '@/lib/logic/pricingLogic';
+import {
+  type WindowMaterialDiagnosticItem,
+  type DiagnosticPriceStatus,
+} from '@/lib/logic/materialDiagnostics';
 
 export type { WindowItem as ClientStepWindowItem };
 
@@ -150,6 +154,13 @@ interface ClientStepProps {
   productionCost?: number;
 
   priceMap: PriceMap;
+
+  /**
+   * Диагностический отчёт по материалам (временный).
+   * Только для отображения — не влияет на расчёты и сохранение.
+   * Удаляется после завершения Этапа 2 (исправление pricingLogic).
+   */
+  materialDiagnostics?: WindowMaterialDiagnosticItem[];
 }
 
 function formatDateInputValue(value: any): string {
@@ -233,6 +244,299 @@ function getCategoryLabel(category: string | null): string {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Диагностическая панель материалов (временная)
+// Удаляется после завершения Этапа 2 (исправление isTPU в pricingLogic).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Цвет текста для статуса диагностической записи */
+function getDiagStatusColor(status: DiagnosticPriceStatus): string {
+  switch (status) {
+    case 'same':                return 'rgba(255,255,255,0.4)';
+    case 'ok':                  return '#a3ff00';
+    case 'price_missing':       return '#ffd166';
+    case 'price_not_configured': return '#ffa500';
+    case 'slug_not_defined':    return 'rgba(255,255,255,0.5)';
+    default:                    return 'rgba(255,255,255,0.4)';
+  }
+}
+
+/** Человекочитаемый label для статуса */
+function getDiagStatusLabel(status: DiagnosticPriceStatus): string {
+  switch (status) {
+    case 'same':                return 'без изменений';
+    case 'ok':                  return 'ok';
+    case 'price_missing':       return 'цена не найдена';
+    case 'price_not_configured': return 'цена не настроена';
+    case 'slug_not_defined':    return 'slug не определён';
+    default:                    return status;
+  }
+}
+
+/** Форматирует дельту с знаком */
+function formatDelta(delta: number | null): string {
+  if (delta === null) return '—';
+  if (delta === 0) return '0 ₽';
+  return delta > 0 ? `+${delta.toLocaleString('ru-RU')} ₽` : `${delta.toLocaleString('ru-RU')} ₽`;
+}
+
+/** Цвет дельты */
+function getDeltaColor(delta: number | null): string {
+  if (delta === null || delta === 0) return 'rgba(255,255,255,0.4)';
+  return delta > 0 ? '#a3ff00' : '#ff4d4d';
+}
+
+interface MaterialDiagnosticPanelProps {
+  items:    WindowMaterialDiagnosticItem[];
+  isOpen:   boolean;
+  onToggle: () => void;
+}
+
+function MaterialDiagnosticPanel({ items, isOpen, onToggle }: MaterialDiagnosticPanelProps) {
+  const hasDiff = items.some(
+    (it) => it.retailStatus !== 'same' || it.costStatus !== 'same',
+  );
+
+  const totalRetailDelta = items.reduce((s, it) => s + (it.retailDelta ?? 0), 0);
+  const totalCostDelta   = items.reduce((s, it) => s + (it.costDelta   ?? 0), 0);
+  const missingCount     = items.filter(
+    (it) => it.retailStatus === 'price_missing'
+         || it.retailStatus === 'price_not_configured'
+         || it.costStatus   === 'price_missing'
+         || it.costStatus   === 'price_not_configured'
+         || it.retailStatus === 'slug_not_defined'
+         || it.costStatus   === 'slug_not_defined',
+  ).length;
+
+  const headerLabel = hasDiff
+    ? '⚠ Диагностика материалов — найдены расхождения'
+    : '✓ Диагностика материалов — изменений нет';
+
+  return (
+    <div style={{
+      marginTop: '16px',
+      border: '1px solid rgba(255,255,255,0.1)',
+      borderRadius: '16px',
+      overflow: 'hidden',
+    }}>
+      {/* Заголовок-коллапс */}
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '12px 20px',
+          background: 'rgba(255,255,255,0.04)',
+          border: 'none',
+          cursor: 'pointer',
+          color: hasDiff ? '#ffd166' : 'rgba(255,255,255,0.5)',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          textAlign: 'left',
+        }}
+      >
+        <span>{headerLabel}</span>
+        <span style={{ fontSize: '0.75rem' }}>{isOpen ? '▲' : '▼'}</span>
+      </button>
+
+      {isOpen && (
+        <div style={{ padding: '16px 20px' }}>
+
+          {/* Пояснение */}
+          <p style={{
+            fontSize: '0.78rem',
+            color: 'rgba(255,255,255,0.45)',
+            marginBottom: '16px',
+            lineHeight: 1.5,
+          }}>
+            Показывает разницу между текущим расчётом и ожидаемым после исправления
+            материальных slug в pricingLogic. Не влияет на суммы заказа.
+          </p>
+
+          {/* Записи по каждому изделию */}
+          {items.map((item) => (
+            <div key={item.windowId} style={{
+              marginBottom: '16px',
+              padding: '12px 16px',
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.07)',
+            }}>
+              {/* Заголовок изделия */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginBottom: '10px',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                color: '#fff',
+              }}>
+                <span>{item.windowName}</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>
+                  {item.materialCode}
+                </span>
+              </div>
+
+              {/* Розничный slug */}
+              <div style={{ marginBottom: '6px', fontSize: '0.78rem' }}>
+                <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '8px' }}>
+                  Retail slug:
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  {item.currentRetailSlug}
+                </span>
+                {item.retailStatus !== 'same' && (
+                  <>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 6px' }}>→</span>
+                    <span style={{ color: getDiagStatusColor(item.retailStatus) }}>
+                      {item.expectedRetailSlug}
+                    </span>
+                    <span style={{
+                      marginLeft: '8px',
+                      color: getDiagStatusColor(item.retailStatus),
+                      fontSize: '0.72rem',
+                    }}>
+                      [{getDiagStatusLabel(item.retailStatus)}]
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Дельта розницы */}
+              <div style={{ marginBottom: '6px', fontSize: '0.78rem' }}>
+                <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '8px' }}>
+                  Δ розница:
+                </span>
+                <span style={{ color: getDeltaColor(item.retailDelta) }}>
+                  {formatDelta(item.retailDelta)}
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 6px' }}>|</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem' }}>
+                  {item.currentProductRetail.toLocaleString('ru-RU')} ₽
+                </span>
+                {item.expectedProductRetail !== null && item.retailStatus !== 'same' && (
+                  <>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 4px' }}>→</span>
+                    <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem' }}>
+                      {item.expectedProductRetail.toLocaleString('ru-RU')} ₽
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Закупочный slug */}
+              <div style={{ marginBottom: '6px', fontSize: '0.78rem' }}>
+                <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '8px' }}>
+                  Buy slug:
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  {item.currentBuySlug}
+                </span>
+                {item.costStatus !== 'same' && (
+                  <>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 6px' }}>→</span>
+                    <span style={{ color: getDiagStatusColor(item.costStatus) }}>
+                      {item.expectedBuySlug}
+                    </span>
+                    <span style={{
+                      marginLeft: '8px',
+                      color: getDiagStatusColor(item.costStatus),
+                      fontSize: '0.72rem',
+                    }}>
+                      [{getDiagStatusLabel(item.costStatus)}]
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Дельта себестоимости */}
+              <div style={{ marginBottom: '8px', fontSize: '0.78rem' }}>
+                <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '8px' }}>
+                  Δ закупка:
+                </span>
+                <span style={{ color: getDeltaColor(item.costDelta) }}>
+                  {formatDelta(item.costDelta)}
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 6px' }}>|</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem' }}>
+                  {item.currentMaterialCost.toLocaleString('ru-RU')} ₽
+                </span>
+                {item.expectedMaterialCost !== null && item.costStatus !== 'same' && (
+                  <>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', margin: '0 4px' }}>→</span>
+                    <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem' }}>
+                      {item.expectedMaterialCost.toLocaleString('ru-RU')} ₽
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Прибыль */}
+              {(item.retailDelta !== null || item.costDelta !== null) &&
+               item.retailStatus !== 'same' || item.costStatus !== 'same' ? (
+                <div style={{ fontSize: '0.78rem' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '8px' }}>
+                    Δ прибыль:
+                  </span>
+                  {item.expectedProfit !== null ? (
+                    <span style={{ color: getDeltaColor(item.expectedProfit - item.currentProfit) }}>
+                      {formatDelta(item.expectedProfit - item.currentProfit)}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'rgba(255,255,255,0.3)' }}>—</span>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Причина */}
+              <div style={{
+                marginTop: '8px',
+                fontSize: '0.72rem',
+                color: 'rgba(255,255,255,0.3)',
+                fontStyle: 'italic',
+              }}>
+                {item.reason}
+              </div>
+            </div>
+          ))}
+
+          {/* Итоговая строка */}
+          <div style={{
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            paddingTop: '12px',
+            fontSize: '0.8rem',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '16px',
+          }}>
+            <span>
+              <span style={{ color: 'rgba(255,255,255,0.45)' }}>Σ Δ розница: </span>
+              <span style={{ color: getDeltaColor(totalRetailDelta) }}>
+                {formatDelta(totalRetailDelta)}
+              </span>
+            </span>
+            <span>
+              <span style={{ color: 'rgba(255,255,255,0.45)' }}>Σ Δ закупка: </span>
+              <span style={{ color: getDeltaColor(totalCostDelta) }}>
+                {formatDelta(totalCostDelta)}
+              </span>
+            </span>
+            {missingCount > 0 && (
+              <span style={{ color: '#ffd166' }}>
+                ⚠ Изделий с незаданными ценами: {missingCount}
+              </span>
+            )}
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ClientStep({
   initialData,
   onSave,
@@ -249,6 +553,7 @@ export default function ClientStep({
   overspendingCost,
   productionCost,
   priceMap,
+  materialDiagnostics,
 }: ClientStepProps) {
   const [clientData, setClientData] = useState<ClientFormData>(initialData);
   const [clientFiles, setClientFiles] = useState<ClientFileItem[]>([]);
@@ -257,6 +562,7 @@ export default function ClientStep({
   const [uploadingCategory, setUploadingCategory] = useState<string | null>(null);
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingAutosaveDataRef = useRef<ClientFormData | null>(null);
   const hasUnsavedChangesRef = useRef(false);
@@ -1267,6 +1573,20 @@ export default function ClientStep({
             </div>
           )}
         </div>
+
+        {/* ── ДИАГНОСТИКА МАТЕРИАЛОВ (временная) ─────────────────────────────
+            Показывает расхождение между текущим и ожидаемым расчётом материалов.
+            Не изменяет totalPrice, costPrice, balance, items или что-либо в БД.
+            Удаляется после завершения Этапа 2 (исправление isTPU в pricingLogic).
+        ────────────────────────────────────────────────────────────────────── */}
+        {materialDiagnostics && materialDiagnostics.length > 0 && (
+          <MaterialDiagnosticPanel
+            items={materialDiagnostics}
+            isOpen={isDiagnosticOpen}
+            onToggle={() => setIsDiagnosticOpen((prev) => !prev)}
+          />
+        )}
+
       </div> {/* Закрывает accordionArea */}
 
       <aside className={styles.stickySidebar}>
