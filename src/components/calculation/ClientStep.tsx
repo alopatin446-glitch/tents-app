@@ -464,8 +464,6 @@ export default function ClientStep({
 
   const handleFileUpload = useCallback(
     async (e: ChangeEvent<HTMLInputElement>, category: string): Promise<void> => {
-      if (isReadOnly) return;
-
       const files = Array.from(e.target.files || []);
 
       if (files.length === 0) return;
@@ -511,13 +509,11 @@ export default function ClientStep({
         e.target.value = '';
       }
     },
-    [clientId, isReadOnly]
+    [clientId]
   );
 
   const handleDeleteFile = useCallback(
     async (fileId: string): Promise<void> => {
-      if (isReadOnly) return;
-
       setDeletingFileId(fileId);
       setFileActionError(null);
 
@@ -545,7 +541,7 @@ export default function ClientStep({
         setDeletingFileId(null);
       }
     },
-    [isReadOnly]
+    []
   );
 
   const handleSaveClick = useCallback((): void => {
@@ -732,7 +728,7 @@ export default function ClientStep({
                   multiple
                   onChange={(e) => handleFileUpload(e, 'object')}
                   className={styles.neonInput}
-                  disabled={isReadOnly || !clientId || uploadingCategory !== null}
+                  disabled={!clientId || uploadingCategory !== null}
                 />
 
                 {!isFilesLoading && (
@@ -825,7 +821,7 @@ export default function ClientStep({
                           <button
                             type="button"
                             onClick={() => handleDeleteFile(file.id)}
-                            disabled={isReadOnly || deletingFileId === file.id}
+                            disabled={deletingFileId === file.id}
                             style={{
                               marginTop: '8px',
                               width: '100%',
@@ -834,7 +830,7 @@ export default function ClientStep({
                               color: '#ff7a7a',
                               borderRadius: '14px',
                               padding: '6px 8px',
-                              cursor: isReadOnly ? 'not-allowed' : 'pointer',
+                              cursor: 'pointer',
                               fontSize: '0.7rem',
                               fontWeight: 700,
                               textTransform: 'uppercase',
@@ -856,7 +852,7 @@ export default function ClientStep({
                   multiple
                   onChange={(e) => handleFileUpload(e, 'measurement')}
                   className={styles.neonInput}
-                  disabled={isReadOnly || !clientId || uploadingCategory !== null}
+                  disabled={!clientId || uploadingCategory !== null}
                 />
 
                 {!isFilesLoading && (
@@ -949,7 +945,7 @@ export default function ClientStep({
                           <button
                             type="button"
                             onClick={() => handleDeleteFile(file.id)}
-                            disabled={isReadOnly || deletingFileId === file.id}
+                            disabled={deletingFileId === file.id}
                             style={{
                               marginTop: '8px',
                               width: '100%',
@@ -958,7 +954,7 @@ export default function ClientStep({
                               color: '#ff7a7a',
                               borderRadius: '14px',
                               padding: '6px 8px',
-                              cursor: isReadOnly ? 'not-allowed' : 'pointer',
+                              cursor: 'pointer',
                               fontSize: '0.7rem',
                               fontWeight: 700,
                               textTransform: 'uppercase',
@@ -980,7 +976,7 @@ export default function ClientStep({
                   multiple
                   onChange={(e) => handleFileUpload(e, 'contract')}
                   className={styles.neonInput}
-                  disabled={isReadOnly || !clientId || uploadingCategory !== null}
+                  disabled={!clientId || uploadingCategory !== null}
                 />
 
                 {!isFilesLoading && (
@@ -1073,7 +1069,7 @@ export default function ClientStep({
                           <button
                             type="button"
                             onClick={() => handleDeleteFile(file.id)}
-                            disabled={isReadOnly || deletingFileId === file.id}
+                            disabled={deletingFileId === file.id}
                             style={{
                               marginTop: '8px',
                               width: '100%',
@@ -1082,7 +1078,7 @@ export default function ClientStep({
                               color: '#ff7a7a',
                               borderRadius: '14px',
                               padding: '6px 8px',
-                              cursor: isReadOnly ? 'not-allowed' : 'pointer',
+                              cursor: 'pointer',
                               fontSize: '0.7rem',
                               fontWeight: 700,
                               textTransform: 'uppercase',
