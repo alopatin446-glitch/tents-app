@@ -142,6 +142,16 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
       errors.push(`Сварка #${idx + 1}: позиция обязательна и должна быть ≥ 0`);
   });
 
+  // ── CORE-3C: MOSQUITO — запрещённые допы ─────────────────────────────────
+  if (item.material === 'MOSQUITO') {
+    if (extras.welding.length > 0) {
+      errors.push('Москитная сетка: техпайка (сварка) недоступна для этого материала');
+    }
+    if (extras.dividers.length > 0) {
+      errors.push('Москитная сетка: разделитель через кант недоступен для этого материала');
+    }
+  }
+
   if (item.isTrapezoid) {
     const hasAnyExtras =
       extras.zippers.length  > 0 || extras.dividers.length > 0 ||

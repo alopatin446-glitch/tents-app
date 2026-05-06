@@ -112,6 +112,33 @@ function getTrapezoidWarning(item: WindowItemDraft | undefined): string | null {
   return null;
 }
 
+/**
+ * CORE-3C: Проверяет ограничение максимального размера для москитной сетки.
+ * Бизнес-правило: внутренний размер не более 197 × 197 см.
+ * Возвращает текст ошибки или null.
+ */
+function getMosquitoSizeWarning(item: WindowItemDraft | undefined): string | null {
+  if (!item) return null;
+  if (item.material !== 'MOSQUITO') return null;
+
+  const maxWidth  = Math.max(
+    resolveNumericField(item.widthTop),
+    resolveNumericField(item.widthBottom),
+  );
+  const maxHeight = Math.max(
+    resolveNumericField(item.heightLeft),
+    resolveNumericField(item.heightRight),
+  );
+
+  const MOSQUITO_MAX_CM = 197;
+
+  if (maxWidth > MOSQUITO_MAX_CM || maxHeight > MOSQUITO_MAX_CM) {
+    return `🚫 Невозможный размер для москитной сетки. Максимальный внутренний: ${MOSQUITO_MAX_CM} × ${MOSQUITO_MAX_CM} см. Текущий: ${maxWidth} × ${maxHeight} см.`;
+  }
+
+  return null;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Конфигурация полей
 // ─────────────────────────────────────────────────────────────────────────────
@@ -279,6 +306,11 @@ export default function ItemsStep({
     [activeItem],
   );
 
+  const mosquitoSizeWarning = useMemo(
+    () => getMosquitoSizeWarning(activeItem),
+    [activeItem],
+  );
+
   // ── Обновление состояния ──────────────────────────────────────────────────
 
   const updateAll = (updated: WindowItemDraft[]): void => {
@@ -367,6 +399,22 @@ export default function ItemsStep({
                   }}
                 >
                   {trapezoidWarning}
+                </div>
+              )}
+              {mosquitoSizeWarning && (
+                <div
+                  style={{
+                    color: '#ff4d4d',
+                    background: 'rgba(255, 77, 77, 0.08)',
+                    border: '1px solid rgba(255, 77, 77, 0.35)',
+                    borderRadius: 12,
+                    padding: '10px 12px',
+                    marginBottom: 12,
+                    fontSize: 12,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {mosquitoSizeWarning}
                 </div>
               )}
               <h4>Материал полотна</h4>

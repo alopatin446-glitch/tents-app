@@ -60,6 +60,8 @@ export const DEFAULT_PRICE_ROWS: DefaultPriceRow[] = [
     { slug: 'c_pr_2', name: 'Тонировка ПВХ', value: 400, unit: 'м2', category: 'cost_products' },
     { slug: 'c_pr_3', name: 'Пленка ТПУ 700 мкр. Crystal Window LX TPU', value: 750, unit: 'м2', category: 'cost_products' },
     { slug: 'c_pr_4', name: 'Кант 650гр м2 «sealtex»', value: 300, unit: 'м2', category: 'cost_products' },
+    // ── CORE-3C: Москитная сетка — закупка ──────────────────────────────────
+    { slug: 'c_pr_5', name: 'Москитная сетка', value: 400, unit: 'м2', category: 'cost_products' },
 
     { slug: 'addo_1', name: 'Молния витая Waterproof, влагостойка, с двух сторонним бегунком', value: 1600, unit: 'Пог.м.', category: 'retail_addons' },
     { slug: 'addo_10', name: 'Ремешок фиксации в скрученном положении на фастексе', value: 350, unit: 'Шт', category: 'retail_addons' },
@@ -71,6 +73,28 @@ export const DEFAULT_PRICE_ROWS: DefaultPriceRow[] = [
     { slug: 'addo_7', name: 'Заплатка', value: 500, unit: 'Шт', category: 'retail_addons' },
     { slug: 'addo_8', name: 'Юбка', value: 650, unit: 'Пог.м.', category: 'retail_addons' },
     { slug: 'addo_9', name: 'Ремешок фиксации в скрученном положении на люверсе', value: 250, unit: 'Шт', category: 'retail_addons' },
+
+    // ── Системные ключи для алгоритма расчёта допов (extrasCalculations.ts) ──
+    // Розница: берём из addo_1..10 как стартовые значения — менеджер корректирует в прайсе
+    { slug: 'addo_zipper_retail',        name: 'Расчёт: Молния — розница (шт)',             value: 1600, unit: 'шт',  category: 'retail_addons' },
+    { slug: 'addo_divider_retail',       name: 'Расчёт: Разделитель — розница (шт)',         value: 1000, unit: 'шт',  category: 'retail_addons' },
+    { slug: 'addo_cut_retail',           name: 'Расчёт: Вырез — розница (шт)',               value: 750,  unit: 'шт',  category: 'retail_addons' },
+    { slug: 'addo_patch_retail',         name: 'Расчёт: Заплатка — розница (шт)',            value: 500,  unit: 'шт',  category: 'retail_addons' },
+    { slug: 'addo_skirt_retail',         name: 'Расчёт: Юбка — розница (м.п.)',              value: 650,  unit: 'м.п.', category: 'retail_addons' },
+    { slug: 'addo_weight_retail',        name: 'Расчёт: Утяжелитель — розница (м.п.)',       value: 900,  unit: 'м.п.', category: 'retail_addons' },
+    { slug: 'addo_strap_grommet_retail', name: 'Расчёт: Стяжка-люверс — розница (шт)',      value: 250,  unit: 'шт',  category: 'retail_addons' },
+    { slug: 'addo_strap_fastex_retail',  name: 'Расчёт: Стяжка-фастекс — розница (шт)',     value: 350,  unit: 'шт',  category: 'retail_addons' },
+    { slug: 'addo_welding_retail',       name: 'Расчёт: Технологическая пайка — розница (шт)', value: 500, unit: 'шт', category: 'retail_addons' },
+    // Себестоимость: берём из c_produc_* как стартовые значения
+    { slug: 'addo_zipper_cost',          name: 'Расчёт: Молния — себес (шт)',                value: 220,  unit: 'шт',  category: 'cost_addons' },
+    { slug: 'addo_divider_cost',         name: 'Расчёт: Разделитель — себес (шт)',           value: 100,  unit: 'шт',  category: 'cost_addons' },
+    { slug: 'addo_cut_cost',             name: 'Расчёт: Вырез — себес (шт)',                 value: 300,  unit: 'шт',  category: 'cost_addons' },
+    { slug: 'addo_patch_cost',           name: 'Расчёт: Заплатка — себес (шт)',              value: 200,  unit: 'шт',  category: 'cost_addons' },
+    { slug: 'addo_skirt_cost',           name: 'Расчёт: Юбка — себес (м.п.)',                value: 100,  unit: 'м.п.', category: 'cost_addons' },
+    { slug: 'addo_weight_cost',          name: 'Расчёт: Утяжелитель — себес (м.п.)',         value: 50,   unit: 'м.п.', category: 'cost_addons' },
+    { slug: 'addo_strap_grommet_cost',   name: 'Расчёт: Стяжка-люверс — себес (шт)',        value: 15,   unit: 'шт',  category: 'cost_addons' },
+    { slug: 'addo_strap_fastex_cost',    name: 'Расчёт: Стяжка-фастекс — себес (шт)',       value: 15,   unit: 'шт',  category: 'cost_addons' },
+    { slug: 'addo_welding_cost',         name: 'Расчёт: Технологическая пайка — себес (шт)', value: 200, unit: 'шт',  category: 'cost_addons' },
 
     { slug: 'fast_1', name: 'Люверс 10мм + шайба (цинк)', value: 4.8, unit: 'Шт', category: 'retail_fasteners' },
     { slug: 'fast_10', name: 'Люверс 18 + французская скоба (цветной)', value: 380, unit: 'Шт', category: 'retail_fasteners' },
@@ -84,12 +108,11 @@ export const DEFAULT_PRICE_ROWS: DefaultPriceRow[] = [
     { slug: 'fast_9', name: 'Люверс 37 + металл скоба (цветной)', value: 300, unit: 'Шт', category: 'retail_fasteners' },
 
     // ── Системные ключи для алгоритма расчёта крепежа (pricingLogic.ts) ──
-    // Базовый вариант: цинк. Дифференциация по finish (цветной/чёрный) — отдельный патч.
-    { slug: 'fast_eyelet_retail',  name: 'Расчёт: Люверс 10мм (цинк) — розница', value: 4.8, unit: 'Шт', category: 'retail_fasteners' },
-    { slug: 'fast_strap_retail',   name: 'Расчёт: Ремешок (цинк) — розница',     value: 105,  unit: 'Шт', category: 'retail_fasteners' },
-    { slug: 'fast_staple_pa_retail', name: 'Расчёт: Полиамид. скоба (цинк) — розница', value: 120, unit: 'Шт', category: 'retail_fasteners' },
-    { slug: 'fast_staple_m_retail',  name: 'Расчёт: Металл. скоба (цинк) — розница',   value: 150, unit: 'Шт', category: 'retail_fasteners' },
-    { slug: 'fast_french_retail',    name: 'Расчёт: Французская скоба (цинк) — розница', value: 190, unit: 'Шт', category: 'retail_fasteners' },
+    { slug: 'fast_eyelet_retail',    name: 'Расчёт: Люверс 10мм (цинк) — розница',          value: 4.8, unit: 'Шт', category: 'retail_fasteners' },
+    { slug: 'fast_strap_retail',     name: 'Расчёт: Ремешок (цинк) — розница',              value: 105, unit: 'Шт', category: 'retail_fasteners' },
+    { slug: 'fast_staple_pa_retail', name: 'Расчёт: Полиамид. скоба (цинк) — розница',      value: 120, unit: 'Шт', category: 'retail_fasteners' },
+    { slug: 'fast_staple_m_retail',  name: 'Расчёт: Металл. скоба (цинк) — розница',        value: 150, unit: 'Шт', category: 'retail_fasteners' },
+    { slug: 'fast_french_retail',    name: 'Расчёт: Французская скоба (цинк) — розница',    value: 190, unit: 'Шт', category: 'retail_fasteners' },
 
     // ── Системные строки для алгоритма розничного монтажа ──
     { slug: 'team_retail_pro', name: 'Бригада Про', value: 850, unit: 'м2', category: 'retail_install' },
@@ -130,28 +153,40 @@ export const DEFAULT_PRICE_ROWS: DefaultPriceRow[] = [
     { slug: 'inst_8', name: 'Строительные леса', value: 20000, unit: 'день', category: 'retail_install' },
     { slug: 'inst_9', name: 'Установка базы из бруса', value: 450, unit: 'Пог.м.', category: 'retail_install' },
 
-    { slug: 'prod_1', name: 'Окно Глухое ПВХ', value: 1600, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_11', name: 'Окно без люверсов ПВХ', value: 1300, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_10', name: 'Окно на французской скобе ТПУ', value: 4000, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_2', name: 'Окно на ремешках ПВХ', value: 2000, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_3', name: 'Окно на полиамидной скобе ПВХ', value: 2400, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_4', name: 'Окно на металлической скоба ПВХ', value: 2800, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_5', name: 'Окно на французской скобе ПВХ', value: 3000, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_6', name: 'Окно Глухое ТПУ', value: 2500, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_12', name: 'Окно без люверсов ТПУ', value: 2200, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_7', name: 'Окно на ремешках ТПУ', value: 3000, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_8', name: 'Окно на полиамидной скобе ТПУ', value: 3400, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_9', name: 'Окно на металлической скоба ТПУ', value: 3800, unit: 'м2', category: 'retail_products' },
+    // ── PVC_700 ──────────────────────────────────────────────────────────────
+    { slug: 'prod_1',  name: 'Окно Глухое ПВХ',                    value: 1600, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_11', name: 'Окно без люверсов ПВХ',              value: 1300, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_2',  name: 'Окно на ремешках ПВХ',               value: 2000, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_3',  name: 'Окно на полиамидной скобе ПВХ',      value: 2400, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_4',  name: 'Окно на металлической скоба ПВХ',    value: 2800, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_5',  name: 'Окно на французской скобе ПВХ',      value: 3000, unit: 'м2', category: 'retail_products' },
 
-    // ── CORE-3B: Тонировка (TINTED) — отдельная розница ──────────────────────
-    // Значения = соответствующий ПВХ + 200 ₽/м².
-    // Крепёжная логика та же, что у ПВХ (mapTINTED зеркалит mapPVC).
-    // Slug-маппинг: none→prod_18, eyelet_10→prod_13, strap→prod_14,
-    //              staple_pa→prod_15, staple_metal→prod_16, french_lock→prod_17.
-    { slug: 'prod_13', name: 'Окно Глухое Тонировка', value: 1800, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_14', name: 'Окно на ремешках Тонировка', value: 2200, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_15', name: 'Окно на полиамидной скобе Тонировка', value: 2600, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_16', name: 'Окно на металлической скобе Тонировка', value: 3000, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_17', name: 'Окно на французской скобе Тонировка', value: 3200, unit: 'м2', category: 'retail_products' },
-    { slug: 'prod_18', name: 'Окно без люверсов Тонировка', value: 1500, unit: 'м2', category: 'retail_products' },
-];  
+    // ── TPU ──────────────────────────────────────────────────────────────────
+    { slug: 'prod_12', name: 'Окно без люверсов ТПУ',              value: 2200, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_6',  name: 'Окно Глухое ТПУ',                    value: 2500, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_7',  name: 'Окно на ремешках ТПУ',               value: 3000, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_8',  name: 'Окно на полиамидной скобе ТПУ',      value: 3400, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_9',  name: 'Окно на металлической скоба ТПУ',    value: 3800, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_10', name: 'Окно на французской скобе ТПУ',      value: 4000, unit: 'м2', category: 'retail_products' },
+
+    // ── CORE-3B: TINTED — отдельная розница (TINTED = PVC + 200 ₽/м²) ──────
+    // none→prod_18, eyelet_10→prod_13, strap→prod_14,
+    // staple_pa→prod_15, staple_metal→prod_16, french_lock→prod_17
+    { slug: 'prod_18', name: 'Окно без люверсов Тонировка',              value: 1500, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_13', name: 'Окно Глухое Тонировка',                    value: 1800, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_14', name: 'Окно на ремешках Тонировка',               value: 2200, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_15', name: 'Окно на полиамидной скобе Тонировка',      value: 2600, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_16', name: 'Окно на металлической скобе Тонировка',    value: 3000, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_17', name: 'Окно на французской скобе Тонировка',      value: 3200, unit: 'м2', category: 'retail_products' },
+
+    // ── CORE-3C: MOSQUITO — отдельная розница (MOSQUITO = TINTED + 100 ₽/м²) ─
+    // none→prod_19, eyelet_10→prod_20, strap→prod_21,
+    // staple_pa→prod_22, staple_metal→prod_23, french_lock→prod_24
+    // Ограничение: max 197×197 см внутренний размер (проверяется в ItemsStep).
+    { slug: 'prod_19', name: 'Москитка без крепежа',                     value: 1600, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_20', name: 'Москитка люверс 10мм',                     value: 1600, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_21', name: 'Москитка на ремешках',                     value: 1980, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_22', name: 'Москитка полиамидная скоба',               value: 2400, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_23', name: 'Москитка металлическая скоба',             value: 2600, unit: 'м2', category: 'retail_products' },
+    { slug: 'prod_24', name: 'Москитка французская скоба',               value: 2840, unit: 'м2', category: 'retail_products' },
+];
