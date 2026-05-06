@@ -6,6 +6,19 @@
  * Разделение площадей (Закон Директора):
  *   totalAreaMaterial — сумма productionArea всех изделий (реальная геометрия → ЗП цеха).
  *   totalRetailArea   — сумма retailArea всех изделий (Max W × Max H → чек клиента).
+ *
+ * Разделение итогов (ADDONS-B / ADDONS-C):
+ *   windowsRetailTotal  — розница изделий без допов.
+ *   windowsExpensesTotal — расходы изделий без допов.
+ *   extrasRetailTotal   — розница всех допов (молнии, юбки, утяжелители и т.д.).
+ *   extrasCostTotal     — себестоимость всех допов.
+ *   mountingRetailTotal — розница монтажа (manualPrice ?? retailFinal).
+ *   mountingCostTotal   — себестоимость монтажа (costTotal).
+ *   totalPrice          = windowsRetailTotal + extrasRetailTotal + mountingRetailTotal.
+ *   totalExpenses       = windowsExpensesTotal + extrasCostTotal + mountingCostTotal.
+ *
+ * Монтаж использует currentPrices (не activePrices), потому что calculateMounting
+ * имеет собственную защиту цен через mountingSnapshot внутри MountingConfig.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { type WindowItem } from '@/types';
@@ -19,8 +32,11 @@ import {
 import {
   normalizeAllWindowExtras,
   normalizeExtrasOnResize,
+  calculateExtrasAsServiceItems,
 } from '@/lib/logic/extrasCalculations';
 import { calculateWindowFinance } from '@/lib/logic/pricingLogic';
+import { calculateMounting } from '@/lib/logic/mountingCalculations';
+import { type MountingConfig } from '@/types/mounting';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,9 +53,26 @@ export interface CalculationState {
   /** Сумма areaWithKant всех изделий (м²). */
   totalAreaWithKant: number;
 
+  /** Розница изделий без допов (только материал + крепёж). */
+  windowsRetailTotal: number;
+  /** Расходы изделий без допов (материал + перерасход + ЗП + крепёж). */
+  windowsExpensesTotal: number;
+  /** Розница всех допов по всем окнам (молнии, юбки, утяжелители и т.д.). */
+  extrasRetailTotal: number;
+  /** Себестоимость всех допов по всем окнам. */
+  extrasCostTotal: number;
+  /** Розница монтажа: manualPrice ?? retailFinal. 0 если монтаж не подключён. */
+  mountingRetailTotal: number;
+  /** Себестоимость монтажа: costTotal. 0 если монтаж не подключён. */
+  mountingCostTotal: number;
+
+  /** Итого розница = windowsRetailTotal + extrasRetailTotal + mountingRetailTotal. */
   totalPrice: number;
+  /** Себестоимость материала окон (без допов, без производства). */
   costPrice: number;
+  /** Итого расходы = windowsExpensesTotal + extrasCostTotal + mountingCostTotal. */
   totalExpenses: number;
+
   totalMaterialInProduct: number;
   totalMaterialCut: number;
   totalOverspending: number;
@@ -65,6 +98,8 @@ export function useCalculationState(
   const [clientData, setClientData] = useState<ClientFormData>(initialClientData);
 
   // ── Прайс-лист (Архив vs Живой) ───────────────────────────────────────────
+  // Закрытые сделки используют savedPrices — допы также считаются по зафиксированным ценам.
+  // Монтаж НЕ использует activePrices — у него собственная защита через mountingSnapshot.
 
   const activePrices = useMemo(() => {
     const isClosed = clientData.status === 'done' || clientData.status === 'cancelled';
@@ -77,7 +112,7 @@ export function useCalculationState(
 
   /**
    * Производственная площадь: сумма реальной геометрии всех изделий.
-   * Используется для учёта ЗП цеха.
+   * Используется для учёта ЗП цеха и передаётся в calculateMounting.
    */
   const totalAreaMaterial = useMemo(
     () => calculateTotalArea(windows),
@@ -98,9 +133,10 @@ export function useCalculationState(
     [windows],
   );
 
-  // ── Финансовое ядро ───────────────────────────────────────────────────────
+  // ── Финансовое ядро: изделия ──────────────────────────────────────────────
+  // Все useMemo ниже считают только материал/производство/крепёж — без допов и монтажа.
 
-  const totalPrice = useMemo(() => {
+  const windowsRetailTotal = useMemo(() => {
     return windows.reduce((sum, w) => {
       const finance = calculateWindowFinance(w, activePrices);
       return sum + finance.retailPrice;
@@ -142,12 +178,64 @@ export function useCalculationState(
     }, 0);
   }, [windows, activePrices]);
 
-  const totalExpenses = useMemo(() => {
+  const windowsExpensesTotal = useMemo(() => {
     return windows.reduce((sum, w) => {
       const finance = calculateWindowFinance(w, activePrices);
       return sum + finance.totalExpenses;
     }, 0);
   }, [windows, activePrices]);
+
+  // ── Финансовое ядро: допы ─────────────────────────────────────────────────
+  // Использует activePrices — savedPrices-защита распространяется на допы автоматически.
+  // Ключи addo_* — отдельный namespace, не пересекается с fast_* (крепёж).
+
+  const extrasLedger = useMemo(() => {
+    let extrasRetailTotal = 0;
+    let extrasCostTotal   = 0;
+
+    windows.forEach((w, idx) => {
+      const items = calculateExtrasAsServiceItems(w, activePrices, idx);
+      items.forEach((item) => {
+        extrasRetailTotal += item.totalRetail;
+        extrasCostTotal   += item.totalCost;
+      });
+    });
+
+    return { extrasRetailTotal, extrasCostTotal };
+  }, [windows, activePrices]);
+
+  const { extrasRetailTotal, extrasCostTotal } = extrasLedger;
+
+  // ── Финансовое ядро: монтаж ───────────────────────────────────────────────
+  // Использует currentPrices (не activePrices):
+  //   calculateMounting имеет собственную защиту цен через config.mountingSnapshot,
+  //   который фиксируется при бронировании даты и приоритетнее переданного прайса.
+  // При enabled=false → emptyCalculationResult() → оба = 0 (нет влияния на итоги).
+
+  const mountingLedger = useMemo(() => {
+    const mountingConfig = (clientData as Record<string, unknown>)['mountingConfig'] as MountingConfig | null | undefined;
+
+    if (!mountingConfig?.enabled) {
+      return { mountingRetailTotal: 0, mountingCostTotal: 0 };
+    }
+
+    const result = calculateMounting(mountingConfig, totalAreaMaterial, currentPrices);
+
+    const mountingRetailTotal = mountingConfig.manualPrice ?? result.retailFinal ?? 0;
+    const mountingCostTotal   = result.costTotal ?? 0;
+
+    return { mountingRetailTotal, mountingCostTotal };
+  }, [clientData, totalAreaMaterial, currentPrices]);
+
+  const { mountingRetailTotal, mountingCostTotal } = mountingLedger;
+
+  // ── Итоговые суммы: изделия + допы + монтаж ──────────────────────────────
+
+  /** Итого розница: изделия + допы + монтаж. Передаётся в ClientStep как calculatedTotal. */
+  const totalPrice = windowsRetailTotal + extrasRetailTotal + mountingRetailTotal;
+
+  /** Итого расходы: изделия + допы + монтаж. Передаётся в ClientStep как calculatedTotalExpenses. */
+  const totalExpenses = windowsExpensesTotal + extrasCostTotal + mountingCostTotal;
 
   // ── Инъекция площади в данные клиента ────────────────────────────────────
   // На чек идёт totalRetailArea — клиент видит прямоугольный габарит.
@@ -205,6 +293,12 @@ export function useCalculationState(
     totalAreaMaterial,
     totalRetailArea,
     totalAreaWithKant,
+    windowsRetailTotal,
+    windowsExpensesTotal,
+    extrasRetailTotal,
+    extrasCostTotal,
+    mountingRetailTotal,
+    mountingCostTotal,
     totalPrice,
     costPrice,
     totalExpenses,
