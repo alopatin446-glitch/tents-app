@@ -152,6 +152,10 @@ interface ClientStepProps {
   materialCutCost?: number;
   overspendingCost?: number;
   productionCost?: number;
+  /** Себестоимость допов (молния, юбка, утяжелитель и т.д.) для отображения в "Стоимость изделия". */
+  extrasCostTotal?: number;
+  /** Себестоимость крепежа для отображения в "Стоимость изделия". */
+  fastenersCostTotal?: number;
 
   priceMap: PriceMap;
 
@@ -552,6 +556,8 @@ export default function ClientStep({
   materialCutCost,
   overspendingCost,
   productionCost,
+  extrasCostTotal,
+  fastenersCostTotal,
   priceMap,
   materialDiagnostics,
 }: ClientStepProps) {
@@ -1500,37 +1506,60 @@ export default function ClientStep({
 
           {openSections.results && (
             <div className={styles.content}>
+
+              {/* ── Площадь ──────────────────────────────────────────────── */}
               <div className={styles.statLine}>
                 <span>Площадь:</span>
                 <strong>{(calculatedArea ?? areaDisplay).toFixed(2)} м²</strong>
               </div>
 
+              {/* ── Стоимость изделия ────────────────────────────────────── */}
+              {/*
+                productDisplayCost = материал + кант + крепёж + допы.
+                calculatedCost      = материал + кант (из pricingLogic.costPrice).
+                fastenersCostTotal  = крепёж (из pricingLogic.fastenersCost, уже в totalExpenses).
+                extrasCostTotal     = допы (из extrasCalculations, уже в totalExpenses).
+                Не прибавляем: перерасход, производство, монтаж.
+              */}
               <div className={styles.inputGroup}>
                 <label>Стоимость изделия</label>
                 <input
                   type="number"
                   name="costPrice"
-                  value={calculatedCost ?? clientData.costPrice ?? ''}
+                  value={
+                    (calculatedCost ?? 0) +
+                    (fastenersCostTotal ?? 0) +
+                    (extrasCostTotal ?? 0) ||
+                    clientData.costPrice ||
+                    ''
+                  }
                   onChange={handleChange}
                   className={styles.neonInput}
                   disabled={isReadOnly}
                 />
+                <span style={{ fontSize: '11px', color: '#888', marginTop: '2px', display: 'block' }}>
+                  материал + кант + крепёж + допы
+                </span>
               </div>
 
+              {/* ── Стоимость перерасхода ────────────────────────────────── */}
               <div className={styles.inputGroup}>
                 <label>Стоимость перерасхода</label>
                 <input
                   type="number"
                   name="overspending"
-                  // Директор: Показываем то, что реально посчитано в financials
                   value={overspendingCost ?? financials.overspending ?? ''}
                   onChange={handleChange}
                   className={styles.neonInput}
                   disabled={isReadOnly}
                   placeholder="0"
                 />
+                <span style={{ fontSize: '11px', color: '#888', marginTop: '2px', display: 'block' }}>
+                  отходы материала и технологические обрезки
+                </span>
               </div>
 
+              {/* ── Стоимость изготовления ───────────────────────────────── */}
               <div className={styles.inputGroup}>
                 <label>Стоимость изготовления</label>
                 <input
@@ -1542,8 +1571,12 @@ export default function ClientStep({
                   disabled={isReadOnly}
                   placeholder="0"
                 />
+                <span style={{ fontSize: '11px', color: '#888', marginTop: '2px', display: 'block' }}>
+                  работа производства
+                </span>
               </div>
 
+              {/* ── Стоимость монтажа ────────────────────────────────────── */}
               <div className={styles.inputGroup}>
                 <label>Стоимость монтажа</label>
                 <input
@@ -1555,21 +1588,32 @@ export default function ClientStep({
                   disabled={isReadOnly}
                   placeholder="0"
                 />
+                <span style={{ fontSize: '11px', color: '#888', marginTop: '2px', display: 'block' }}>
+                  монтажные работы, ГСМ и основания
+                </span>
               </div>
 
               <hr className={styles.divider} />
 
+              {/* ── Итоги ────────────────────────────────────────────────── */}
               <div className={styles.statLine}>
                 <span>Всего расходов:</span>
                 <strong>{formatMoney(financials.totalExpenses)}</strong>
               </div>
 
+              {/*
+                Чистая прибыль = calculatedTotal − calculatedTotalExpenses.
+                calculatedTotal   = windowsRetail + extrasRetail + mountingRetail (из ядра).
+                calculatedTotalExpenses = windowsExpenses + extrasCost + mountingCost (из ядра).
+                НЕ использует clientData.totalPrice — ручное поле менеджера не влияет на прибыль.
+              */}
               <div className={styles.statLine}>
                 <span>Чистая прибыль:</span>
                 <strong style={{ color: ((calculatedTotal || 0) - (calculatedTotalExpenses || 0)) < 0 ? '#ff4d4d' : '#a3ff00' }}>
                   {formatMoney((calculatedTotal || 0) - (calculatedTotalExpenses || 0))}
                 </strong>
               </div>
+
             </div>
           )}
         </div>

@@ -127,6 +127,11 @@ type UpdateClientPayload = {
   productionCost?: unknown;
   mountingCost?: unknown;
   /**
+   * Итоговые расходы из расчётного ядра: windowsExpenses + extrasCost + mountingCost.
+   * Передаётся только для открытых заказов (не done/cancelled).
+   */
+  totalExpenses?: unknown;
+  /**
    * Снапшот прайса: плоский объект { slug: number }.
    * Попадает в БД только если прошёл normalizeSavedPrices.
    * При невалидном значении поле не обновляется (существующий снапшот сохраняется).
@@ -178,6 +183,7 @@ function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknow
   if (data.overspending !== undefined) out.overspending = toFinancialNumber(data.overspending as string | number | null | undefined, 0);
   if (data.productionCost !== undefined) out.productionCost = toFinancialNumber(data.productionCost as string | number | null | undefined, 0);
   if (data.mountingCost !== undefined) out.mountingCost = toFinancialNumber(data.mountingCost as string | number | null | undefined, 0);
+  if (data.totalExpenses !== undefined) out.totalExpenses = toFinancialNumber(data.totalExpenses as string | number | null | undefined, 0);
 
   // savedPrices попадает в out только если normalizeSavedPrices вернул валидный объект.
   // При undefined — поле не включается в data, Prisma не трогает существующее значение в БД.

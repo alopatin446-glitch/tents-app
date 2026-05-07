@@ -107,6 +107,8 @@ export default function CalculationClient({
     totalMaterialCut,
     totalOverspending,
     totalProductionCost,
+    extrasCostTotal,
+    fastenersCostTotal,
     handleWindowsChange,
     handleClientDataChange,
     handleExtrasChange,
@@ -130,12 +132,30 @@ export default function CalculationClient({
     setIsSaving(true);
 
     try {
+      // ── Определяем, закрыт ли заказ ─────────────────────────────────────
+      // TODO: protect closed orders — не перезаписывать финансовые поля
+      // для статусов 'done' / 'cancelled', когда savedPrices уже зафиксирован.
+      // Сейчас инжектируем только для открытых заказов.
+      const isClosed =
+        clientDataWithArea.status === 'done' ||
+        clientDataWithArea.status === 'cancelled';
+
       const payload = {
         ...clientDataWithArea,
         items: windows,
         mountingConfig: clientDataWithArea.mountingConfig,
         // Сохраняем слепок цен, по которым считали (для истории)
         savedPrices: currentPrices,
+        // ── FINAL-A: обновляем расчётные поля из ядра при каждом сохранении ──
+        // Это устраняет стейл-значения в БД: после изменения материала или площади
+        // DB.productionCost, DB.overspending, DB.costPrice обновляются сразу.
+        // Для закрытых заказов не перезаписываем — исторические значения важнее.
+        ...(!isClosed && {
+          productionCost: totalProductionCost,
+          overspending:   totalOverspending,
+          costPrice:      costPrice,
+          totalExpenses:  totalExpenses,
+        }),
       };
 
       const result = await updateClientAction(clientId, payload);
@@ -168,7 +188,8 @@ export default function CalculationClient({
     } finally {
       setIsSaving(false);
     }
-  }, [clientId, clientDataWithArea, windows, router, isReadOnly, currentPrices, handleClientDataChange]);
+  }, [clientId, clientDataWithArea, windows, router, isReadOnly, currentPrices, handleClientDataChange,
+      totalProductionCost, totalOverspending, costPrice, totalExpenses]);
 
   const handleMountingChange = useCallback(
     (newConfig: MountingConfig): void => {
@@ -240,6 +261,8 @@ export default function CalculationClient({
             materialCutCost={totalMaterialCut}
             overspendingCost={totalOverspending}
             productionCost={totalProductionCost}
+            extrasCostTotal={extrasCostTotal}
+            fastenersCostTotal={fastenersCostTotal}
             calculatedArea={totalAreaMaterial}
             onSave={handleSaveAll}
             onDraftChange={handleClientDataChange}

@@ -7,13 +7,14 @@
  *   totalAreaMaterial — сумма productionArea всех изделий (реальная геометрия → ЗП цеха).
  *   totalRetailArea   — сумма retailArea всех изделий (Max W × Max H → чек клиента).
  *
- * Разделение итогов (ADDONS-B / ADDONS-C):
+ * Разделение итогов (ADDONS-B / ADDONS-C / FINAL-D2):
  *   windowsRetailTotal  — розница изделий без допов.
  *   windowsExpensesTotal — расходы изделий без допов.
  *   extrasRetailTotal   — розница всех допов (молнии, юбки, утяжелители и т.д.).
  *   extrasCostTotal     — себестоимость всех допов.
  *   mountingRetailTotal — розница монтажа (manualPrice ?? retailFinal).
  *   mountingCostTotal   — себестоимость монтажа (costTotal).
+ *   fastenersCostTotal  — себестоимость крепежа (display-only, уже входит в windowsExpensesTotal).
  *   totalPrice          = windowsRetailTotal + extrasRetailTotal + mountingRetailTotal.
  *   totalExpenses       = windowsExpensesTotal + extrasCostTotal + mountingCostTotal.
  *
@@ -77,6 +78,12 @@ export interface CalculationState {
   totalMaterialCut: number;
   totalOverspending: number;
   totalProductionCost: number;
+  /**
+   * Себестоимость крепежа по всем окнам (display-only).
+   * Уже включена в windowsExpensesTotal → totalExpenses.
+   * Экспортируется отдельно для отображения в строке "Стоимость изделия".
+   */
+  fastenersCostTotal: number;
 
   handleWindowsChange: (updated: WindowItem[]) => void;
   handleClientDataChange: (updated: ClientFormData) => void;
@@ -182,6 +189,20 @@ export function useCalculationState(
     return windows.reduce((sum, w) => {
       const finance = calculateWindowFinance(w, activePrices);
       return sum + finance.totalExpenses;
+    }, 0);
+  }, [windows, activePrices]);
+
+  /**
+   * Себестоимость крепежа (display-only).
+   * fastenersCost уже входит в finance.totalExpenses → windowsExpensesTotal → totalExpenses.
+   * Экспортируется отдельно только для отображения в строке "Стоимость изделия":
+   *   productDisplayCost = costPrice + fastenersCostTotal + extrasCostTotal.
+   * Не влияет на totalExpenses, totalPrice или сохранение.
+   */
+  const fastenersCostTotal = useMemo(() => {
+    return windows.reduce((sum, w) => {
+      const finance = calculateWindowFinance(w, activePrices);
+      return sum + finance.fastenersCost;
     }, 0);
   }, [windows, activePrices]);
 
@@ -306,6 +327,7 @@ export function useCalculationState(
     totalMaterialCut,
     totalOverspending,
     totalProductionCost,
+    fastenersCostTotal,
     handleWindowsChange,
     handleClientDataChange,
     handleExtrasChange,

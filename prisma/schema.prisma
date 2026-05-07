@@ -109,6 +109,12 @@ model Client {
   overspending     Float?       @default(0)
   preliminaryPrice Float?       @default(0)
   productionCost   Float?       @default(0)
+  /**
+   * Итоговые расходы заказа: windowsExpenses + extrasCost + mountingCost.
+   * Фиксируется при сохранении открытых заказов.
+   * NULL для старых записей — пересчитывается в useCalculationState на лету.
+   */
+  totalExpenses    Float?       @default(0)
   createdById      String?
   createdByName    String?
   createdByRole    String?
