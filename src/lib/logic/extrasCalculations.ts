@@ -71,7 +71,7 @@ export function getOuterBottomCm(item: WindowItem): number {
 
 export interface ExtrasValidationResult {
   isValid: boolean;
-  errors:  string[];
+  errors: string[];
 }
 
 /**
@@ -85,8 +85,13 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
 
   const errors: string[] = [];
 
+  const zippers = extras.zippers ?? [];
+  const dividers = extras.dividers ?? [];
+  const cutouts = extras.cutouts ?? [];
+  const welding = extras.welding ?? [];
+
   const EDGE_EPSILON_CM = 0.01;
-  const innerWidth  = Math.max(item.widthTop,  item.widthBottom);
+  const innerWidth = Math.max(item.widthTop, item.widthBottom);
   const innerHeight = Math.max(item.heightLeft, item.heightRight);
 
   if (extras.hasSkirt && extras.skirtWidth <= 0) {
@@ -100,44 +105,44 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
     }
   }
 
-  extras.zippers.forEach((z, idx) => {
+  zippers.forEach((z, idx) => {
     const label = `Молния #${idx + 1}`;
     if (!Number.isFinite(z.positionFromStart) || z.positionFromStart < 0) errors.push(`${label}: позиция от начала обязательна и должна быть ≥ 0`);
-    if (!Number.isFinite(z.offsetStart)       || z.offsetStart < 0)       errors.push(`${label}: отступ от начала должен быть ≥ 0`);
-    if (!Number.isFinite(z.offsetEnd)         || z.offsetEnd   < 0)       errors.push(`${label}: отступ от конца должен быть ≥ 0`);
-    if (!Number.isFinite(z.bandLeft)          || z.bandLeft    < 0)       errors.push(`${label}: левая полоса должна быть ≥ 0`);
-    if (!Number.isFinite(z.bandRight)         || z.bandRight   < 0)       errors.push(`${label}: правая полоса должна быть ≥ 0`);
+    if (!Number.isFinite(z.offsetStart) || z.offsetStart < 0) errors.push(`${label}: отступ от начала должен быть ≥ 0`);
+    if (!Number.isFinite(z.offsetEnd) || z.offsetEnd < 0) errors.push(`${label}: отступ от конца должен быть ≥ 0`);
+    if (!Number.isFinite(z.bandLeft) || z.bandLeft < 0) errors.push(`${label}: левая полоса должна быть ≥ 0`);
+    if (!Number.isFinite(z.bandRight) || z.bandRight < 0) errors.push(`${label}: правая полоса должна быть ≥ 0`);
   });
 
-  extras.dividers.forEach((d, idx) => {
+  dividers.forEach((d, idx) => {
     const label = `Разделитель #${idx + 1}`;
-    if (!Number.isFinite(d.position)    || d.position    <  0) errors.push(`${label}: позиция обязательна и должна быть ≥ 0`);
-    if (!Number.isFinite(d.offsetStart) || d.offsetStart <  0) errors.push(`${label}: отступ от начала должен быть ≥ 0`);
-    if (!Number.isFinite(d.offsetEnd)   || d.offsetEnd   <  0) errors.push(`${label}: отступ от конца должен быть ≥ 0`);
-    if (!Number.isFinite(d.width)       || d.width       <= 0) errors.push(`${label}: ширина обязательна и должна быть больше 0`);
+    if (!Number.isFinite(d.position) || d.position < 0) errors.push(`${label}: позиция обязательна и должна быть ≥ 0`);
+    if (!Number.isFinite(d.offsetStart) || d.offsetStart < 0) errors.push(`${label}: отступ от начала должен быть ≥ 0`);
+    if (!Number.isFinite(d.offsetEnd) || d.offsetEnd < 0) errors.push(`${label}: отступ от конца должен быть ≥ 0`);
+    if (!Number.isFinite(d.width) || d.width <= 0) errors.push(`${label}: ширина обязательна и должна быть больше 0`);
   });
 
-  extras.cutouts.forEach((c, idx) => {
+  cutouts.forEach((c, idx) => {
     const label = `${c.type === 'cut' ? 'Вырез' : 'Заплатка'} #${idx + 1}`;
-    if (!Number.isFinite(c.x)      || c.x      <  0) errors.push(`${label}: координата X обязательна и должна быть ≥ 0`);
-    if (!Number.isFinite(c.y)      || c.y      <  0) errors.push(`${label}: координата Y обязательна и должна быть ≥ 0`);
-    if (!Number.isFinite(c.width)  || c.width  <= 0) errors.push(`${label}: ширина обязательна и должна быть больше 0`);
+    if (!Number.isFinite(c.x) || c.x < 0) errors.push(`${label}: координата X обязательна и должна быть ≥ 0`);
+    if (!Number.isFinite(c.y) || c.y < 0) errors.push(`${label}: координата Y обязательна и должна быть ≥ 0`);
+    if (!Number.isFinite(c.width) || c.width <= 0) errors.push(`${label}: ширина обязательна и должна быть больше 0`);
     if (!Number.isFinite(c.height) || c.height <= 0) errors.push(`${label}: высота обязательна и должна быть больше 0`);
 
     const valid = Number.isFinite(c.x) && Number.isFinite(c.y) && Number.isFinite(c.width) && Number.isFinite(c.height)
       && c.x >= 0 && c.y >= 0 && c.width > 0 && c.height > 0;
     if (!valid) return;
 
-    const touchesLeft   = Math.abs(c.x)                        <= EDGE_EPSILON_CM;
-    const touchesTop    = Math.abs(c.y)                        <= EDGE_EPSILON_CM;
-    const touchesRight  = Math.abs(c.x + c.width  - innerWidth)  <= EDGE_EPSILON_CM;
+    const touchesLeft = Math.abs(c.x) <= EDGE_EPSILON_CM;
+    const touchesTop = Math.abs(c.y) <= EDGE_EPSILON_CM;
+    const touchesRight = Math.abs(c.x + c.width - innerWidth) <= EDGE_EPSILON_CM;
     const touchesBottom = Math.abs(c.y + c.height - innerHeight) <= EDGE_EPSILON_CM;
     if (!touchesLeft && !touchesTop && !touchesRight && !touchesBottom) {
       errors.push(`${label}: должен примыкать к краю изделия`);
     }
   });
 
-  extras.welding.forEach((w, idx) => {
+  welding.forEach((w, idx) => {
     if (!Number.isFinite(w.position) || w.position < 0)
       errors.push(`Сварка #${idx + 1}: позиция обязательна и должна быть ≥ 0`);
   });
@@ -154,8 +159,8 @@ export function validateExtras(item: WindowItem): ExtrasValidationResult {
 
   if (item.isTrapezoid) {
     const hasAnyExtras =
-      extras.zippers.length  > 0 || extras.dividers.length > 0 ||
-      extras.cutouts.length  > 0 || extras.welding.length  > 0;
+      extras.zippers.length > 0 || extras.dividers.length > 0 ||
+      extras.cutouts.length > 0 || extras.welding.length > 0;
     if (hasAnyExtras && !item.diagonalLeft && !item.diagonalRight) {
       errors.push('Трапеция: для отображения допов нужно указать левую или правую диагональ');
     }
@@ -180,12 +185,12 @@ export type CollisionKind =
   | 'out_of_bounds';
 
 export interface CollisionWarning {
-  kind:        CollisionKind;
-  message:     string;
+  kind: CollisionKind;
+  message: string;
   involvedIds: string[];
 }
 
-interface Rect    { x: number; y: number; width: number; height: number; }
+interface Rect { x: number; y: number; width: number; height: number; }
 interface Segment { position: number; start: number; end: number; orientation: 'horizontal' | 'vertical'; id: string; label: string; }
 
 function rectsOverlap(a: Rect, b: Rect): boolean {
@@ -207,17 +212,17 @@ function segmentCrossesRect(seg: Segment, rect: Rect): boolean {
 function zipperToSegment(z: ZipperItem, maxH: number, maxW: number): Segment {
   return z.orientation === 'horizontal'
     ? { id: z.id, label: 'zipper', orientation: 'horizontal', position: z.positionFromStart, start: z.offsetStart, end: maxW - z.offsetEnd }
-    : { id: z.id, label: 'zipper', orientation: 'vertical',   position: z.positionFromStart, start: z.offsetStart, end: maxH - z.offsetEnd };
+    : { id: z.id, label: 'zipper', orientation: 'vertical', position: z.positionFromStart, start: z.offsetStart, end: maxH - z.offsetEnd };
 }
 function dividerToSegment(d: DividerItem, maxH: number, maxW: number): Segment {
   return d.orientation === 'horizontal'
     ? { id: d.id, label: 'divider', orientation: 'horizontal', position: d.position, start: d.offsetStart, end: maxW - d.offsetEnd }
-    : { id: d.id, label: 'divider', orientation: 'vertical',   position: d.position, start: d.offsetStart, end: maxH - d.offsetEnd };
+    : { id: d.id, label: 'divider', orientation: 'vertical', position: d.position, start: d.offsetStart, end: maxH - d.offsetEnd };
 }
 function weldingToSegment(w: WeldingItem, maxH: number, maxW: number): Segment {
   return w.orientation === 'horizontal'
     ? { id: w.id, label: 'welding', orientation: 'horizontal', position: w.position, start: 0, end: maxW }
-    : { id: w.id, label: 'welding', orientation: 'vertical',   position: w.position, start: 0, end: maxH };
+    : { id: w.id, label: 'welding', orientation: 'vertical', position: w.position, start: 0, end: maxH };
 }
 
 export function detectExtrasCollisions(item: WindowItem): CollisionWarning[] {
@@ -225,33 +230,39 @@ export function detectExtrasCollisions(item: WindowItem): CollisionWarning[] {
   if (!extras) return [];
 
   const warnings: CollisionWarning[] = [];
+
+  const zippers = extras.zippers ?? [];
+  const dividers = extras.dividers ?? [];
+  const cutouts = extras.cutouts ?? [];
+  const welding = extras.welding ?? [];
+
   const maxW = item.widthTop;
   const maxH = item.heightLeft;
 
-  extras.zippers.forEach((z) => {
+  zippers.forEach((z) => {
     const dim = z.orientation === 'horizontal' ? maxH : maxW;
     if (z.positionFromStart < 0 || z.positionFromStart > dim)
       warnings.push({ kind: 'out_of_bounds', message: `Молния "${z.id}" выходит за границы изделия`, involvedIds: [z.id] });
   });
-  extras.dividers.forEach((d) => {
+  dividers.forEach((d) => {
     const dim = d.orientation === 'horizontal' ? maxH : maxW;
     if (d.position < 0 || d.position > dim)
       warnings.push({ kind: 'out_of_bounds', message: `Разделитель "${d.id}" выходит за границы изделия`, involvedIds: [d.id] });
   });
-  extras.welding.forEach((w) => {
+  welding.forEach((w) => {
     const dim = w.orientation === 'horizontal' ? maxH : maxW;
     if (w.position < 0 || w.position > dim)
       warnings.push({ kind: 'out_of_bounds', message: `Техпайка "${w.id}" выходит за границы изделия`, involvedIds: [w.id] });
   });
-  extras.cutouts.forEach((c) => {
+  cutouts.forEach((c) => {
     if (c.x < 0 || c.y < 0 || c.x + c.width > maxW || c.y + c.height > maxH)
       warnings.push({ kind: 'out_of_bounds', message: `${c.type === 'cut' ? 'Вырез' : 'Заплатка'} "${c.id}" выходит за границы изделия`, involvedIds: [c.id] });
   });
 
   const allSegments: Segment[] = [
-    ...extras.zippers.map((z) => zipperToSegment(z, maxH, maxW)),
-    ...extras.dividers.map((d) => dividerToSegment(d, maxH, maxW)),
-    ...extras.welding.map((w) => weldingToSegment(w, maxH, maxW)),
+    ...zippers.map((z) => zipperToSegment(z, maxH, maxW)),
+    ...dividers.map((d) => dividerToSegment(d, maxH, maxW)),
+    ...welding.map((w) => weldingToSegment(w, maxH, maxW)),
   ];
   for (let i = 0; i < allSegments.length; i++) {
     for (let j = i + 1; j < allSegments.length; j++) {
@@ -261,7 +272,7 @@ export function detectExtrasCollisions(item: WindowItem): CollisionWarning[] {
       }
     }
   }
-  const cutoutRects = extras.cutouts.map((c) => ({ id: c.id, rect: { x: c.x, y: c.y, width: c.width, height: c.height } }));
+  const cutoutRects = cutouts.map((c) => ({ id: c.id, rect: { x: c.x, y: c.y, width: c.width, height: c.height } }));
   allSegments.forEach((seg) => {
     cutoutRects.forEach(({ rect, id }) => {
       if (segmentCrossesRect(seg, rect))
@@ -283,7 +294,7 @@ export function detectExtrasCollisions(item: WindowItem): CollisionWarning[] {
 
 export function normalizeWindowExtras(item: WindowItem): WindowItem {
   if (item.additionalElements) return item;
-  const outerTop     = getOuterTopCm(item);
+  const outerTop = getOuterTopCm(item);
   const derivedCount = deriveStrapCount(outerTop);
   const additionalElements: AdditionalElements = {
     ...createDefaultAdditionalElements(),
@@ -305,29 +316,32 @@ export function normalizeExtrasOnResize(current: WindowItem, prev: WindowItem): 
   const extras = current.additionalElements ?? createDefaultAdditionalElements();
   if (!prev.additionalElements) return extras;
 
-  const scaleX = current.widthTop   > 0 ? current.widthTop   / Math.max(prev.widthTop,   1) : 1;
+  const scaleX = current.widthTop > 0 ? current.widthTop / Math.max(prev.widthTop, 1) : 1;
   const scaleY = current.heightLeft > 0 ? current.heightLeft / Math.max(prev.heightLeft, 1) : 1;
 
-  const scaleZipper  = (z: ZipperItem): ZipperItem  => ({ ...z,
+  const scaleZipper = (z: ZipperItem): ZipperItem => ({
+    ...z,
     positionFromStart: z.orientation === 'horizontal' ? z.positionFromStart * scaleY : z.positionFromStart * scaleX,
-    offsetStart:       z.orientation === 'horizontal' ? z.offsetStart * scaleX       : z.offsetStart * scaleY,
-    offsetEnd:         z.orientation === 'horizontal' ? z.offsetEnd   * scaleX       : z.offsetEnd   * scaleY,
+    offsetStart: z.orientation === 'horizontal' ? z.offsetStart * scaleX : z.offsetStart * scaleY,
+    offsetEnd: z.orientation === 'horizontal' ? z.offsetEnd * scaleX : z.offsetEnd * scaleY,
   });
-  const scaleDivider = (d: DividerItem): DividerItem => ({ ...d,
-    position:    d.orientation === 'horizontal' ? d.position    * scaleY : d.position    * scaleX,
+  const scaleDivider = (d: DividerItem): DividerItem => ({
+    ...d,
+    position: d.orientation === 'horizontal' ? d.position * scaleY : d.position * scaleX,
     offsetStart: d.orientation === 'horizontal' ? d.offsetStart * scaleX : d.offsetStart * scaleY,
-    offsetEnd:   d.orientation === 'horizontal' ? d.offsetEnd   * scaleX : d.offsetEnd   * scaleY,
+    offsetEnd: d.orientation === 'horizontal' ? d.offsetEnd * scaleX : d.offsetEnd * scaleY,
   });
-  const scaleWelding = (w: WeldingItem): WeldingItem => ({ ...w,
+  const scaleWelding = (w: WeldingItem): WeldingItem => ({
+    ...w,
     position: w.orientation === 'horizontal' ? w.position * scaleY : w.position * scaleX,
   });
-  const scaleCutout  = (c: CutoutItem): CutoutItem => {
-    const cx  = c.x + c.width  / 2; const cy  = c.y + c.height / 2;
-    const newW = c.width  * scaleX;  const newH = c.height * scaleY;
+  const scaleCutout = (c: CutoutItem): CutoutItem => {
+    const cx = c.x + c.width / 2; const cy = c.y + c.height / 2;
+    const newW = c.width * scaleX; const newH = c.height * scaleY;
     return { ...c, x: cx * scaleX - newW / 2, y: cy * scaleY - newH / 2, width: newW, height: newH };
   };
 
-  const outerTop     = getOuterTopCm(current);
+  const outerTop = getOuterTopCm(current);
   const derivedCount = deriveStrapCount(outerTop);
   const straps = extras.straps.isManual ? extras.straps : { ...extras.straps, count: derivedCount };
 
@@ -346,12 +360,12 @@ export function normalizeExtrasOnResize(current: WindowItem, prev: WindowItem): 
  */
 function resolveAddonPrice(
   priceMap: PriceMap,
-  slug:     AddonSlug,
+  slug: AddonSlug,
 ): { retail: number; cost: number } {
   const meta = ADDON_PRICE_CONFIG[slug];
   return {
     retail: priceMap[meta.retailKey] ?? 9999,
-    cost:   priceMap[meta.costKey]   ?? 9999,
+    cost: priceMap[meta.costKey] ?? 9999,
   };
 }
 
@@ -369,8 +383,8 @@ function resolveAddonPrice(
  * @param windowIdx — индекс для лейблов (опционально)
  */
 export function calculateExtrasAsServiceItems(
-  window:     WindowItem,
-  priceMap:   PriceMap,
+  window: WindowItem,
+  priceMap: PriceMap,
   windowIdx?: number,
 ): ServiceItem[] {
   const extras = window.additionalElements;
@@ -379,49 +393,67 @@ export function calculateExtrasAsServiceItems(
   const items: ServiceItem[] = [];
   const lbl = window.name || `Окно ${(windowIdx ?? window.id) + 1}`;
 
+  // ── Safe guards — защита от undefined в legacy-записях ──────────────────
+  const zippers = extras.zippers ?? [];
+  const dividers = extras.dividers ?? [];
+  const cutouts = extras.cutouts ?? [];
+  const welding = extras.welding ?? [];
+  const strapsCount = extras.straps?.count ?? 0;
+  const strapsType = extras.straps?.type ?? 'grommet';
+
   // ── Молнии ────────────────────────────────────────────────────────────────
-  extras.zippers.forEach((z) => {
-    const { retail, cost } = resolveAddonPrice(priceMap, 'zipper');
+  // retail: из addo_zipper_retail (не меняем)
+  // cost:   outer_length_м × addo_zipper_cost_per_meter (250 ₽/м)
+  //         vertical   → outerHeight = max(heightLeft, heightRight) + kantTop + kantBottom
+  //         horizontal → outerWidth  = max(widthTop, widthBottom)  + kantLeft + kantRight
+  const outerWidthCm = Math.max(window.widthTop, window.widthBottom) + window.kantLeft + window.kantRight;
+  const outerHeightCm = Math.max(window.heightLeft, window.heightRight) + window.kantTop + window.kantBottom;
+  const zipperCostPerMeter = priceMap['addo_zipper_cost_per_meter'] ?? 250;
+
+  zippers.forEach((z) => {
+    const { retail } = resolveAddonPrice(priceMap, 'zipper');
     const m = ADDON_PRICE_CONFIG.zipper;
+    const outerLenM = (z.orientation === 'vertical' ? outerHeightCm : outerWidthCm) / 100;
+    const zipperMaterialCost = Math.round(outerLenM * zipperCostPerMeter);
     items.push(makeServiceItem({
-      id:          `zipper-w${window.id}-${z.id}`,
-      name:        `${m.nameRetail} (${lbl}, ${z.orientation === 'horizontal' ? 'горизонт.' : 'вертик.'})`,
-      type:        'addon',
-      quantity:    1,
-      unit:        m.unit,
+      id: `zipper-w${window.id}-${z.id}`,
+      name: `${m.nameRetail} (${lbl}, ${z.orientation === 'horizontal' ? 'горизонт.' : 'вертик.'})`,
+      type: 'addon',
+      quantity: 1,
+      unit: m.unit,
       retailPrice: retail,
-      costPrice:   cost,
+      costPrice: zipperMaterialCost,
     }));
   });
 
   // ── Разделители ───────────────────────────────────────────────────────────
-  extras.dividers.forEach((d) => {
+  dividers.forEach((d) => {
     const { retail, cost } = resolveAddonPrice(priceMap, 'divider');
     const m = ADDON_PRICE_CONFIG.divider;
     items.push(makeServiceItem({
-      id:          `divider-w${window.id}-${d.id}`,
-      name:        `${m.nameRetail} (${lbl})`,
-      type:        'addon',
-      quantity:    1,
-      unit:        m.unit,
+      id: `divider-w${window.id}-${d.id}`,
+      name: `${m.nameRetail} (${lbl})`,
+      type: 'addon',
+      quantity: 1,
+      unit: m.unit,
       retailPrice: retail,
-      costPrice:   cost,
+      costPrice: cost,
     }));
   });
 
   // ── Вырезы / Заплатки ─────────────────────────────────────────────────────
-  extras.cutouts.forEach((c) => {
+  cutouts.forEach((c) => {
     const slug: AddonSlug = c.type === 'cut' ? 'cut' : 'patch';
     const { retail, cost } = resolveAddonPrice(priceMap, slug);
     const m = ADDON_PRICE_CONFIG[slug];
     items.push(makeServiceItem({
-      id:          `${slug}-w${window.id}-${c.id}`,
-      name:        `${m.nameRetail} (${lbl})`,
-      type:        'addon',
-      quantity:    1,
-      unit:        m.unit,
+      id: `${slug}-w${window.id}-${c.id}`,
+      name: `${m.nameRetail} (${lbl})`,
+      type: 'addon',
+      quantity: 1,
+      unit: m.unit,
       retailPrice: retail,
-      costPrice:   cost,
+      costPrice: cost,
     }));
   });
 
@@ -431,13 +463,13 @@ export function calculateExtrasAsServiceItems(
     const m = ADDON_PRICE_CONFIG.skirt;
     const lengthM = Math.round(getOuterBottomCm(window) / 100 * 100) / 100;
     items.push(makeServiceItem({
-      id:          `skirt-w${window.id}`,
-      name:        `${m.nameRetail} (${lbl})`,
-      type:        'addon',
-      quantity:    lengthM,
-      unit:        m.unit,
+      id: `skirt-w${window.id}`,
+      name: `${m.nameRetail} (${lbl})`,
+      type: 'addon',
+      quantity: lengthM,
+      unit: m.unit,
       retailPrice: retail,
-      costPrice:   cost,
+      costPrice: cost,
     }));
   }
 
@@ -447,44 +479,44 @@ export function calculateExtrasAsServiceItems(
     const m = ADDON_PRICE_CONFIG.weight;
     const lengthM = Math.round(getOuterBottomCm(window) / 100 * 100) / 100;
     items.push(makeServiceItem({
-      id:          `weight-w${window.id}`,
-      name:        `${m.nameRetail} (${lbl})`,
-      type:        'addon',
-      quantity:    lengthM,
-      unit:        m.unit,
+      id: `weight-w${window.id}`,
+      name: `${m.nameRetail} (${lbl})`,
+      type: 'addon',
+      quantity: lengthM,
+      unit: m.unit,
       retailPrice: retail,
-      costPrice:   cost,
+      costPrice: cost,
     }));
   }
 
   // ── Стяжки ────────────────────────────────────────────────────────────────
-  if (extras.straps.count > 0) {
-    const slug: AddonSlug = extras.straps.type === 'fastex' ? 'strap_fastex' : 'strap_grommet';
+  if (strapsCount > 0) {
+    const slug: AddonSlug = strapsType === 'fastex' ? 'strap_fastex' : 'strap_grommet';
     const { retail, cost } = resolveAddonPrice(priceMap, slug);
     const m = ADDON_PRICE_CONFIG[slug];
     items.push(makeServiceItem({
-      id:          `${slug}-w${window.id}`,
-      name:        `${m.nameRetail} (${lbl})`,
-      type:        'addon',
-      quantity:    extras.straps.count,
-      unit:        m.unit,
+      id: `${slug}-w${window.id}`,
+      name: `${m.nameRetail} (${lbl})`,
+      type: 'addon',
+      quantity: strapsCount,
+      unit: m.unit,
       retailPrice: retail,
-      costPrice:   cost,
+      costPrice: cost,
     }));
   }
 
   // ── Технологическая пайка ─────────────────────────────────────────────────
-  extras.welding.forEach((w) => {
+  welding.forEach((w) => {
     const { retail, cost } = resolveAddonPrice(priceMap, 'welding');
     const m = ADDON_PRICE_CONFIG.welding;
     items.push(makeServiceItem({
-      id:          `welding-w${window.id}-${w.id}`,
-      name:        `${m.nameRetail} (${lbl})`,
-      type:        'addon',
-      quantity:    1,
-      unit:        m.unit,
+      id: `welding-w${window.id}-${w.id}`,
+      name: `${m.nameRetail} (${lbl})`,
+      type: 'addon',
+      quantity: 1,
+      unit: m.unit,
       retailPrice: retail,
-      costPrice:   cost,
+      costPrice: cost,
     }));
   });
 
