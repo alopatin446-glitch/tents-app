@@ -169,6 +169,11 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
      */
     savedPrices: client.savedPrices ?? null,
 
+    // ── Price Lock ────────────────────────────────────────────────────────
+    isPriceLocked:   client.isPriceLocked ?? false,
+    priceLockedAt:   client.priceLockedAt?.toISOString() ?? null,
+    priceLockReason: client.priceLockReason ?? null,
+
     createdAt: client.createdAt.toISOString(),
     updatedAt: client.updatedAt.toISOString(),
 

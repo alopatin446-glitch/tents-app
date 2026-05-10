@@ -108,7 +108,15 @@ export const DEFAULT_PRICE_ROWS: DefaultPriceRow[] = [
     { slug: 'addo_welding_cost',          name: 'Расчёт: Техпайка — себес (пог.м.)',        value: 200,  unit: 'пог.м.', category: 'cost_addons' },
     { slug: 'addo_weight_cost',           name: 'Расчёт: Утяжелитель — себес (пог.м.)',     value: 300,  unit: 'пог.м.', category: 'cost_addons' },
     { slug: 'addo_skirt_cost',            name: 'Расчёт: Юбка — себес (пог.м.)',            value: 200,  unit: 'пог.м.', category: 'cost_addons' },
-    { slug: 'addo_strap_cost',            name: 'Расчёт: Ремешок — себес (шт)',             value: 50,   unit: 'шт',     category: 'cost_addons' },
+    // DEPRECATED: addo_strap_cost — generic slug, не читается в расчёте.
+    // extrasCalculations.ts использует addo_strap_grommet_cost / addo_strap_fastex_cost.
+    // Оставлен для отображения в UI страницы Цен. Не удалять.
+    { slug: 'addo_strap_cost',            name: 'Расчёт: Ремешок — себес (шт) [устарел]',  value: 50,   unit: 'шт',     category: 'cost_addons' },
+    // ── CH2-BUG-01 FIX: Себестоимость стяжек по типу ───────────────────────
+    // Используются в calculateExtrasAsServiceItems (extrasCalculations.ts).
+    // Без этих slug: priceMap[costKey] → undefined → ?? 9999 → hasPriceError = true.
+    { slug: 'addo_strap_grommet_cost',    name: 'Расчёт: Стяжка люверс — себес (шт)',      value: 15,   unit: 'шт',     category: 'cost_addons' },
+    { slug: 'addo_strap_fastex_cost',     name: 'Расчёт: Стяжка фастекс — себес (шт)',     value: 30,   unit: 'шт',     category: 'cost_addons' },
     // Перерасход молнии: +30 см на каждую молнию (15 сверху + 15 снизу)
     // НЕ путать с addo_zipper_cost — тот slug не существовал, это новый
     { slug: 'addo_zipper_cost_per_meter', name: 'Молния себестоимость за метр',             value: 250,  unit: 'М.',     category: 'cost_addons' },

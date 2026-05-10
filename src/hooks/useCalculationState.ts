@@ -37,6 +37,7 @@ import {
 } from '@/lib/logic/extrasCalculations';
 import { calculateWindowFinance } from '@/lib/logic/pricingLogic';
 import { calculateMounting } from '@/lib/logic/mountingCalculations';
+import { resolveActivePrices } from '@/lib/logic/priceResolution';
 import { type MountingConfig } from '@/types/mounting';
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,13 @@ export interface CalculationState {
    */
   fastenersCostTotal: number;
 
+  /**
+   * true = frozen order (historical/locked) без savedPrices snapshot.
+   * При true расчёты ненадёжны (activePrices = {}).
+   * UI должен показать предупреждение и заблокировать ERP-действия.
+   */
+  isSnapshotIncomplete: boolean;
+
   handleWindowsChange: (updated: WindowItem[]) => void;
   handleClientDataChange: (updated: ClientFormData) => void;
   handleExtrasChange: (windowId: number, extras: WindowItem['additionalElements']) => void;
@@ -105,15 +113,25 @@ export function useCalculationState(
   const [clientData, setClientData] = useState<ClientFormData>(initialClientData);
 
   // ── Прайс-лист (Архив vs Живой) ───────────────────────────────────────────
-  // Закрытые сделки используют savedPrices — допы также считаются по зафиксированным ценам.
+  // Единственная точка разрешения активного прайса — resolveActivePrices().
   // Монтаж НЕ использует activePrices — у него собственная защита через mountingSnapshot.
 
-  const activePrices = useMemo(() => {
-    const isClosed = clientData.status === 'done' || clientData.status === 'cancelled';
-    return isClosed && (clientData as Record<string, unknown>)['savedPrices']
-      ? (clientData as Record<string, unknown>)['savedPrices'] as Record<string, number>
-      : currentPrices;
-  }, [clientData.status, (clientData as Record<string, unknown>)['savedPrices'], currentPrices]);
+  const resolvedPrices = useMemo(() => {
+    return resolveActivePrices({
+      status: clientData.status,
+      isPriceLocked: Boolean((clientData as Record<string, unknown>)['isPriceLocked']),
+      savedPrices: (clientData as Record<string, unknown>)['savedPrices'] as Record<string, number> | null | undefined,
+      currentPrices,
+    });
+  }, [
+    clientData.status,
+    (clientData as Record<string, unknown>)['isPriceLocked'],
+    (clientData as Record<string, unknown>)['savedPrices'],
+    currentPrices,
+  ]);
+  // Отдельные ссылки на поля результата — stable между рендерами
+  const activePrices = resolvedPrices.prices;
+  const isSnapshotIncomplete = resolvedPrices.isSnapshotIncomplete;
 
   // ── Площади ───────────────────────────────────────────────────────────────
 
@@ -328,6 +346,7 @@ export function useCalculationState(
     totalOverspending,
     totalProductionCost,
     fastenersCostTotal,
+    isSnapshotIncomplete,
     handleWindowsChange,
     handleClientDataChange,
     handleExtrasChange,

@@ -120,7 +120,7 @@ type UpdateClientPayload = {
   items?: unknown;
   managerComment?: unknown;
   engineerComment?: unknown;
-  mountingConfig?: MountingConfig;
+  mountingConfig?: MountingConfig | null;
   preliminaryPrice?: unknown;
   costPrice?: unknown;
   overspending?: unknown;
@@ -137,6 +137,11 @@ type UpdateClientPayload = {
    * При невалидном значении поле не обновляется (существующий снапшот сохраняется).
    */
   savedPrices?: unknown;
+
+  // ── Price Lock ────────────────────────────────────────────────────────────
+  isPriceLocked?: unknown;
+  priceLockedAt?: unknown;
+  priceLockReason?: unknown;
 };
 
 function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknown> {
@@ -189,6 +194,21 @@ function buildUpdateClientData(data: UpdateClientPayload): Record<string, unknow
   // При undefined — поле не включается в data, Prisma не трогает существующее значение в БД.
   const validSavedPrices = normalizeSavedPrices(data.savedPrices);
   if (validSavedPrices !== undefined) out.savedPrices = validSavedPrices;
+
+  // ── Price Lock ────────────────────────────────────────────────────────────
+  if (data.isPriceLocked !== undefined) {
+    out.isPriceLocked = Boolean(data.isPriceLocked);
+  }
+  if (data.priceLockedAt !== undefined) {
+    out.priceLockedAt = data.priceLockedAt
+      ? new Date(data.priceLockedAt as string)
+      : null;
+  }
+  if (data.priceLockReason !== undefined) {
+    out.priceLockReason = data.priceLockReason
+      ? String(data.priceLockReason)
+      : null;
+  }
 
   return out;
 }
@@ -258,20 +278,75 @@ export async function updateClientAction(
       logger.info('[updateClientAction] Создан новый клиент', { id: finalId, orgId: user.organizationId });
     } else {
       // ОБНОВЛЕНИЕ СУЩЕСТВУЮЩЕГО КЛИЕНТА
-      // Добавляем проверку, что клиент принадлежит организации пользователя.
-      // buildUpdateClientData вызывает normalizeSavedPrices внутри себя — это осознанное
-      // дублирование: два вызова на одних данных идемпотентны и дают одинаковый результат.
-      const prismaData = {
+
+      // ── Server-side freeze protection ────────────────────────────────
+      // Читаем текущее состояние из БД для определения frozen-статуса.
+      // Client-side защита (CalculationClient) необходима, но недостаточна:
+      // прямой вызов action может попытаться перезаписать frozen fields.
+      const existingClient = await prisma.client.findFirst({
+        where: { id, organizationId: user.organizationId },
+        select: { status: true, isPriceLocked: true, priceLockedAt: true },
+      });
+
+      if (!existingClient) {
+        return { success: false, error: 'Клиент не найден или доступ запрещён' };
+      }
+
+      const FROZEN_STATUSES = ['done', 'cancelled'] as const;
+      const wasHistorical = FROZEN_STATUSES.includes(existingClient.status as 'done' | 'cancelled');
+      const wasPriceLocked = existingClient.isPriceLocked;
+
+      // isClosingNow: статус меняется на done/cancelled впервые.
+      // При этом необходимо записать финальный financial snapshot — не защищаем.
+      const incomingStatus = typeof data.status === 'string' ? data.status : existingClient.status;
+      const isClosingNow = !wasHistorical && FROZEN_STATUSES.includes(incomingStatus as 'done' | 'cancelled');
+
+      // isAlreadyFrozen: заказ уже был historical при этом запросе.
+      //   — wasHistorical: статус в DB уже done/cancelled
+      //   — wasPriceLocked && priceLockedAt: price lock уже был зафиксирован
+      // isClosingNow НЕ входит в isAlreadyFrozen: при нём snapshot записывается в первый раз.
+      const isAlreadyFrozen = wasHistorical || (wasPriceLocked && Boolean(existingClient.priceLockedAt));
+
+      // buildUpdateClientData вызывает normalizeSavedPrices внутри себя — идемпотентно.
+      const prismaData: Record<string, unknown> = {
         ...buildUpdateClientData(data),
         updatedById: user.id,
         updatedByName: user.name,
         updatedByRole: user.role,
         contentUpdatedAt: new Date(),
       };
+
+      // Для уже-frozen заказов: удаляем финансовые snapshot-поля из апдейта.
+      // isClosingNow=true → isAlreadyFrozen=false → поля НЕ удаляются (финальный snapshot).
+      // wasHistorical=true → snapshot уже зафиксирован → защищаем.
+      if (isAlreadyFrozen) {
+        // ── Себестоимость и производство ─────────────────────────────────
+        delete prismaData['costPrice'];
+        delete prismaData['productionCost'];
+        delete prismaData['overspending'];
+        delete prismaData['totalExpenses'];
+        delete prismaData['savedPrices'];
+        // ── Экономика сделки ──────────────────────────────────────────────
+        // totalPrice: розничная цена зафиксирована при закрытии/блокировке.
+        // mountingCost: стоимость монтажа — часть исторического snapshot.
+        delete prismaData['totalPrice'];
+        delete prismaData['mountingCost'];
+        // ── Оплата (намеренно оставлена редактируемой) ────────────────────
+        // advance и balance НЕ защищаются: оплата может поступать после
+        // закрытия заказа (рассрочка, постоплата, корректировка аванса).
+        // Изменение advance/balance не влияет на финансовый snapshot расчётов.
+        logger.info('[updateClientAction] Frozen order: financial snapshot fields protected', {
+          id,
+          wasHistorical,
+          wasPriceLocked,
+          isClosingNow,
+        });
+      }
+
       const updatedClient = await prisma.client.update({
         where: {
           id,
-          organizationId: user.organizationId // Безопасность: обновляем только своего
+          organizationId: user.organizationId,
         },
         data: prismaData,
       });

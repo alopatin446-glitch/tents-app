@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { type WindowItem } from '@/types';
@@ -19,7 +19,7 @@ import MountingStep from '@/components/mounting/MountingStep';
 import styles from './CalculationClient.module.css';
 import ProductionStep from '@/components/calculation/ProductionStep';
 import { notifyError, notifySuccess } from '@/lib/notify';
-import { calculateMounting } from '@/lib/logic/mountingCalculations';
+import { calculateMounting, captureCurrentPriceSnapshot } from '@/lib/logic/mountingCalculations';
 import { getPrices } from '@/app/actions/prices';
 import { buildMaterialDiagnostics } from '@/lib/logic/materialDiagnostics';
 
@@ -68,6 +68,10 @@ export default function CalculationClient({
   const [activeWindowId, setActiveWindowId] = useState<number>(
     () => initialWindows[0]?.id ?? Date.now(),
   );
+
+  // Статус заказа при загрузке страницы — для определения isClosingNow.
+  // useRef: значение не меняется между рендерами, не вызывает лишних пересчётов.
+  const initialStatusRef = useRef<string | null | undefined>(initialClientData.status);
 
   // ── ЗАГРУЗКА ПРАЙСОВ ИЗ БД ──────────────────────────────────────────────
   useEffect(() => {
@@ -132,29 +136,76 @@ export default function CalculationClient({
     setIsSaving(true);
 
     try {
-      // ── Определяем, закрыт ли заказ ─────────────────────────────────────
-      // TODO: protect closed orders — не перезаписывать финансовые поля
-      // для статусов 'done' / 'cancelled', когда savedPrices уже зафиксирован.
-      // Сейчас инжектируем только для открытых заказов.
+      // ── Определяем финансовую заморозку заказа ──────────────────────────
+      // isFinanciallyFrozen = true при:
+      //   — статус done/cancelled (historical snapshot)
+      //   — isPriceLocked = true  (price lock snapshot)
+      // Для замороженных заказов НЕ перезаписываем:
+      //   savedPrices, productionCost, overspending, costPrice, totalExpenses.
       const isClosed =
         clientDataWithArea.status === 'done' ||
         clientDataWithArea.status === 'cancelled';
+      const isPriceLocked = Boolean(clientDataWithArea['isPriceLocked']);
+      const priceLockedAt = (clientDataWithArea as Record<string, unknown>)['priceLockedAt'];
+
+      // wasHistoricalAtLoad: заказ был done/cancelled ещё при загрузке страницы.
+      // Используем ref — статус на момент монтирования компонента.
+      const wasHistoricalAtLoad =
+        initialStatusRef.current === 'done' ||
+        initialStatusRef.current === 'cancelled';
+
+      // isTurningLockOn: isPriceLocked только что включён (priceLockedAt не проставлен).
+      // Аналогично isClosingNow — нужно записать snapshot один раз.
+      const isTurningLockOn = isPriceLocked && !isClosed && !priceLockedAt;
+
+      // isClosingNow: статус стал done/cancelled, но не был таким при загрузке.
+      // Менеджер переводит заказ в финальный статус — нужно записать финальный snapshot.
+      const isClosingNow = isClosed && !wasHistoricalAtLoad;
+
+      // isAlreadyFrozen: snapshot уже записан и перезаписывать нельзя.
+      //   — wasHistoricalAtLoad: заказ был historical при открытии страницы
+      //   — isPriceLocked && priceLockedAt: price lock уже был зафиксирован ранее
+      // isClosingNow и isTurningLockOn НЕ входят в isAlreadyFrozen:
+      // при них snapshot записывается первый и последний раз.
+      const isAlreadyFrozen = wasHistoricalAtLoad || (isPriceLocked && Boolean(priceLockedAt));
+
+      // ── Mounting snapshot: создать при первой фиксации цены ──────────
+      // isTurningLockOn: isPriceLocked=true, но priceLockedAt ещё не проставлен
+      // → создаём mountingSnapshot один раз при фиксации.
+      // isAlreadyFrozen: snapshot уже должен присутствовать — не перезаписываем.
+      let finalMountingConfig = clientDataWithArea.mountingConfig as MountingConfig | null | undefined;
+      if (
+        isTurningLockOn &&
+        finalMountingConfig?.enabled &&
+        !finalMountingConfig?.mountingSnapshot
+      ) {
+        const teamCategory = (finalMountingConfig.team?.category ?? 'mid') as 'pro' | 'mid' | 'junior';
+        const mountingSnapshot = captureCurrentPriceSnapshot(teamCategory, currentPrices);
+        finalMountingConfig = { ...finalMountingConfig, mountingSnapshot };
+        logger.info('[CalculationClient] Mounting snapshot created at price lock moment', {
+          clientId,
+          teamCategory,
+        });
+      }
 
       const payload = {
         ...clientDataWithArea,
         items: windows,
-        mountingConfig: clientDataWithArea.mountingConfig,
-        // Сохраняем слепок цен, по которым считали (для истории)
-        savedPrices: currentPrices,
-        // ── FINAL-A: обновляем расчётные поля из ядра при каждом сохранении ──
-        // Это устраняет стейл-значения в БД: после изменения материала или площади
-        // DB.productionCost, DB.overspending, DB.costPrice обновляются сразу.
-        // Для закрытых заказов не перезаписываем — исторические значения важнее.
-        ...(!isClosed && {
+        mountingConfig: finalMountingConfig,
+        // Финансовый снапшот записываем в двух случаях:
+        // 1. Живой заказ (!isAlreadyFrozen): обновляем при каждом сохранении
+        // 2. Первичная фиксация (isTurningLockOn): записываем snapshot один раз
+        // isAlreadyFrozen (и не turning on): НЕ перезаписываем ничего
+        ...(!isAlreadyFrozen && {
+          savedPrices: currentPrices,
           productionCost: totalProductionCost,
-          overspending:   totalOverspending,
-          costPrice:      costPrice,
-          totalExpenses:  totalExpenses,
+          overspending: totalOverspending,
+          costPrice: costPrice,
+          totalExpenses: totalExpenses,
+          // При первой фиксации — проставить priceLockedAt
+          ...(isTurningLockOn && {
+            priceLockedAt: new Date().toISOString(),
+          }),
         }),
       };
 
@@ -189,7 +240,7 @@ export default function CalculationClient({
       setIsSaving(false);
     }
   }, [clientId, clientDataWithArea, windows, router, isReadOnly, currentPrices, handleClientDataChange,
-      totalProductionCost, totalOverspending, costPrice, totalExpenses]);
+    totalProductionCost, totalOverspending, costPrice, totalExpenses]);
 
   const handleMountingChange = useCallback(
     (newConfig: MountingConfig): void => {

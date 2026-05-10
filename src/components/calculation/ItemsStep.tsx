@@ -311,6 +311,16 @@ export default function ItemsStep({
     [activeItem],
   );
 
+  /**
+   * CH2-BUG-02 FIX: Проверяет ВСЕ окна, не только активное.
+   * true = хотя бы одно изделие MOSQUITO превышает 197 × 197 см.
+   * При true кнопка Save блокируется — физически невозможный размер нельзя сохранить.
+   */
+  const hasAnyMosquitoSizeError = useMemo(
+    () => localWindows.some((w) => getMosquitoSizeWarning(w) !== null),
+    [localWindows],
+  );
+
   // ── Обновление состояния ──────────────────────────────────────────────────
 
   const updateAll = (updated: WindowItemDraft[]): void => {
@@ -602,8 +612,12 @@ export default function ItemsStep({
             className={styles.saveButton}
             onClick={handleSaveClick}
             style={{ marginTop: 'auto' }}
+            disabled={hasAnyMosquitoSizeError}
+            title={hasAnyMosquitoSizeError ? 'Невозможный размер москитной сетки. Исправьте размеры перед сохранением.' : undefined}
           >
-            СОХРАНИТЬ ВСЕ ИЗДЕЛИЯ
+            {hasAnyMosquitoSizeError
+              ? '🚫 СОХРАНЕНИЕ ЗАБЛОКИРОВАНО — MOSQUITO'
+              : 'СОХРАНИТЬ ВСЕ ИЗДЕЛИЯ'}
           </button>
         )}
       </div>

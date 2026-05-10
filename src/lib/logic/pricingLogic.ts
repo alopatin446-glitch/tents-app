@@ -302,7 +302,20 @@ export function calculateWindowFinance(
   const cutWidthM  = geo.cutWidth  / 100;
   const cutHeightM = geo.cutHeight / 100;
 
-  const overspendingFilm = (rollWidthM - cutWidthM) * cutHeightM * buyPrice;
+  // ── ROTATION FIX ──────────────────────────────────────────────────────────
+  // При geo.isRotated=true рулон подобран по высоте изделия, а полоса отрезается
+  // по ширине изделия. Формулы должны учитывать фактическую ориентацию.
+  //
+  // stripLengthM  — длина полосы вдоль рулона (сколько рулона отрезаем).
+  // fitsWidthM    — ширина изделия поперёк рулона (roll должен перекрыть её).
+  //
+  // TODO: Перенести material allocation и overspending
+  //       на order-level roll optimization.
+  //       Текущий runtime — per-window approximation.
+  const stripLengthM = geo.isRotated ? cutWidthM  : cutHeightM;
+  const fitsWidthM   = geo.isRotated ? cutHeightM : cutWidthM;
+
+  const overspendingFilm = Math.max(0, rollWidthM - fitsWidthM) * stripLengthM * buyPrice;
 
   const cleanOuterPerimeterM = geo.perimeterWithKant / 100;
   const kantMaterialProductCost = cleanOuterPerimeterM * KANT_STRIP_WIDTH_M * kantPriceM2;
@@ -333,7 +346,7 @@ export function calculateWindowFinance(
   // !! НЕ МЕНЯТЬ эту формулу !!
   const totalExpenses = totalCost + overspending + productionCost + fastenersCost;
 
-  const materialCutCost  = rollWidthM * cutHeightM * buyPrice;
+  const materialCutCost  = rollWidthM * stripLengthM * buyPrice;
   const kantMaterialCost = kantMaterialProductCost + overspendingKant;
 
   return {

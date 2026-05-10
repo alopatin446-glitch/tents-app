@@ -137,6 +137,24 @@ model Client {
    */
   savedPrices      Json?
 
+  /**
+   * Флаг фиксации цены.
+   * true = цена зафиксирована вне зависимости от статуса заказа.
+   * При isPriceLocked=true runtime использует savedPrices, а не currentPrices.
+   * Устанавливается менеджером после подписания договора / запуска производства.
+   */
+  isPriceLocked    Boolean   @default(false)
+  /**
+   * Дата и время фиксации цены.
+   * NULL для незафиксированных заказов.
+   */
+  priceLockedAt    DateTime?
+  /**
+   * Причина фиксации цены (опционально).
+   * Например: "Договор №123 подписан", "Производство запущено".
+   */
+  priceLockReason  String?
+
   organization     Organization @relation(fields: [organizationId], references: [id])
   files            ClientFile[]
 }
