@@ -22,7 +22,7 @@ import {
   formatMoney,
 } from '@/lib/logic/financialCalculations';
 
-import { calculateWindowFinance, type PriceMap } from '@/lib/logic/pricingLogic';
+import { type PriceMap } from '@/lib/logic/pricingLogic';
 import {
   type WindowMaterialDiagnosticItem,
   type DiagnosticPriceStatus,
@@ -167,14 +167,34 @@ interface ClientStepProps {
   materialDiagnostics?: WindowMaterialDiagnosticItem[];
 }
 
-function formatDateInputValue(value: any): string {
+/**
+ * CH3-BUG-01 FIX: Нормализует любое значение даты в формат "YYYY-MM-DD" для <input type="date">.
+ *
+ * Обрабатывает все форматы, которые может вернуть сервер или хранить state:
+ *   Date object         → toISOString().split('T')[0]  → "YYYY-MM-DD"
+ *   "2026-05-10"        → уже верный формат            → "YYYY-MM-DD"
+ *   "2026-05-10T00:00Z" → ISO full string, split T[0]  → "YYYY-MM-DD"
+ *   null / undefined    → ""
+ *   невалидная строка   → "" (Date parse fail)
+ *
+ * HTML <input type="date"> принимает ТОЛЬКО "YYYY-MM-DD". Любой другой формат
+ * вызывает blank (пустое поле) без ошибки в браузере — молчаливый баг.
+ */
+function formatDateInputValue(value: unknown): string {
   if (!value) return '';
 
   if (value instanceof Date) {
-    return value.toISOString().split('T')[0];
+    return Number.isNaN(value.getTime()) ? '' : value.toISOString().split('T')[0];
   }
 
-  return String(value);
+  const str = String(value);
+
+  // Уже "YYYY-MM-DD" — возвращаем как есть
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+  // Полный ISO или любой другой разбираемый Date string
+  const d = new Date(str);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
 }
 
 function formatAuditDate(value: string | null | undefined): string {
@@ -695,22 +715,12 @@ export default function ClientStep({
     };
   }, [clientId]);
 
-  // Вычисляем итоговые показатели заказа на основе всех изделий
-  const orderFinancials = useMemo(() => {
-    if (!clientData.items || clientData.items.length === 0) {
-      return { totalRetail: 0, totalCost: 0, totalProfit: 0 };
-    }
-
-    return clientData.items.reduce((acc, item) => {
-      // Вызываем функцию и СРАЗУ сохраняем результат в константу
-      const finance = calculateWindowFinance(item, priceMap);
-      return {
-        totalRetail: acc.totalRetail + finance.retailPrice,
-        totalCost: acc.totalCost + finance.costPrice,
-        totalProfit: acc.totalProfit + finance.profit,
-      };
-    }, { totalRetail: 0, totalCost: 0, totalProfit: 0 });
-  }, [clientData.items, priceMap]);
+  // CH3-BUG-03 FIX: orderFinancials удалён.
+  // Это useMemo использовал priceMap (currentPrices) напрямую, что для frozen-заказов
+  // давало неверные финансовые данные (live цены вместо savedPrices).
+  // Переменная никогда не использовалась в render — мёртвый код.
+  // Реальный render использует: calculatedTotal / calculatedCost / calculatedTotalExpenses
+  // из пропсов, которые приходят из useCalculationState → resolveActivePrices → activePrices.
 
   const financials = useMemo(() => {
     // 1. Базовые финансовые константы

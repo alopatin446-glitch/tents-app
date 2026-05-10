@@ -169,22 +169,33 @@ export default function CalculationClient({
       // при них snapshot записывается первый и последний раз.
       const isAlreadyFrozen = wasHistoricalAtLoad || (isPriceLocked && Boolean(priceLockedAt));
 
-      // ── Mounting snapshot: создать при первой фиксации цены ──────────
-      // isTurningLockOn: isPriceLocked=true, но priceLockedAt ещё не проставлен
-      // → создаём mountingSnapshot один раз при фиксации.
-      // isAlreadyFrozen: snapshot уже должен присутствовать — не перезаписываем.
+      // ── Mounting snapshot ────────────────────────────────────────────
+      // Создаётся в двух случаях (оба = "первая и последняя фиксация"):
+      //
+      //   isTurningLockOn: isPriceLocked=true, priceLockedAt не проставлен.
+      //     Менеджер нажал «Зафиксировать цену» → фиксируем монтажный прайс.
+      //
+      //   isClosingNow (CH3-BUG-02 FIX): статус → done/cancelled,
+      //     заказ не был isPriceLocked раньше, snapshot ещё отсутствует.
+      //     Без этой ветки calculateMounting для закрытых заказов использовал
+      //     live currentPrices вместо цен на момент закрытия → искажение истории.
+      //
+      // isAlreadyFrozen: snapshot уже записан — никогда не перезаписываем.
       let finalMountingConfig = clientDataWithArea.mountingConfig as MountingConfig | null | undefined;
-      if (
-        isTurningLockOn &&
+
+      const needsMountingSnapshot =
         finalMountingConfig?.enabled &&
-        !finalMountingConfig?.mountingSnapshot
-      ) {
+        !finalMountingConfig?.mountingSnapshot &&
+        (isTurningLockOn || isClosingNow);
+
+      if (needsMountingSnapshot && finalMountingConfig) {
         const teamCategory = (finalMountingConfig.team?.category ?? 'mid') as 'pro' | 'mid' | 'junior';
         const mountingSnapshot = captureCurrentPriceSnapshot(teamCategory, currentPrices);
         finalMountingConfig = { ...finalMountingConfig, mountingSnapshot };
-        logger.info('[CalculationClient] Mounting snapshot created at price lock moment', {
+        logger.info('[CalculationClient] Mounting snapshot created', {
           clientId,
           teamCategory,
+          trigger: isTurningLockOn ? 'price_lock' : 'order_close',
         });
       }
 
