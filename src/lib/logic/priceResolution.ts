@@ -16,7 +16,7 @@
 
 export type PriceSnapshot = Record<string, number>;
 
-const HISTORICAL_STATUSES = new Set(['done', 'cancelled']);
+const HISTORICAL_STATUSES = new Set(['completed', 'rejected']);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -69,7 +69,7 @@ export interface ResolvedPrices {
 /**
  * ЕДИНСТВЕННАЯ точка разрешения активного прайс-листа.
  *
- *   done / cancelled    → savedPrices (или {} + isSnapshotIncomplete)
+ *   completed / rejected → savedPrices (или {} + isSnapshotIncomplete)
  *   isPriceLocked=true  → savedPrices (или {} + isSnapshotIncomplete)
  *   всё остальное       → currentPrices
  */

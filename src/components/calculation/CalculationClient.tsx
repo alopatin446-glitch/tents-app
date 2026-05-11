@@ -141,27 +141,27 @@ export default function CalculationClient({
     try {
       // ── Определяем финансовую заморозку заказа ──────────────────────────
       // isFinanciallyFrozen = true при:
-      //   — статус done/cancelled (historical snapshot)
+      //   — статус completed/rejected (historical snapshot)
       //   — isPriceLocked = true  (price lock snapshot)
       // Для замороженных заказов НЕ перезаписываем:
       //   savedPrices, productionCost, overspending, costPrice, totalExpenses.
       const isClosed =
-        clientDataWithArea.status === 'done' ||
-        clientDataWithArea.status === 'cancelled';
+        clientDataWithArea.status === 'completed' ||
+        clientDataWithArea.status === 'rejected';
       const isPriceLocked = Boolean(clientDataWithArea['isPriceLocked']);
       const priceLockedAt = (clientDataWithArea as Record<string, unknown>)['priceLockedAt'];
 
-      // wasHistoricalAtLoad: заказ был done/cancelled ещё при загрузке страницы.
+      // wasHistoricalAtLoad: заказ был completed/rejected ещё при загрузке страницы.
       // Используем ref — статус на момент монтирования компонента.
       const wasHistoricalAtLoad =
-        initialStatusRef.current === 'done' ||
-        initialStatusRef.current === 'cancelled';
+        initialStatusRef.current === 'completed' ||
+        initialStatusRef.current === 'rejected';
 
       // isTurningLockOn: isPriceLocked только что включён (priceLockedAt не проставлен).
       // Аналогично isClosingNow — нужно записать snapshot один раз.
       const isTurningLockOn = isPriceLocked && !isClosed && !priceLockedAt;
 
-      // isClosingNow: статус стал done/cancelled, но не был таким при загрузке.
+      // isClosingNow: статус стал completed/rejected, но не был таким при загрузке.
       // Менеджер переводит заказ в финальный статус — нужно записать финальный snapshot.
       const isClosingNow = isClosed && !wasHistoricalAtLoad;
 
@@ -178,7 +178,7 @@ export default function CalculationClient({
       //   isTurningLockOn: isPriceLocked=true, priceLockedAt не проставлен.
       //     Менеджер нажал «Зафиксировать цену» → фиксируем монтажный прайс.
       //
-      //   isClosingNow (CH3-BUG-02 FIX): статус → done/cancelled,
+      //   isClosingNow (CH3-BUG-02 FIX): статус → completed/rejected,
       //     заказ не был isPriceLocked раньше, snapshot ещё отсутствует.
       //     Без этой ветки calculateMounting для закрытых заказов использовал
       //     live currentPrices вместо цен на момент закрытия → искажение истории.

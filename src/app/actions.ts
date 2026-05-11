@@ -128,7 +128,7 @@ type UpdateClientPayload = {
   mountingCost?: unknown;
   /**
    * Итоговые расходы из расчётного ядра: windowsExpenses + extrasCost + mountingCost.
-   * Передаётся только для открытых заказов (не done/cancelled).
+   * Передаётся только для открытых заказов (не completed/rejected).
    */
   totalExpenses?: unknown;
   /**
@@ -292,17 +292,17 @@ export async function updateClientAction(
         return { success: false, error: 'Клиент не найден или доступ запрещён' };
       }
 
-      const FROZEN_STATUSES = ['done', 'cancelled'] as const;
-      const wasHistorical = FROZEN_STATUSES.includes(existingClient.status as 'done' | 'cancelled');
+      const FROZEN_STATUSES = ['completed', 'rejected'] as const;
+      const wasHistorical = FROZEN_STATUSES.includes(existingClient.status as 'completed' | 'rejected');
       const wasPriceLocked = existingClient.isPriceLocked;
 
-      // isClosingNow: статус меняется на done/cancelled впервые.
+      // isClosingNow: статус меняется на completed/rejected впервые.
       // При этом необходимо записать финальный financial snapshot — не защищаем.
       const incomingStatus = typeof data.status === 'string' ? data.status : existingClient.status;
-      const isClosingNow = !wasHistorical && FROZEN_STATUSES.includes(incomingStatus as 'done' | 'cancelled');
+      const isClosingNow = !wasHistorical && FROZEN_STATUSES.includes(incomingStatus as 'completed' | 'rejected');
 
       // isAlreadyFrozen: заказ уже был historical при этом запросе.
-      //   — wasHistorical: статус в DB уже done/cancelled
+      //   — wasHistorical: статус в DB уже completed/rejected
       //   — wasPriceLocked && priceLockedAt: price lock уже был зафиксирован
       // isClosingNow НЕ входит в isAlreadyFrozen: при нём snapshot записывается в первый раз.
       const isAlreadyFrozen = wasHistorical || (wasPriceLocked && Boolean(existingClient.priceLockedAt));
