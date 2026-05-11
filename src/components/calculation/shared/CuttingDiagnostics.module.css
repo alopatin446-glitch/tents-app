@@ -1,6 +1,6 @@
 /* CuttingDiagnostics.module.css
- * Стили диагностического блока «ПЛАН РАСКРОЯ ЗАКАЗА».
- * Все цвета и скругления соответствуют дизайн-системе ItemsStep.
+ * Chapter 4 (rev 2): расширенные стили с коллапсами и новыми секциями.
+ * Все исходные классы сохранены для обратной совместимости.
  */
 
 /* ─── Корневой блок ─────────────────────────────────────────────────────── */
@@ -19,8 +19,6 @@
   letter-spacing: 1px;
 }
 
-/* ─── Подзаголовок-описание ──────────────────────────────────────────────── */
-
 .description {
   color: rgba(255, 255, 255, 0.55);
   font-size: 0.68rem;
@@ -32,7 +30,7 @@
   padding: 8px 10px;
 }
 
-/* ─── Список карточек изделий ────────────────────────────────────────────── */
+/* ─── Карточки изделий ───────────────────────────────────────────────────── */
 
 .batchList {
   display: flex;
@@ -72,12 +70,18 @@
   white-space: nowrap;
 }
 
-/* ─── Сетка параметров карточки ──────────────────────────────────────────── */
+/* ─── Тело секции ────────────────────────────────────────────────────────── */
+
+.sectionBody {
+  padding: 6px 0 4px;
+}
+
+/* ─── Параметры карточки ─────────────────────────────────────────────────── */
 
 .paramGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px 12px;
+  gap: 4px 12px;
   font-size: 0.68rem;
 }
 
@@ -85,6 +89,7 @@
   display: flex;
   justify-content: space-between;
   gap: 8px;
+  grid-column: 1 / -1;
 }
 
 .paramLabel {
@@ -111,12 +116,51 @@
   font-weight: 700;
 }
 
-/* ─── Строки детализации перерасхода (вложены в ячейку paramGrid) ─────────── */
+.paramValue--note {
+  color: rgba(123, 255, 0, 0.6);
+  font-weight: 600;
+}
+
+/* ─── Подзаголовки внутри секции ─────────────────────────────────────────── */
+
+.subHeading {
+  grid-column: 1 / -1;
+  color: rgba(123, 255, 0, 0.7);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+
+/* ─── Формулы ────────────────────────────────────────────────────────────── */
+
+.formulaRow {
+  grid-column: 1 / -1;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 0.6rem;
+  font-style: italic;
+  margin-top: -2px;
+  margin-bottom: 2px;
+}
+
+/* ─── Разделитель ────────────────────────────────────────────────────────── */
+
+.divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  background: rgba(123, 255, 0, 0.1);
+  margin: 6px 0;
+}
+
+/* ─── Строки детализации перерасхода (legacy — сохранено для совместимости) ── */
 
 .overflowCell {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  grid-column: 1 / -1;
 }
 
 .diagnosticRow {
@@ -135,7 +179,138 @@
   font-weight: 700;
 }
 
-/* ─── Предупреждения внутри карточки ─────────────────────────────────────── */
+/* ─── Коллапс-заголовок секции ───────────────────────────────────────────── */
+
+.extraSection {
+  margin-top: 8px;
+  border-top: 1px solid rgba(123, 255, 0, 0.10);
+}
+
+.sectionHeader {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 0 4px;
+  gap: 8px;
+}
+
+.sectionTitle {
+  color: rgba(123, 255, 0, 0.85);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+.sectionChevron {
+  color: rgba(123, 255, 0, 0.5);
+  font-size: 0.55rem;
+  flex-shrink: 0;
+}
+
+/* ─── Шаг крепежа по сторонам ────────────────────────────────────────────── */
+
+.stepHeading {
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.stepGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stepRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.65rem;
+}
+
+.stepLabel {
+  color: rgba(255, 255, 255, 0.45);
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.stepValue {
+  color: #fff;
+  flex: 1;
+}
+
+.stepValue b {
+  color: #7BFF00;
+}
+
+.stepFormula {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.58rem;
+}
+
+/* ─── Список допов ───────────────────────────────────────────────────────── */
+
+.extrasList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.extraItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.65rem;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.extraItemIcon {
+  color: rgba(123, 255, 0, 0.6);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+}
+
+.extraItemLabel {
+  color: rgba(255, 255, 255, 0.7);
+  flex: 1;
+}
+
+.extraItemPrice {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.62rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.extraWorkRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.65rem;
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(123, 255, 0, 0.1);
+}
+
+.extrasTotals {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(123, 255, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* ─── Предупреждения ─────────────────────────────────────────────────────── */
 
 .warnings {
   margin-top: 8px;
@@ -232,4 +407,224 @@
 
 .totalValue {
   color: #fff;
+}
+
+/* ─── Полный итог по окну ────────────────────────────────────────────────── */
+
+.fullTotalsBlock {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(123, 255, 0, 0.05);
+  border: 1px solid rgba(123, 255, 0, 0.2);
+  border-radius: 8px;
+}
+
+.fullTotalsHeading {
+  color: #7BFF00;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 6px;
+}
+
+/* ─── Блок СВЕРКА ────────────────────────────────────────────────────────── */
+
+.reconcileBlock {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: rgba(0, 229, 255, 0.04);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  border-radius: 8px;
+}
+
+.reconcileHeading {
+  color: rgba(0, 229, 255, 0.85);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 6px;
+}
+
+.reconcileRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  font-size: 0.62rem;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.reconcileRow:last-child {
+  border-bottom: none;
+}
+
+.reconcileLabel {
+  color: rgba(255, 255, 255, 0.5);
+  min-width: 85px;
+  flex-shrink: 0;
+}
+
+.reconcileOldValue {
+  color: rgba(255, 255, 255, 0.35);
+  text-decoration: line-through;
+  font-size: 0.6rem;
+}
+
+.reconcileArrow {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.6rem;
+}
+
+.reconcileNewValue--ok {
+  color: #7BFF00;
+  font-weight: 700;
+}
+
+.reconcileNewValue--changed {
+  color: #fff;
+  font-weight: 700;
+}
+
+.reconcileStatus--ok {
+  color: #7BFF00;
+  font-size: 0.58rem;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.reconcileStatus--changed {
+  color: #FFD600;
+  font-size: 0.58rem;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.reconcileNote {
+  width: 100%;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.58rem;
+  font-style: italic;
+  padding-left: 4px;
+}
+
+/* ─── Сверка заказа (order-level) ────────────────────────────────────────── */
+
+.orderReconcileBlock {
+  margin: 16px 0;
+  padding: 12px 14px;
+  background: rgba(0, 229, 255, 0.05);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  border-radius: 10px;
+}
+
+.orderReconcileHeading {
+  color: rgba(0, 229, 255, 0.9);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  margin-bottom: 4px;
+}
+
+.orderReconcileSubtitle {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.58rem;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.orderReconcileTable {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.orderReconcileHeaderRow {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px 64px;
+  gap: 4px;
+  padding: 3px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orderReconcileRow {
+  display: grid;
+  grid-template-columns: 1fr 80px 80px 64px;
+  gap: 4px;
+  align-items: start;
+  padding: 4px 4px;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.orderReconcileRow:nth-child(even) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.orcLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.orcHint {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 0.56rem;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.orcClientVal {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.62rem;
+  text-align: right;
+}
+
+.orcDiagVal {
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.orcStatus--ok {
+  color: #7BFF00;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.orcStatus--mismatch {
+  color: #ff4d4f;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* header column — same layout as ok/mismatch variants */
+.orcStatus {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.58rem;
+  text-align: right;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orcMismatchNote {
+  grid-column: 1 / -1;
+  color: #ff4d4f;
+  font-size: 0.58rem;
+  padding: 2px 4px 0;
+  opacity: 0.8;
 }

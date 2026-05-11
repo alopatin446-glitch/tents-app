@@ -3,19 +3,18 @@
 /**
  * Шаг производства — просмотр раскроя мастером.
  *
- * Левая панель:
- *   1. Параметры материала (выбор ширины рулона для CuttingCanvas)
- *   2. Блок «ПЛАН РАСКРОЯ ЗАКАЗА» (CuttingDiagnostics)
- *
- * Правая панель:
- *   Вкладки переключения окон сверху.
- *   Визуализация раскроя выбранного изделия (CuttingCanvas).
+ * Chapter 4: добавлены price props для корректного отображения
+ *   себестоимости, допов и крепежей в CuttingDiagnostics.
+ *   Используется resolveActivePrices — frozen orders читают savedPrices,
+ *   живые — currentPrices. Монтаж не затрагивается.
  */
 
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { type WindowItem } from '@/types';
+import { type PriceMap } from '@/lib/logic/pricingLogic';
+import { resolveActivePrices } from '@/lib/logic/priceResolution';
 import CuttingCanvas from './CuttingCanvas';
-import CuttingDiagnostics from '@/components/calculation/shared/CuttingDiagnostics';
+import CuttingDiagnostics, { type OrderTotals } from '@/components/calculation/shared/CuttingDiagnostics';
 import styles from './ItemsStep.module.css';
 import { calculateWindowGeometry } from '@/lib/logic/windowCalculations';
 
@@ -23,51 +22,49 @@ interface ProductionStepProps {
   windows: WindowItem[];
   activeWindowId: number;
   onActiveWindowChange: (id: number) => void;
+  currentPrices?: PriceMap;
+  clientStatus?: string | null;
+  isPriceLocked?: boolean;
+  savedPrices?: Record<string, number> | null;
+  /** Агрегаты из useCalculationState — для сверки с per-window расчётом */
+  orderTotals?: OrderTotals;
 }
 
 export default function ProductionStep({
   windows,
   activeWindowId,
   onActiveWindowChange,
+  currentPrices = {},
+  clientStatus,
+  isPriceLocked = false,
+  savedPrices,
+  orderTotals,
 }: ProductionStepProps) {
-  const [rollWidth, setRollWidth] = useState<number>(1400);
-
   const activeWindow: WindowItem | undefined = windows.find(
     (w) => w.id === activeWindowId,
   );
 
+  /**
+   * Резолвим активный прайс — инвариант Chapter 1:
+   * frozen/locked → savedPrices, live → currentPrices.
+   * Монтаж не участвует (собственный mountingSnapshot).
+   */
+  const activePrices = useMemo<PriceMap>(() => {
+    return resolveActivePrices({
+      status:        clientStatus,
+      isPriceLocked: isPriceLocked,
+      savedPrices:   savedPrices,
+      currentPrices,
+    }).prices;
+  }, [clientStatus, isPriceLocked, savedPrices, currentPrices]);
+
   return (
     <div className={styles.itemsGrid}>
-      {/* ── ЛЕВАЯ ПАНЕЛЬ ─────────────────────────────────────────────────── */}
       <aside className={styles.inputPanelWrapper}>
-        {/* 1. Параметры материала */}
-        <div className={styles.formSection}>
-          <h4>Параметры материала</h4>
-          <div className={styles.inputGroup} style={{ position: 'relative' }}>
-            <select
-              className={styles.selectInput}
-              value={rollWidth}
-              onChange={(e) => setRollWidth(Number(e.target.value))}
-            >
-              <option value={1400}>Рулон 1400 мм</option>
-              <option value={2000}>Рулон 2000 мм</option>
-              <option value={2500}>Рулон 2500 мм</option>
-            </select>
-            <div className={styles.selectArrow}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Диагностический блок раскроя */}
-        <CuttingDiagnostics windows={windows} />
+        <CuttingDiagnostics windows={windows} priceMap={activePrices} orderTotals={orderTotals} />
       </aside>
 
-      {/* ── ПРАВАЯ ПАНЕЛЬ ────────────────────────────────────────────────── */}
       <div className={styles.rightColumn}>
-        {/* Вкладки сверху как на первом шаге */}
         <div className={styles.tabsRow}>
           {windows.map((win, index) => (
             <div
@@ -80,12 +77,10 @@ export default function ProductionStep({
           ))}
         </div>
 
-        {/* Визуализация */}
         <div className={styles.drawingWrapper}>
           {activeWindow ? (
             <CuttingCanvas
               windowItem={activeWindow}
-              // Вместо стейта rollWidth берем реальную ширину списания из ядра
               rollWidth={calculateWindowGeometry(activeWindow).rollWidth * 10}
             />
           ) : (
@@ -93,7 +88,6 @@ export default function ProductionStep({
           )}
         </div>
 
-        {/* Инфо-бар снизу */}
         <div className={styles.bottomInfoBar}>
           <div className={styles.statLabel}>
             Изделие: <span>{activeWindow?.name ?? '—'}</span>

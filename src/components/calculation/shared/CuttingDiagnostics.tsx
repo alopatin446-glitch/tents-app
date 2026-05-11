@@ -1,22 +1,24 @@
 'use client';
 
 /**
- * Диагностический блок «ПЛАН РАСКРОЯ ЗАКАЗА».
+ * CuttingDiagnostics — «ПЛАН РАСКРОЯ ЗАКАЗА».
  *
- * Показывает мастеру на производстве ту же математику раскроя,
- * которая была рассчитана при создании заказа:
- *  — параметры раскроя каждого изделия (поворот, длина отреза, ширина списания)
- *  — площади: productionArea (реальный расход) и retailArea (чек клиента)
- *  — детализацию перерасхода канта
- *  — сводку по группам из calculateOrderOptimization()
+ * Chapter 4 (rev 2): расширенные секции с collapsible промежуточными расчётами.
  *
- * Компонент не хранит локального состояния — только отображает
- * данные, полученные через пропсы.
+ * Секции каждого изделия:
+ *   1. Геометрия (всегда развёрнута)
+ *   2. Кант     (кол-во, перерасход, формула — скрываемая детализация)
+ *   3. Крепёж   (тип, стороны, шаг, ЗП, розница/себес — скрываемая детализация)
+ *   4. Допы     (каждый элемент с ценами — скрываемая детализация)
+ *   5. Себестоимость (итоговый breakdown — скрываемая детализация)
+ *
+ * priceMap — опционален. Без него финансовые секции скрыты (backward compat).
+ * Snapshot: activePrices из ProductionStep (resolveActivePrices) — инвариант Ch.1.
  *
  * @module src/components/calculation/shared/CuttingDiagnostics.tsx
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { type WindowItem } from '@/types';
 import {
   calculateWindowGeometry,
@@ -24,136 +26,715 @@ import {
   formatArea,
   SOLDER_ALLOWANCE,
   type WindowGeometry,
-  type OrderOptimization,
 } from '@/lib/logic/windowCalculations';
+import {
+  calculateWindowFinance,
+  type PriceMap,
+  type WindowFinance,
+} from '@/lib/logic/pricingLogic';
+import {
+  calculateExtrasAsServiceItems,
+  getOuterBottomCm,
+} from '@/lib/logic/extrasCalculations';
+import { type ServiceItem } from '@/logic/orders/Order';
 import styles from './CuttingDiagnostics.module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Локальные типы
+// Публичный тип — импортируется ProductionStep и CalculationClient
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface WindowDebugRow {
+/**
+ * Агрегаты уровня заказа из useCalculationState / CalculationClient.
+ * Передаются в CuttingDiagnostics для сверки с per-window расчётом.
+ *
+ * clientProductCostDisplay = costPrice + fastenersCostTotal + extrasCostTotal
+ *   — то, что ClientStep показывает в строке «Стоимость изделия».
+ *   Нельзя путать с finance.costPrice (только плёнка + кант одного окна).
+ *
+ * expensesWithoutMounting = totalExpenses - mountingCostTotal
+ *   — «Всего расходов» без монтажа, т.к. CuttingDiagnostics монтаж не видит.
+ */
+export interface OrderTotals {
+  /** ClientStep «Стоимость изделия» = costPrice + fasteners + extras (все окна) */
+  clientProductCostDisplay: number;
+  /** ClientStep «Перерасход» = Σ finance.overspending (все окна) */
+  totalOverspending: number;
+  /** ClientStep «Изготовление» = Σ finance.productionCost (все окна) */
+  totalProductionCost: number;
+  /** «Всего расходов без монтажа» = windowsExpensesTotal + extrasCostTotal */
+  expensesWithoutMounting: number;
+  /** Розница без монтажа = windowsRetailTotal + extrasRetailTotal */
+  totalRetailNoMounting: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Константы
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Целевой шаг между крепежами (см) — совпадает с DrawingCanvas targetStepSvg / scale. */
+const FASTENER_TARGET_STEP_CM = 35;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Типы
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SideStep {
+  lengthCm: number;
+  count: number;
+  stepCm: number;
+}
+
+interface FastenerSteps {
+  top:    SideStep | null;
+  bottom: SideStep | null;
+  left:   SideStep | null;
+  right:  SideStep | null;
+}
+
+interface WindowRow {
   id: number;
   index: number;
   name: string;
   material: string;
-  innerWidth: number;
-  innerHeight: number;
-  cutWidthRaw: number;
-  cutHeightRaw: number;
-  widthAcrossRoll: number;
-  cutLength: number;
-  chargedWidth: number;
   geometry: WindowGeometry;
+  finance: WindowFinance | null;
+  extrasItems: ServiceItem[];
+  fastenerSteps: FastenerSteps;
+  item: WindowItem;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Форматирование
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getMaterialLabel(material: string): string {
-  switch (material) {
-    case 'PVC_700':  return 'ПВХ 700';
-    case 'TINTED':   return 'Тонировка';
-    case 'TPU':      return 'TPU';
-    case 'MOSQUITO': return 'Москитка';
-    default:         return material || '—';
-  }
+function getMaterialLabel(m: string): string {
+  return ({ PVC_700: 'ПВХ 700', TINTED: 'Тонировка', TPU: 'TPU', MOSQUITO: 'Москитка' } as Record<string, string>)[m] ?? m ?? '—';
 }
 
-function formatCm(value: number): string {
-  if (!Number.isFinite(value)) return '—';
-  return `${value.toFixed(0)} см`;
+function getFastenerLabel(t: string): string {
+  return ({
+    eyelet_10: 'Люверс 10мм', strap: 'Ремешок', staple_pa: 'Полиам. скоба',
+    staple_metal: 'Металл. скоба', french_lock: 'Фр. скоба', none: '—',
+  } as Record<string, string>)[t] ?? t ?? '—';
 }
 
-function formatM(valueCm: number): string {
-  if (!Number.isFinite(valueCm)) return '—';
-  return `${(valueCm / 100).toFixed(2)} м`;
+function fCm(v: number): string {
+  return Number.isFinite(v) ? `${v.toFixed(0)} см` : '—';
+}
+
+function fM(vcm: number): string {
+  return Number.isFinite(vcm) ? `${(vcm / 100).toFixed(2)} м` : '—';
+}
+
+function fRub(v: number): string {
+  return Number.isFinite(v) ? `${Math.round(v).toLocaleString('ru-RU')} ₽` : '—';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Построение строки диагностики
+// Шаг крепежа (cm) — идентичен логике DrawingCanvas getDotsAlongLine
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildDebugRow(item: WindowItem, index: number): WindowDebugRow {
-  const geometry = calculateWindowGeometry(item);
+function calcSideStep(lengthCm: number): SideStep {
+  const n = Math.max(1, Math.round(lengthCm / FASTENER_TARGET_STEP_CM));
+  return { lengthCm, count: n, stepCm: Math.round(lengthCm / n * 10) / 10 };
+}
 
-  // Все размерные параметры — только из ядра, никакой ручной арифметики в UI
-  const innerWidth  = geometry.maxWidth;
-  const innerHeight = geometry.maxHeight;
-  const cutWidthRaw  = geometry.cutWidth;
-  const cutHeightRaw = geometry.cutHeight;
-
+function buildFastenerSteps(item: WindowItem): FastenerSteps {
+  const ft = item.fasteners;
+  const none = { top: null, bottom: null, left: null, right: null };
+  if (!ft || ft.type === 'none') return none;
+  const { sides } = ft;
   return {
-    id:             item.id,
-    index,
-    name:           item.name,
-    material:       item.material || 'PVC_700',
-    innerWidth,
-    innerHeight,
-    cutWidthRaw,
-    cutHeightRaw,
-    widthAcrossRoll: geometry.cutWidth,   // из ядра
-    cutLength:       geometry.cutHeight,  // из ядра
-    chargedWidth:    geometry.rollWidth,  // ширина рулона = ширина списания
-    geometry,
+    top:    sides.top    === true ? calcSideStep(item.widthTop)     : null,
+    bottom: sides.bottom === true ? calcSideStep(item.widthBottom)  : null,
+    left:   sides.left   === true ? calcSideStep(item.heightLeft)   : null,
+    right:  sides.right  === true ? calcSideStep(item.heightRight)  : null,
   };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Пропсы
+// Построение строки
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildRow(item: WindowItem, index: number, pm: PriceMap | null): WindowRow {
+  const geometry      = calculateWindowGeometry(item);
+  const finance       = pm ? calculateWindowFinance(item, pm) : null;
+  const extrasItems   = pm ? calculateExtrasAsServiceItems(item, pm, index) : [];
+  const fastenerSteps = buildFastenerSteps(item);
+  return { id: item.id, index, name: item.name, material: item.material || 'PVC_700', geometry, finance, extrasItems, fastenerSteps, item };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Компоненты-секции
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Заголовок коллапсируемой секции */
+function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
+  return (
+    <button className={styles.sectionHeader} onClick={onToggle} type="button">
+      <span className={styles.sectionTitle}>{title}</span>
+      <span className={styles.sectionChevron}>{open ? '▲' : '▼'}</span>
+    </button>
+  );
+}
+
+/** Одна строка label / value */
+function Row({ label, value, variant }: { label: string; value: string; variant?: 'ok' | 'warn' | 'note' }) {
+  const cls = variant === 'ok' ? styles['paramValue--ok'] : variant === 'warn' ? styles['paramValue--waste'] : variant === 'note' ? styles['paramValue--note'] : styles.paramValue;
+  return (
+    <div className={styles.paramRow}>
+      <span className={styles.paramLabel}>{label}</span>
+      <span className={cls}>{value}</span>
+    </div>
+  );
+}
+
+/** Строка формулы (мелким шрифтом) */
+function FormulaRow({ formula }: { formula: string }) {
+  return <div className={styles.formulaRow}>{formula}</div>;
+}
+
+// ── 1. Геометрия ─────────────────────────────────────────────────────────────
+
+function GeoSection({ row }: { row: WindowRow }) {
+  const g = row.geometry;
+  return (
+    <div className={styles.sectionBody}>
+      <div className={styles.paramGrid}>
+        <Row label="Внутренний размер" value={`${fCm(g.maxWidth)} × ${fCm(g.maxHeight)}`} />
+        <Row label={`Заготовка (+${SOLDER_ALLOWANCE} см, ш × в)`} value={`${fCm(g.cutWidth)} × ${fCm(g.cutHeight)}`} />
+        <Row label="Поворот" value={g.isRotated ? '90°' : '0°'} variant={g.isRotated ? 'warn' : 'ok'} />
+        <Row label="Рулон" value={fCm(g.rollWidth)} />
+        <Row label="Длина отреза по рулону" value={fM(g.cutHeight)} />
+        <Row label="Производство м²" value={`${g.productionArea.toFixed(4)} м²`} />
+        <Row label="Чек (Max W×H) м²" value={`${g.retailArea.toFixed(4)} м²`} variant="ok" />
+        <Row label="С кантом м²" value={formatArea(g.areaWithKant)} />
+        <Row label="Списание рулона" value={formatArea(g.cutArea)} variant="ok" />
+        <Row label="Перерасход плёнки" value={formatArea(g.wasteArea)} variant={g.wasteArea > 0 ? 'warn' : 'ok'} />
+        {g.type === 'trapezoid' && (
+          <>
+            <Row label="Верх sideTop" value={`${g.sideTop.toFixed(1)} см`} />
+            <Row label="Лево / Право" value={`${g.sideLeft.toFixed(1)} / ${g.sideRight.toFixed(1)} см`} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── 2. Кант ──────────────────────────────────────────────────────────────────
+
+function KantSection({ row, open, onToggle }: { row: WindowRow; open: boolean; onToggle: () => void }) {
+  const g = row.geometry;
+  const f = row.finance;
+  const perimM = (g.perimeterWithKant / 100).toFixed(3);
+
+  return (
+    <div className={styles.extraSection}>
+      <SectionHeader title="Кант" open={open} onToggle={onToggle} />
+      {open && (
+        <div className={styles.sectionBody}>
+          <div className={styles.paramGrid}>
+            <Row label="Периметр с кантом" value={`${perimM} м`} />
+            <Row label="Ширина ленты канта" value="10 см (0.10 м)" variant="note" />
+            <Row label="Кант в изделии" value={`${g.kantAreaInProduct.toFixed(3)} м²`} />
+            <FormulaRow formula={`= периметр ${perimM}м × 0.10м`} />
+            <Row label="Перерасход канта" value={`${g.kantWasteArea.toFixed(3)} м²`} variant="warn" />
+            <FormulaRow formula="= по 30 см отхода × ширину канта × 2 слоя на каждую сторону с кантом" />
+            <Row label="Кант всего" value={`${g.kantTotalArea.toFixed(3)} м²`} />
+          </div>
+          {f && (
+            <>
+              <div className={styles.divider} />
+              <div className={styles.paramGrid}>
+                <Row label="Цена канта за м²" value={fRub(f.kantPriceM2)} variant="note" />
+                <Row label="Кант в изделии ₽" value={fRub(f.kantMaterialProductCost)} />
+                <FormulaRow formula={`= ${perimM}м × 0.10м × ${fRub(f.kantPriceM2)}/м²`} />
+                <Row label="Перерасход канта ₽" value={fRub(f.kantLaborCost)} variant="warn" />
+                <Row label="Кант всего ₽" value={fRub(f.kantMaterialCost)} />
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 3. Крепёж ────────────────────────────────────────────────────────────────
+
+function FastenerSection({ row, open, onToggle }: { row: WindowRow; open: boolean; onToggle: () => void }) {
+  const ft = row.item.fasteners;
+  const f  = row.finance;
+  if (!ft || ft.type === 'none') return null;
+
+  const { fastenerSteps: steps } = row;
+
+  const sideRows: Array<{ key: string; label: string; data: SideStep | null }> = [
+    { key: 'top',    label: 'Верх',  data: steps.top },
+    { key: 'bottom', label: 'Низ',   data: steps.bottom },
+    { key: 'left',   label: 'Лево',  data: steps.left },
+    { key: 'right',  label: 'Право', data: steps.right },
+  ];
+
+  const activeSides = sideRows.filter(s => s.data !== null);
+
+  return (
+    <div className={styles.extraSection}>
+      <SectionHeader title={`Крепёж — ${getFastenerLabel(ft.type)}`} open={open} onToggle={onToggle} />
+      {open && (
+        <div className={styles.sectionBody}>
+          <div className={styles.paramGrid}>
+            <Row label="Тип" value={getFastenerLabel(ft.type)} />
+            {ft.finish && <Row label="Отделка" value={ft.finish} />}
+            <Row label="Точек всего" value={`${ft.pointsCount ?? 0} шт`} />
+          </div>
+
+          {/* Шаг по сторонам */}
+          {activeSides.length > 0 && (
+            <>
+              <div className={styles.stepHeading}>Шаг по сторонам (цель ≈35 см):</div>
+              <div className={styles.stepGrid}>
+                {activeSides.map(({ key, label, data }) =>
+                  data ? (
+                    <div key={key} className={styles.stepRow}>
+                      <span className={styles.stepLabel}>{label}:</span>
+                      <span className={styles.stepValue}>
+                        {data.count} шт × <b>{data.stepCm.toFixed(1)} см</b>
+                      </span>
+                      <span className={styles.stepFormula}>
+                        ({data.lengthCm.toFixed(0)} ÷ {data.count})
+                      </span>
+                    </div>
+                  ) : null
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Финансы */}
+          {f && (
+            <>
+              <div className={styles.divider} />
+              <div className={styles.paramGrid}>
+                <Row label="Розница крепёж" value={fRub(f.fastenersRetail)} variant="ok" />
+                <Row label="Себес крепёж" value={fRub(f.fastenersCost)} />
+                <Row label="ЗП пробивка" value={fRub(f.fastenersWork)} />
+                <FormulaRow formula="= периметр активных сторон (м) × c_produc_fasteners_per_meter" />
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 4. Допы ──────────────────────────────────────────────────────────────────
+
+function ExtrasSection({ row, open, onToggle }: { row: WindowRow; open: boolean; onToggle: () => void }) {
+  // siMap строится до любых return — правило хуков (hooks must not follow early returns).
+  // useMemo здесь не нужен: buildRow уже мемоизирован на уровне родителя,
+  // extrasItems меняется только при пересчёте всей строки.
+  const siMap: Record<string, ServiceItem> = {};
+  row.extrasItems.forEach(si => { siMap[si.id] = si; });
+
+  const ae = row.item.additionalElements;
+  if (!ae) return null;
+
+  // Safe destructuring: legacy-записи могут не иметь поля straps совсем.
+  const { zippers = [], dividers = [], cutouts = [], welding = [], hasSkirt = false, hasWeight = false, skirtWidth = 0 } = ae;
+  const strapsCount = ae.straps?.count ?? 0;
+  const strapsType  = ae.straps?.type  ?? 'grommet';
+
+  const outerBottomM = getOuterBottomCm(row.item) / 100;
+  const f = row.finance;
+
+  const hasAny = strapsCount > 0 || zippers.length > 0 || hasSkirt || hasWeight ||
+    dividers.length > 0 || cutouts.length > 0 || welding.length > 0;
+  if (!hasAny) return null;
+
+  const totalRetail = row.extrasItems.reduce((s, i) => s + i.totalRetail, 0);
+  const totalCost   = row.extrasItems.reduce((s, i) => s + i.totalCost,   0);
+
+  function PriceSpan({ slug }: { slug: string }) {
+    const si = siMap[slug];
+    if (!si || !row.finance) return null;
+    return (
+      <span className={styles.extraItemPrice}>
+        {fRub(si.totalRetail)} / {fRub(si.totalCost)}
+      </span>
+    );
+  }
+
+  return (
+    <div className={styles.extraSection}>
+      <SectionHeader title={`Допы (${row.extrasItems.length})`} open={open} onToggle={onToggle} />
+      {open && (
+        <div className={styles.sectionBody}>
+          <div className={styles.extrasList}>
+
+            {strapsCount > 0 && (
+              <div className={styles.extraItem}>
+                <span className={styles.extraItemIcon}>⊙</span>
+                <span className={styles.extraItemLabel}>
+                  Стяжки {strapsCount} шт ({strapsType === 'fastex' ? 'фастекс' : 'люверс'})
+                </span>
+                <PriceSpan slug={`${strapsType === 'fastex' ? 'strap_fastex' : 'strap_grommet'}-w${row.item.id}`} />
+              </div>
+            )}
+
+            {zippers.map((z, i) => (
+              <div key={z.id} className={styles.extraItem}>
+                <span className={styles.extraItemIcon}>↕</span>
+                <span className={styles.extraItemLabel}>
+                  Молния #{i + 1} ({z.orientation === 'horizontal' ? 'горизонт.' : 'вертик.'})
+                </span>
+                <PriceSpan slug={`zipper-w${row.item.id}-${z.id}`} />
+              </div>
+            ))}
+
+            {hasSkirt && (
+              <div className={styles.extraItem}>
+                <span className={styles.extraItemIcon}>▬</span>
+                <span className={styles.extraItemLabel}>
+                  Юбка {outerBottomM.toFixed(2)} м.п.{skirtWidth > 0 ? ` (ш. ${skirtWidth} см)` : ''}
+                </span>
+                <PriceSpan slug={`skirt-w${row.item.id}`} />
+              </div>
+            )}
+
+            {hasWeight && (
+              <div className={styles.extraItem}>
+                <span className={styles.extraItemIcon}>≡</span>
+                <span className={styles.extraItemLabel}>
+                  Утяжелитель {outerBottomM.toFixed(2)} м.п.
+                </span>
+                <PriceSpan slug={`weight-w${row.item.id}`} />
+              </div>
+            )}
+
+            {dividers.map((d, i) => (
+              <div key={d.id} className={styles.extraItem}>
+                <span className={styles.extraItemIcon}>│</span>
+                <span className={styles.extraItemLabel}>
+                  Разделитель #{i + 1} ({d.orientation === 'horizontal' ? 'горизонт.' : 'вертик.'})
+                  {d.width > 0 ? ` ш.${d.width}см` : ''}
+                </span>
+                <PriceSpan slug={`divider-w${row.item.id}-${d.id}`} />
+              </div>
+            ))}
+
+            {cutouts.map((c, i) => (
+              <div key={c.id} className={styles.extraItem}>
+                <span className={styles.extraItemIcon}>{c.type === 'cut' ? '□' : '◪'}</span>
+                <span className={styles.extraItemLabel}>
+                  {c.type === 'cut' ? 'Вырез' : 'Заплатка'} #{i + 1}
+                  {c.width > 0 && c.height > 0 ? ` ${c.width}×${c.height}см` : ''}
+                </span>
+                <PriceSpan slug={`${c.type}-w${row.item.id}-${c.id}`} />
+              </div>
+            ))}
+
+            {welding.map((w, i) => (
+              <div key={w.id} className={styles.extraItem}>
+                <span className={styles.extraItemIcon}>⌇</span>
+                <span className={styles.extraItemLabel}>
+                  Техпайка #{i + 1} ({w.orientation === 'horizontal' ? 'горизонт.' : 'вертик.'})
+                </span>
+                <PriceSpan slug={`welding-w${row.item.id}-${w.id}`} />
+              </div>
+            ))}
+          </div>
+
+          {/* ЗП допы */}
+          {f && f.extrasWorkCost > 0 && (
+            <div className={styles.extraWorkRow}>
+              <span className={styles.paramLabel}>ЗП допы:</span>
+              <span className={styles.paramValue}>{fRub(f.extrasWorkCost)}</span>
+            </div>
+          )}
+
+          {/* Итого допы */}
+          {row.extrasItems.length > 0 && (
+            <div className={styles.extrasTotals}>
+              <div className={styles.paramRow}>
+                <span className={styles.paramLabel}>Итого допы — розница:</span>
+                <span className={styles['paramValue--ok']}>{fRub(totalRetail)}</span>
+              </div>
+              <div className={styles.paramRow}>
+                <span className={styles.paramLabel}>Себес материал:</span>
+                <span className={styles.paramValue}>{fRub(totalCost)}</span>
+              </div>
+              {f && (
+                <div className={styles.paramRow}>
+                  <span className={styles.paramLabel}>ЗП монтаж:</span>
+                  <span className={styles.paramValue}>{fRub(f.extrasWorkCost)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 5. Себестоимость ─────────────────────────────────────────────────────────
+
+function FinanceSection({ row, open, onToggle }: { row: WindowRow; open: boolean; onToggle: () => void }) {
+  const f = row.finance;
+  if (!f) return null;
+  const g = row.geometry;
+
+  // ── Агрегаты допов этого окна ─────────────────────────────────────────────
+  // Берём из row.extrasItems — те же данные, что useCalculationState суммирует
+  // в extrasCostTotal / extrasRetailTotal по всем окнам.
+  const extrasWindowCost   = row.extrasItems.reduce((s, i) => s + i.totalCost,   0);
+  const extrasWindowRetail = row.extrasItems.reduce((s, i) => s + i.totalRetail, 0);
+
+  // ── Полный итог по окну (соответствует полям ClientStep) ──────────────────
+  //
+  // windowDisplayCost  → вклад в «Стоимость изделия» ClientStep
+  //   = costPrice + fastenersCost + extrasCostWindow
+  //
+  // windowTotalExpenses → вклад в «Всего расходов» ClientStep
+  //   = finance.totalExpenses (film+kant+waste+production+fasteners)
+  //   + extrasCostWindow (материал допов)
+  //
+  // windowRetailFull → вклад в «Итого розница» ClientStep
+  //   = finance.retailPrice (изделие+крепёж)
+  //   + extrasWindowRetail (допы розница)
+  //
+  // finance.totalExpenses уже содержит overspending, productionCost, fastenersCost.
+  // extrasCostWindow — единственное, что не входило в finance.totalExpenses.
+  const windowDisplayCost   = f.costPrice + f.fastenersCost + extrasWindowCost;
+  const windowTotalExpenses = f.totalExpenses + extrasWindowCost;
+  const windowRetailFull    = f.retailPrice  + extrasWindowRetail;
+  const windowProfit        = windowRetailFull - windowTotalExpenses;
+
+  return (
+    <div className={styles.extraSection}>
+      <SectionHeader title="Себестоимость изделия" open={open} onToggle={onToggle} />
+      {open && (
+        <div className={styles.sectionBody}>
+          <div className={styles.paramGrid}>
+
+            {/* Материал */}
+            <div className={styles.subHeading}>Плёнка</div>
+            <Row label="Цена за м²" value={fRub(f.materialPriceM2)} variant="note" />
+            <Row label="Площадь в изделии" value={`${(g.cutWidth * g.cutHeight / 10000).toFixed(4)} м²`} />
+            <FormulaRow formula={`= заготовка ${fCm(g.cutWidth)} × ${fCm(g.cutHeight)} / 10000`} />
+            <Row label="Плёнка в изделии" value={fRub(f.materialInProductCost)} />
+            <Row label="Списание рулона (вся полоса)" value={fRub(f.materialCutCost)} />
+            <Row label="Перерасход (плёнка + кант + молнии)" value={fRub(f.overspending)} variant="warn" />
+            <FormulaRow formula="= остаток рулона × цена + обрезки канта × цена + 30 см × кол-во молний" />
+
+            {/* Кант */}
+            <div className={styles.subHeading}>Кант</div>
+            <Row label="Кант в изделии" value={fRub(f.kantMaterialProductCost)} />
+            <Row label="Перерасход канта" value={fRub(f.kantLaborCost)} variant="warn" />
+            <Row label="Кант всего" value={fRub(f.kantMaterialCost)} />
+
+            {/* Работа */}
+            <div className={styles.subHeading}>Работа цеха</div>
+            <Row label="ЗП базовая" value={fRub(f.baseProductionCost)} />
+            <FormulaRow formula={`= ${g.productionArea.toFixed(4)} м² × c_produc_1`} />
+            <Row label="ЗП крепёж" value={fRub(f.fastenersWork)} />
+            <Row label="ЗП допы" value={fRub(f.extrasWorkCost)} />
+
+            {/* Крепёж материал */}
+            <div className={styles.subHeading}>Крепёж (материал)</div>
+            <Row label="Себес крепёж" value={fRub(f.fastenersCost)} />
+
+            {/* Итог pricingLogic (без допов-материала) */}
+            <div className={styles.divider} />
+            <Row label="costPrice (плёнка + кант)" value={fRub(f.costPrice)} />
+            <Row label="totalExpenses (без допов-материала)" value={fRub(f.totalExpenses)} variant="warn" />
+            <FormulaRow formula="= costPrice + overspending + productionCost + fastenersCost" />
+            <Row label="Розница изделия (без допов)" value={fRub(f.retailPrice)} variant="ok" />
+          </div>
+
+          {/* ── ВКЛАД ОКНА В ИТОГ ЗАКАЗА ──────────────────────────────────── */}
+          {/* Показывает, что именно это окно добавляет в суммы ClientStep.     */}
+          {/* Полная сверка с ClientStep находится ниже — после всех карточек.  */}
+          <div className={styles.fullTotalsBlock}>
+            <div className={styles.fullTotalsHeading}>▶ Вклад окна в итог заказа</div>
+            <div className={styles.paramGrid}>
+              <div className={styles.subHeading}>Вклад в «Стоимость изделия» (ClientStep)</div>
+              <Row label="Плёнка + кант (costPrice)" value={fRub(f.costPrice)} />
+              <Row label="Крепёж материал" value={fRub(f.fastenersCost)} />
+              <Row label="Допы материал" value={fRub(extrasWindowCost)} />
+              <Row
+                label="= Итого вклад"
+                value={fRub(windowDisplayCost)}
+                variant="ok"
+              />
+              <FormulaRow formula="costPrice + fastenersCost + extrasCostWindow" />
+
+              <div className={styles.divider} />
+              <div className={styles.subHeading}>Вклад в «Всего расходов без монтажа»</div>
+              <Row label="totalExpenses окна" value={fRub(f.totalExpenses)} />
+              <FormulaRow formula="= costPrice + overspending + productionCost + fastenersCost" />
+              <Row label="+ допы материал" value={fRub(extrasWindowCost)} />
+              <Row
+                label="= Итого вклад в расходы"
+                value={fRub(windowTotalExpenses)}
+                variant="warn"
+              />
+
+              <div className={styles.divider} />
+              <div className={styles.subHeading}>Вклад в розницу и прибыль</div>
+              <Row label="Розница изделия" value={fRub(f.retailPrice)} />
+              <Row label="+ допы розница" value={fRub(extrasWindowRetail)} />
+              <Row
+                label="= Розница окна полная"
+                value={fRub(windowRetailFull)}
+                variant="ok"
+              />
+              <Row
+                label="Прибыль окна"
+                value={fRub(windowProfit)}
+                variant={windowProfit >= 0 ? 'ok' : 'warn'}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Order-level reconciliation row
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Одна строка сверки заказа.
+ * OK = |clientVal - diagVal| ≤ 1 ₽ (допуск на Math.round в pricingLogic).
+ */
+function OrderReconcileRow({
+  label, hint, clientVal, diagVal,
+}: {
+  label: string;
+  hint: string;
+  clientVal: number;
+  diagVal: number;
+}) {
+  const isOk = Math.abs(clientVal - diagVal) <= 1;
+  return (
+    <div className={styles.orderReconcileRow}>
+      <span className={styles.orcLabel}>
+        {label}
+        <span className={styles.orcHint}>{hint}</span>
+      </span>
+      <span className={styles.orcClientVal}>{fRub(clientVal)}</span>
+      <span className={styles.orcDiagVal}>{fRub(diagVal)}</span>
+      <span className={isOk ? styles['orcStatus--ok'] : styles['orcStatus--mismatch']}>
+        {isOk ? '✓ OK' : '✗ ΔΔΔΔ'}
+      </span>
+      {!isOk && (
+        <div className={styles.orcMismatchNote}>
+          Δ {fRub(Math.abs(clientVal - diagVal))}
+          {' '}({clientVal > diagVal ? 'ClientStep больше' : 'CuttingDiag больше'})
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Пропсы и состояние коллапсов
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CuttingDiagnosticsProps {
   windows: WindowItem[];
+  priceMap?: PriceMap;
+  /**
+   * Агрегаты из useCalculationState (уровень заказа).
+   * Опционально — без них блок сверки скрыт (backward compat).
+   */
+  orderTotals?: OrderTotals;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Компонент
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps) {
-  const debugRows: WindowDebugRow[] = useMemo(
-    () => windows.map((item, index) => buildDebugRow(item, index)),
-    [windows],
+export default function CuttingDiagnostics({ windows, priceMap, orderTotals }: CuttingDiagnosticsProps) {
+  const pm = priceMap && Object.keys(priceMap).length > 0 ? priceMap : null;
+
+  // Глобальные переключатели секций (одно состояние на всё)
+  const [openKant,     setOpenKant]     = useState(false);
+  const [openFastener, setOpenFastener] = useState(false);
+  const [openExtras,   setOpenExtras]   = useState(false);
+  const [openFinance,  setOpenFinance]  = useState(false);
+
+  const rows = useMemo(
+    () => windows.map((item, i) => buildRow(item, i, pm)),
+    [windows, pm],
   );
 
-  const orderSummary: OrderOptimization = useMemo(
-    () => calculateOrderOptimization(windows),
-    [windows],
-  );
+  const orderSummary = useMemo(() => calculateOrderOptimization(windows), [windows]);
+
+  // ── Агрегаты CuttingDiagnostics — сумма по всем окнам ───────────────────
+  // Используются для сверки с orderTotals (значения из useCalculationState).
+  // Вычисляются только при наличии priceMap (иначе finance = null).
+  const diagTotals = useMemo(() => {
+    if (!pm) return null;
+
+    const sumCostPrice       = rows.reduce((s, r) => s + (r.finance?.costPrice       ?? 0), 0);
+    const sumFastenersCost   = rows.reduce((s, r) => s + (r.finance?.fastenersCost   ?? 0), 0);
+    const sumOverspending    = rows.reduce((s, r) => s + (r.finance?.overspending    ?? 0), 0);
+    const sumProductionCost  = rows.reduce((s, r) => s + (r.finance?.productionCost  ?? 0), 0);
+    const sumTotalExpenses   = rows.reduce((s, r) => s + (r.finance?.totalExpenses   ?? 0), 0);
+    const sumRetailPrice     = rows.reduce((s, r) => s + (r.finance?.retailPrice     ?? 0), 0);
+
+    const sumExtrasCost   = rows.reduce((s, r) =>
+      s + r.extrasItems.reduce((es, i) => es + i.totalCost,   0), 0);
+    const sumExtrasRetail = rows.reduce((s, r) =>
+      s + r.extrasItems.reduce((es, i) => es + i.totalRetail, 0), 0);
+
+    return {
+      // clientProductCostDisplay =
+      //   Σ costPrice + Σ fastenersCost + Σ extrasCost
+      //   → соответствует ClientStep «Стоимость изделия»
+      clientProductCostDisplay: sumCostPrice + sumFastenersCost + sumExtrasCost,
+      totalOverspending:        sumOverspending,
+      totalProductionCost:      sumProductionCost,
+      // expensesWithoutMounting =
+      //   Σ finance.totalExpenses + Σ extrasCost
+      //   → соответствует ClientStep «Всего расходов без монтажа»
+      expensesWithoutMounting:  sumTotalExpenses + sumExtrasCost,
+      totalRetailNoMounting:    sumRetailPrice   + sumExtrasRetail,
+    };
+  }, [rows, pm]);
 
   return (
     <div className={styles.root}>
       <h4 className={styles.heading}>План раскроя заказа</h4>
 
       <div className={styles.description}>
-        Диагностика показывает текущий ответ{' '}
-        <b>calculateWindowGeometry()</b> по каждому изделию.
+        Геометрия — <b>calculateWindowGeometry()</b> / Финансы — <b>calculateWindowFinance()</b>
         <br />
-        <b>Производство</b> — реальная площадь (основа ЗП сварщика).{' '}
-        <b>Чек</b> — площадь по габариту Max W × Max H (основа розничной цены).
+        <b>Производство</b> — реальная площадь.{' '}
+        <b>Чек</b> — MaxW × MaxH (розничная цена).
+        {pm && ' Розница / Себес в разделах ниже.'}
       </div>
 
       {/* Карточки изделий */}
       <div className={styles.batchList}>
-        {debugRows.map((row) => (
+        {rows.map((row) => (
           <div
             key={row.id}
-            className={
-              row.geometry.isOverSize
-                ? `${styles.windowCard} ${styles['windowCard--oversize']}`
-                : styles.windowCard
-            }
+            className={row.geometry.isOverSize ? `${styles.windowCard} ${styles['windowCard--oversize']}` : styles.windowCard}
           >
             {/* Шапка */}
             <div className={styles.cardHeader}>
               <span className={styles.cardTitle}>
                 Окно {row.index + 1}: {row.name}
                 {row.geometry.type === 'trapezoid' && (
-                  <span style={{ color: '#FFD600', marginLeft: 6, fontSize: '0.65rem' }}>
-                    ◆ трапеция
-                  </span>
+                  <span style={{ color: '#FFD600', marginLeft: 6, fontSize: '0.65rem' }}>◆ трапеция</span>
                 )}
               </span>
               <span className={styles.cardMaterial}>
@@ -161,191 +742,102 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
               </span>
             </div>
 
-            {/* Сетка параметров */}
-            <div className={styles.paramGrid}>
-
-              {/* Внутренний размер */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Внутренний размер:</span>
-                <span className={styles.paramValue}>
-                  {formatCm(row.innerWidth)} × {formatCm(row.innerHeight)}
-                </span>
-              </div>
-
-              {/* Заготовка */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Заготовка +{SOLDER_ALLOWANCE} см:</span>
-                <span className={styles.paramValue}>
-                  {formatCm(row.cutWidthRaw)} × {formatCm(row.cutHeightRaw)}
-                </span>
-              </div>
-
-              {/* Поворот */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Поворот:</span>
-                <span
-                  className={
-                    row.geometry.isRotated
-                      ? styles['paramValue--rotated']
-                      : styles['paramValue--ok']
-                  }
-                >
-                  {row.geometry.isRotated ? '90°' : '0°'}
-                </span>
-              </div>
-
-              {/* Поперёк рулона */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Поперёк рулона:</span>
-                <span className={styles.paramValue}>{formatCm(row.widthAcrossRoll)}</span>
-              </div>
-
-              {/* Длина отреза */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Длина отреза:</span>
-                <span className={styles.paramValue}>{formatM(row.cutLength)}</span>
-              </div>
-
-              {/* Ширина списания */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Ширина списания:</span>
-                <span className={styles.paramValue}>{formatCm(row.chargedWidth)}</span>
-              </div>
-
-              {/* ── Разделение площадей (Закон Директора) ───────────────── */}
-
-              {/* Производство: реальная площадь → ЗП сварщика */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Производство:</span>
-                <span className={styles.paramValue}>
-                  {row.geometry.productionArea.toFixed(4)} м²
-                </span>
-              </div>
-
-              {/* Чек: Max W × Max H → розничная цена */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Чек (габарит):</span>
-                <span className={styles['paramValue--ok']}>
-                  {row.geometry.retailArea.toFixed(4)} м²
-                </span>
-              </div>
-
-              {/* С кантом */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>С кантом:</span>
-                <span className={styles.paramValue}>
-                  {formatArea(row.geometry.areaWithKant)}
-                </span>
-              </div>
-
-              {/* Списание по рулону */}
-              <div className={styles.paramRow}>
-                <span className={styles.paramLabel}>Списание:</span>
-                <span className={styles['paramValue--ok']}>
-                  {formatArea(row.geometry.cutArea)}
-                </span>
-              </div>
-
-              {/* Детализация канта и перерасхода */}
-              <div className={styles.overflowCell}>
-                <div className={styles.diagnosticRow}>
-                  <span>Кант в изделии:</span>
-                  <strong>{row.geometry.kantAreaInProduct.toFixed(2)} м²</strong>
-                </div>
-                <div className={styles.diagnosticRow}>
-                  <span>Перерасход канта:</span>
-                  <strong>{row.geometry.kantWasteArea.toFixed(2)} м²</strong>
-                </div>
-                <div className={styles.diagnosticRow}>
-                  <span>Кант всего:</span>
-                  <strong>{row.geometry.kantTotalArea.toFixed(2)} м²</strong>
-                </div>
-                <div className={styles.paramRow} style={{ marginTop: 2 }}>
-                  <span className={styles.paramLabel}>Перерасход плёнки:</span>
-                  <span
-                    className={
-                      row.geometry.wasteArea > 0
-                        ? styles['paramValue--waste']
-                        : styles['paramValue--ok']
-                    }
-                  >
-                    {formatArea(row.geometry.wasteArea)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Длины сторон (для трапеции) */}
-              {row.geometry.type === 'trapezoid' && (
-                <div className={styles.overflowCell}>
-                  <div className={styles.diagnosticRow}>
-                    <span>Верх (sideTop):</span>
-                    <strong>{row.geometry.sideTop.toFixed(1)} см</strong>
-                  </div>
-                  <div className={styles.diagnosticRow}>
-                    <span>Низ:</span>
-                    <strong>{row.geometry.sideBottom.toFixed(1)} см</strong>
-                  </div>
-                  <div className={styles.diagnosticRow}>
-                    <span>Лево / Право:</span>
-                    <strong>
-                      {row.geometry.sideLeft.toFixed(1)} / {row.geometry.sideRight.toFixed(1)} см
-                    </strong>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Геометрия — всегда видна */}
+            <GeoSection row={row} />
 
             {/* Предупреждения */}
             {(row.geometry.isOverSize || !row.geometry.isExact) && (
               <div className={styles.warnings}>
-                {row.geometry.isOverSize && (
-                  <div className={styles.warnOversize}>
-                    ⚠ Негабарит: алгоритм берёт максимальный рулон,
-                    площадь считается по фактической ширине заготовки.
-                  </div>
-                )}
-                {!row.geometry.isExact && (
-                  <div className={styles.warnApprox}>
-                    ⚠ Приближённый расчёт: трапеция включена, но данных crossbar нет.
-                  </div>
-                )}
+                {row.geometry.isOverSize && <div className={styles.warnOversize}>⚠ Негабарит: алгоритм берёт максимальный рулон.</div>}
+                {!row.geometry.isExact   && <div className={styles.warnApprox}>⚠ Приближённый расчёт: данных crossbar нет.</div>}
               </div>
             )}
+
+            {/* Кант */}
+            <KantSection     row={row} open={openKant}     onToggle={() => setOpenKant(v => !v)} />
+            {/* Крепёж */}
+            <FastenerSection row={row} open={openFastener} onToggle={() => setOpenFastener(v => !v)} />
+            {/* Допы */}
+            <ExtrasSection   row={row} open={openExtras}   onToggle={() => setOpenExtras(v => !v)} />
+            {/* Себестоимость */}
+            <FinanceSection  row={row} open={openFinance}  onToggle={() => setOpenFinance(v => !v)} />
           </div>
         ))}
       </div>
 
-      {/* Сводка по группам */}
-      <div className={styles.groupsHeading}>
-        Группы раскроя (calculateOrderOptimization)
-      </div>
+      {/* ── СВЕРКА ЗАКАЗА: ClientStep vs CuttingDiagnostics ───────────────── */}
+      {/* Показывается один раз после всех карточек окон.                      */}
+      {/* Сравнивает значения useCalculationState (orderTotals) с суммой       */}
+      {/* per-window расчётов CuttingDiagnostics (diagTotals).                 */}
+      {/* OK = разница ≤ 1 ₽ (допуск округления Math.round).                  */}
+      {orderTotals && diagTotals && (
+        <div className={styles.orderReconcileBlock}>
+          <div className={styles.orderReconcileHeading}>
+            ⚡ Сверка заказа — ClientStep vs CuttingDiagnostics
+          </div>
+          <div className={styles.orderReconcileSubtitle}>
+            Левый столбец: значения из useCalculationState (те же, что видит «Прибыль и расход»).
+            Правый: Σ всех окон из CuttingDiagnostics.
+          </div>
+          <div className={styles.orderReconcileTable}>
+            <div className={styles.orderReconcileHeaderRow}>
+              <span className={styles.orcLabel}>Поле</span>
+              <span className={styles.orcClientVal}>ClientStep</span>
+              <span className={styles.orcDiagVal}>CuttingDiag</span>
+              <span className={styles.orcStatus}>Статус</span>
+            </div>
+            <OrderReconcileRow
+              label="Стоимость изделия"
+              hint="costPrice + fasteners + extras"
+              clientVal={orderTotals.clientProductCostDisplay}
+              diagVal={diagTotals.clientProductCostDisplay}
+            />
+            <OrderReconcileRow
+              label="Перерасход"
+              hint="Σ overspending всех окон"
+              clientVal={orderTotals.totalOverspending}
+              diagVal={diagTotals.totalOverspending}
+            />
+            <OrderReconcileRow
+              label="Изготовление"
+              hint="Σ productionCost всех окон"
+              clientVal={orderTotals.totalProductionCost}
+              diagVal={diagTotals.totalProductionCost}
+            />
+            <OrderReconcileRow
+              label="Всего расходов без монтажа"
+              hint="windowsExpenses + extrasCost"
+              clientVal={orderTotals.expensesWithoutMounting}
+              diagVal={diagTotals.expensesWithoutMounting}
+            />
+            <OrderReconcileRow
+              label="Розница без монтажа"
+              hint="windowsRetail + extrasRetail"
+              clientVal={orderTotals.totalRetailNoMounting}
+              diagVal={diagTotals.totalRetailNoMounting}
+            />
+          </div>
+        </div>
+      )}
 
+      {/* Сводка групп раскроя */}
+      <div className={styles.groupsHeading}>Группы раскроя (calculateOrderOptimization)</div>
       {orderSummary.batches.length > 0 ? (
         <div className={styles.batchList}>
           {orderSummary.batches.map((batch, idx) => (
-            <div
-              key={`${batch.material}-${batch.rollWidth}-${idx}`}
-              className={styles.groupCard}
-            >
+            <div key={`${batch.material}-${batch.rollWidth}-${idx}`} className={styles.groupCard}>
               <div className={styles.groupHeader}>
-                <span className={styles.groupMaterial}>
-                  {getMaterialLabel(batch.material)}
-                </span>
+                <span className={styles.groupMaterial}>{getMaterialLabel(batch.material)}</span>
                 <span className={styles.groupRoll}>{batch.rollWidth} см</span>
               </div>
-
               <div className={styles.groupStats}>
                 <div className={styles.groupStatRow}>
                   <span className={styles.groupStatLabel}>Длина:</span>
-                  <span className={styles.groupStatValue}>
-                    {(batch.totalLength / 100).toFixed(2)} м.п.
-                  </span>
+                  <span className={styles.groupStatValue}>{(batch.totalLength / 100).toFixed(2)} м.п.</span>
                 </div>
                 <div className={styles.groupStatRow}>
                   <span className={styles.groupStatLabel}>ID изделий:</span>
-                  <span className={styles.groupStatValue}>
-                    {batch.windowIds.join(', ')}
-                  </span>
+                  <span className={styles.groupStatValue}>{batch.windowIds.join(', ')}</span>
                 </div>
               </div>
             </div>
@@ -355,13 +847,11 @@ export default function CuttingDiagnostics({ windows }: CuttingDiagnosticsProps)
         <div className={styles.emptyGroups}>Нет изделий для расчёта.</div>
       )}
 
-      {/* Итого по заказу */}
+      {/* Итого заказ */}
       <div className={styles.totals}>
         <div className={styles.totalRow}>
           <span>Списание всего заказа:</span>
-          <span className={styles.totalValue}>
-            {orderSummary.totalCutArea.toFixed(2)} м²
-          </span>
+          <span className={styles.totalValue}>{orderSummary.totalCutArea.toFixed(2)} м²</span>
         </div>
         <div className={`${styles.totalRow} ${styles['totalRow--waste']}`}>
           <span>Перерасход всего заказа:</span>

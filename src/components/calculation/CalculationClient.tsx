@@ -18,6 +18,7 @@ import ExtrasStep from '@/components/calculation/ExtrasStep';
 import MountingStep from '@/components/mounting/MountingStep';
 import styles from './CalculationClient.module.css';
 import ProductionStep from '@/components/calculation/ProductionStep';
+import { type OrderTotals } from '@/components/calculation/shared/CuttingDiagnostics';
 import { notifyError, notifySuccess } from '@/lib/notify';
 import { calculateMounting, captureCurrentPriceSnapshot } from '@/lib/logic/mountingCalculations';
 import { getPrices } from '@/app/actions/prices';
@@ -113,6 +114,8 @@ export default function CalculationClient({
     totalProductionCost,
     extrasCostTotal,
     fastenersCostTotal,
+    mountingCostTotal,
+    mountingRetailTotal,
     handleWindowsChange,
     handleClientDataChange,
     handleExtrasChange,
@@ -391,6 +394,22 @@ export default function CalculationClient({
             windows={windows}
             activeWindowId={activeWindowId}
             onActiveWindowChange={setActiveWindowId}
+            currentPrices={currentPrices}
+            clientStatus={clientDataWithArea.status}
+            isPriceLocked={Boolean(clientDataWithArea['isPriceLocked'])}
+            savedPrices={(clientDataWithArea as Record<string, unknown>)['savedPrices'] as Record<string, number> | null | undefined}
+            orderTotals={{
+              // ClientStep «Стоимость изделия» = costPrice + fastenersCostTotal + extrasCostTotal
+              clientProductCostDisplay: costPrice + fastenersCostTotal + extrasCostTotal,
+              // ClientStep «Перерасход» = Σ finance.overspending
+              totalOverspending,
+              // ClientStep «Изготовление» = Σ finance.productionCost
+              totalProductionCost,
+              // «Всего расходов без монтажа» = totalExpenses - mountingCostTotal
+              expensesWithoutMounting: totalExpenses - mountingCostTotal,
+              // Розница без монтажа = totalPrice - mountingRetailTotal
+              totalRetailNoMounting: totalPrice - mountingRetailTotal,
+            } satisfies OrderTotals}
           />
         )}
       </main>
