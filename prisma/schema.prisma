@@ -138,6 +138,17 @@ model Client {
   savedPrices      Json?
 
   /**
+   * Снапшот геометрии изделий на момент фиксации заказа.
+   * Формат: GeometrySnapshotV1 — версионированный объект.
+   * NULL для старых записей и активных заказов.
+   * Для frozen заказов (completed/rejected/isPriceLocked):
+   *   — защищает финансовый пересчёт от изменения ROLL_WIDTHS / SOLDER_ALLOWANCE.
+   *   — создаётся одновременно с savedPrices, иммутабелен после freeze.
+   * Закрывает BUG-8A-02: geometry not snapshot-isolated.
+   */
+  geometrySnapshot Json?
+
+  /**
    * Флаг фиксации цены.
    * true = цена зафиксирована вне зависимости от статуса заказа.
    * При isPriceLocked=true runtime использует savedPrices, а не currentPrices.

@@ -171,7 +171,7 @@ function GeoSection({ row }: { row: WindowRow }) {
         <Row label={`Заготовка (+${SOLDER_ALLOWANCE} см, ш × в)`} value={`${fCm(g.cutWidth)} × ${fCm(g.cutHeight)}`} />
         <Row label="Поворот" value={g.isRotated ? '90°' : '0°'} variant={g.isRotated ? 'warn' : 'ok'} />
         <Row label="Рулон" value={fCm(g.rollWidth)} />
-        <Row label="Длина отреза по рулону" value={fM(g.cutHeight)} />
+        <Row label="Длина отреза по рулону" value={fM(g.isRotated ? g.cutWidth : g.cutHeight)} />
         <Row label="Производство м²" value={`${g.productionArea.toFixed(4)} м²`} />
         <Row label="Чек (Max W×H) м²" value={`${g.retailArea.toFixed(4)} м²`} variant="ok" />
         <Row label="С кантом м²" value={formatArea(g.areaWithKant)} />
