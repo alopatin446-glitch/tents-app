@@ -168,6 +168,7 @@ export default async function NewCalculationPage({ searchParams }: PageProps) {
      * После первого сохранения этого заказа поле заполнится.
      */
     savedPrices: client.savedPrices ?? null,
+    geometrySnapshot: client.geometrySnapshot ?? null,
 
     // ── Price Lock ────────────────────────────────────────────────────────
     isPriceLocked:   client.isPriceLocked ?? false,

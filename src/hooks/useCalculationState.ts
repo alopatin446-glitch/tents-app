@@ -22,7 +22,7 @@
  * имеет собственную защиту цен через mountingSnapshot внутри MountingConfig.
  */
 import { useCallback, useMemo, useState } from 'react';
-import { type WindowItem } from '@/types';
+import { type WindowItem, type GeometrySnapshotV1, type WindowGeometrySnapshot } from '@/types';
 import { type ClientFormData } from '@/components/calculation/ClientStep';
 import {
   calculateTotalArea,
@@ -35,7 +35,7 @@ import {
   normalizeExtrasOnResize,
   calculateExtrasAsServiceItems,
 } from '@/lib/logic/extrasCalculations';
-import { calculateWindowFinance } from '@/lib/logic/pricingLogic';
+import { calculateWindowFinance, type FinancialGeometrySnapshot } from '@/lib/logic/pricingLogic';
 import { calculateMounting } from '@/lib/logic/mountingCalculations';
 import { resolveActivePrices } from '@/lib/logic/priceResolution';
 import { type MountingConfig } from '@/types/mounting';
@@ -133,6 +133,58 @@ export function useCalculationState(
   const activePrices = resolvedPrices.prices;
   const isSnapshotIncomplete = resolvedPrices.isSnapshotIncomplete;
 
+  // ── Geometry snapshot map ─────────────────────────────────────────────────
+  // Строится только для frozen orders (source === 'snapshot') при наличии snapshot.
+  // Null для: active orders, frozen orders без geometrySnapshot (старые записи).
+  //
+  // При null → calculateWindowFinance получает undefined как precomputedGeo
+  // → вызывает calculateWindowGeometry как обычно → поведение идентично текущему.
+  //
+  // BUG-8A-02 fix: для frozen orders с geometrySnapshot финансовый расчёт
+  // воспроизводим при любых изменениях ROLL_WIDTHS / SOLDER_ALLOWANCE.
+  const geoSnapshotMap = useMemo((): Map<number, FinancialGeometrySnapshot> | null => {
+    // Active orders всегда используют live geometry.
+    if (resolvedPrices.source !== 'snapshot') return null;
+
+    const rawSnapshot = (clientData as Record<string, unknown>)['geometrySnapshot'];
+
+    // Frozen order без geometrySnapshot (старые записи до патча 8E).
+    // Fallback: live geometry — backward-compatible, поведение как раньше.
+    if (
+      rawSnapshot === null ||
+      rawSnapshot === undefined ||
+      typeof rawSnapshot !== 'object' ||
+      Array.isArray(rawSnapshot)
+    ) return null;
+
+    const snapshot = rawSnapshot as GeometrySnapshotV1;
+
+    if (snapshot.version !== '1.0' || !snapshot.windows) return null;
+
+    const map = new Map<number, FinancialGeometrySnapshot>();
+
+    for (const [key, win] of Object.entries(snapshot.windows)) {
+      const windowId = Number(key);
+      if (!Number.isFinite(windowId)) continue;
+
+      // Explicit pick — только 7 финансово-значимых полей.
+      // Без spread, без any, без unsafe cast.
+      const financialGeo: FinancialGeometrySnapshot = {
+        rollWidth:         (win as WindowGeometrySnapshot).rollWidth,
+        cutWidth:          (win as WindowGeometrySnapshot).cutWidth,
+        cutHeight:         (win as WindowGeometrySnapshot).cutHeight,
+        isRotated:         (win as WindowGeometrySnapshot).isRotated,
+        productionArea:    (win as WindowGeometrySnapshot).productionArea,
+        retailArea:        (win as WindowGeometrySnapshot).retailArea,
+        perimeterWithKant: (win as WindowGeometrySnapshot).perimeterWithKant,
+      };
+
+      map.set(windowId, financialGeo);
+    }
+
+    return map.size > 0 ? map : null;
+  }, [clientData, resolvedPrices.source]);
+
   // ── Площади ───────────────────────────────────────────────────────────────
 
   /**
@@ -163,52 +215,52 @@ export function useCalculationState(
 
   const windowsRetailTotal = useMemo(() => {
     return windows.reduce((sum, w) => {
-      const finance = calculateWindowFinance(w, activePrices);
+      const finance = calculateWindowFinance(w, activePrices, geoSnapshotMap?.get(w.id));
       return sum + finance.retailPrice;
     }, 0);
-  }, [windows, activePrices]);
+  }, [windows, activePrices, geoSnapshotMap]);
 
   const costPrice = useMemo(() => {
     return windows.reduce((sum, w) => {
-      const finance = calculateWindowFinance(w, activePrices);
+      const finance = calculateWindowFinance(w, activePrices, geoSnapshotMap?.get(w.id));
       return sum + finance.costPrice;
     }, 0);
-  }, [windows, activePrices]);
+  }, [windows, activePrices, geoSnapshotMap]);
 
   const totalMaterialInProduct = useMemo(() => {
     return windows.reduce((sum, w) => {
-      const finance = calculateWindowFinance(w, activePrices);
+      const finance = calculateWindowFinance(w, activePrices, geoSnapshotMap?.get(w.id));
       return sum + finance.materialInProductCost;
     }, 0);
-  }, [windows, activePrices]);
+  }, [windows, activePrices, geoSnapshotMap]);
 
   const totalMaterialCut = useMemo(() => {
     return windows.reduce((sum, w) => {
-      const finance = calculateWindowFinance(w, activePrices);
+      const finance = calculateWindowFinance(w, activePrices, geoSnapshotMap?.get(w.id));
       return sum + finance.materialCutCost;
     }, 0);
-  }, [windows, activePrices]);
+  }, [windows, activePrices, geoSnapshotMap]);
 
   const totalOverspending = useMemo(() => {
     return windows.reduce((sum, w) => {
-      const finance = calculateWindowFinance(w, activePrices);
+      const finance = calculateWindowFinance(w, activePrices, geoSnapshotMap?.get(w.id));
       return sum + finance.overspending;
     }, 0);
-  }, [windows, activePrices]);
+  }, [windows, activePrices, geoSnapshotMap]);
 
   const totalProductionCost = useMemo(() => {
     return windows.reduce((sum, w) => {
-      const finance = calculateWindowFinance(w, activePrices);
+      const finance = calculateWindowFinance(w, activePrices, geoSnapshotMap?.get(w.id));
       return sum + finance.productionCost;
     }, 0);
-  }, [windows, activePrices]);
+  }, [windows, activePrices, geoSnapshotMap]);
 
   const windowsExpensesTotal = useMemo(() => {
     return windows.reduce((sum, w) => {
-      const finance = calculateWindowFinance(w, activePrices);
+      const finance = calculateWindowFinance(w, activePrices, geoSnapshotMap?.get(w.id));
       return sum + finance.totalExpenses;
     }, 0);
-  }, [windows, activePrices]);
+  }, [windows, activePrices, geoSnapshotMap]);
 
   /**
    * Себестоимость крепежа (display-only).
@@ -219,10 +271,10 @@ export function useCalculationState(
    */
   const fastenersCostTotal = useMemo(() => {
     return windows.reduce((sum, w) => {
-      const finance = calculateWindowFinance(w, activePrices);
+      const finance = calculateWindowFinance(w, activePrices, geoSnapshotMap?.get(w.id));
       return sum + finance.fastenersCost;
     }, 0);
-  }, [windows, activePrices]);
+  }, [windows, activePrices, geoSnapshotMap]);
 
   // ── Финансовое ядро: допы ─────────────────────────────────────────────────
   // Использует activePrices — savedPrices-защита распространяется на допы автоматически.

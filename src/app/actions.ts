@@ -6,6 +6,13 @@ import { revalidatePath } from 'next/cache';
 import { normalizeStatus } from '@/lib/logic/statusDictionary';
 import { toFinancialNumber, calculateClientBalance } from '@/lib/logic/financialCalculations';
 import { parseWindowItems } from '@/types';
+import type { GeometrySnapshotV1, WindowGeometrySnapshot } from '@/types';
+import {
+  calculateWindowGeometry,
+  SOLDER_ALLOWANCE,
+  SMART_TOLERANCE,
+  ROLL_WIDTHS,
+} from '@/lib/logic/windowCalculations';
 import { logger } from '@/lib/logger';
 import { MountingConfig } from '@/types/mounting';
 import { requireAuth } from '@/lib/auth/requireAuth'; // ПРОВЕРКА АВТОРИЗАЦИИ
@@ -99,6 +106,59 @@ function normalizeSavedPrices(value: unknown): Record<string, number> | undefine
   }
 
   return obj as Record<string, number>;
+}
+
+/**
+ * Строит GeometrySnapshotV1 из массива изделий на момент freeze-события.
+ *
+ * Вызывается server-side — snapshot формируется независимо от клиента,
+ * из тех же items, которые будут записаны в БД.
+ *
+ * Если windows пустой — возвращает snapshot с windows: {} (безопасно).
+ * useCalculationState прочитает пустую Map → все окна упадут на live geometry.
+ */
+function buildGeometrySnapshot(
+  windows: ReturnType<typeof parseWindowItems>,
+  source: 'price_lock' | 'status_close',
+): GeometrySnapshotV1 {
+  const windowSnapshots: Record<string, WindowGeometrySnapshot> = {};
+
+  for (const win of windows) {
+    const geo = calculateWindowGeometry(win);
+
+    // stripLength и fitsWidth хранятся в сантиметрах.
+    const stripLength = geo.isRotated ? geo.cutWidth  : geo.cutHeight;
+    const fitsWidth   = geo.isRotated ? geo.cutHeight : geo.cutWidth;
+
+    windowSnapshots[String(win.id)] = {
+      windowId:          win.id,
+      material:          win.material,
+      rollWidth:         geo.rollWidth,
+      cutWidth:          geo.cutWidth,
+      cutHeight:         geo.cutHeight,
+      isRotated:         geo.isRotated,
+      productionArea:    geo.productionArea,
+      retailArea:        geo.retailArea,
+      perimeterWithKant: geo.perimeterWithKant,
+      stripLength,
+      fitsWidth,
+      cutArea:           geo.cutArea,
+      wasteArea:         geo.wasteArea,
+      isOverSize:        geo.isOverSize ?? false,
+    };
+  }
+
+  return {
+    version:               '1.0',
+    createdAt:             new Date().toISOString(),
+    source,
+    geometryEngineVersion: '1.0.0',
+    solderAllowance:       SOLDER_ALLOWANCE,
+    smartTolerance:        SMART_TOLERANCE,
+    rollConfigSource:      'code_constants',
+    rollWidthsUsed:        ROLL_WIDTHS,
+    windows:               windowSnapshots,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -285,7 +345,7 @@ export async function updateClientAction(
       // прямой вызов action может попытаться перезаписать frozen fields.
       const existingClient = await prisma.client.findFirst({
         where: { id, organizationId: user.organizationId },
-        select: { status: true, isPriceLocked: true, priceLockedAt: true },
+        select: { status: true, isPriceLocked: true, priceLockedAt: true, items: true },
       });
 
       if (!existingClient) {
@@ -307,6 +367,15 @@ export async function updateClientAction(
       // isClosingNow НЕ входит в isAlreadyFrozen: при нём snapshot записывается в первый раз.
       const isAlreadyFrozen = wasHistorical || (wasPriceLocked && Boolean(existingClient.priceLockedAt));
 
+      // isTurningLockOn: isPriceLocked впервые включается в этом запросе.
+      // Выводится server-side — не полагаемся на client-side флаг из CalculationClient.
+      // Условие: входящие данные содержат isPriceLocked=true,
+      //   при этом в БД запись ещё не была locked (wasPriceLocked=false, priceLockedAt=null).
+      const isTurningLockOn =
+        Boolean(data.isPriceLocked) &&
+        !wasPriceLocked &&
+        !Boolean(existingClient.priceLockedAt);
+
       // buildUpdateClientData вызывает normalizeSavedPrices внутри себя — идемпотентно.
       const prismaData: Record<string, unknown> = {
         ...buildUpdateClientData(data),
@@ -315,6 +384,30 @@ export async function updateClientAction(
         updatedByRole: user.role,
         contentUpdatedAt: new Date(),
       };
+
+      // ── Geometry snapshot ─────────────────────────────────────────────
+      // Создаётся ровно один раз при первом freeze-событии.
+      // !isAlreadyFrozen гарантирует, что snapshot не существует в БД.
+      // isTurningLockOn: ручная фиксация цены → source: 'price_lock'.
+      // isClosingNow:    перевод в completed/rejected → source: 'status_close'.
+      if (!isAlreadyFrozen && (isTurningLockOn || isClosingNow)) {
+        // Источник items: data.items если переданы, иначе — текущие из БД.
+        // Это обеспечивает соответствие snapshot тем items, которые реально останутся.
+        const snapshotItemsSource =
+          data.items !== undefined ? data.items : existingClient.items;
+        const parsedItems = parseWindowItems(snapshotItemsSource);
+
+        const geoSource: 'price_lock' | 'status_close' =
+          isTurningLockOn ? 'price_lock' : 'status_close';
+
+        prismaData['geometrySnapshot'] = buildGeometrySnapshot(parsedItems, geoSource);
+
+        logger.info('[updateClientAction] Geometry snapshot created', {
+          id,
+          source: geoSource,
+          windowCount: parsedItems.length,
+        });
+      }
 
       // Для уже-frozen заказов: удаляем финансовые snapshot-поля из апдейта.
       // isClosingNow=true → isAlreadyFrozen=false → поля НЕ удаляются (финальный snapshot).
@@ -326,6 +419,7 @@ export async function updateClientAction(
         delete prismaData['overspending'];
         delete prismaData['totalExpenses'];
         delete prismaData['savedPrices'];
+        delete prismaData['geometrySnapshot'];
         // ── Экономика сделки ──────────────────────────────────────────────
         // totalPrice: розничная цена зафиксирована при закрытии/блокировке.
         // mountingCost: стоимость монтажа — часть исторического snapshot.

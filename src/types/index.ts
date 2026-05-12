@@ -413,3 +413,90 @@ export interface Client {
 }
 
 export interface Stage { id: ClientStatus; title: string; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Geometry Snapshot — BUG-8A-02 fix (Chapter 8E-2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Снапшот геометрии одного изделия.
+ *
+ * Хранится внутри GeometrySnapshotV1.windows[windowId].
+ *
+ * Финансово-значимые поля (используются в calculateWindowFinance):
+ *   rollWidth, cutWidth, cutHeight, isRotated,
+ *   productionArea, retailArea, perimeterWithKant.
+ *
+ * Производные поля (аудит — вычислимы из выше, но хранятся для читаемости):
+ *   stripLength = isRotated ? cutWidth : cutHeight
+ *   fitsWidth   = isRotated ? cutHeight : cutWidth
+ *
+ * Display/planning поля (не участвуют в финансовом расчёте):
+ *   cutArea, wasteArea, isOverSize.
+ */
+export interface WindowGeometrySnapshot {
+  // ── Идентификация ───────────────────────────────────────────────────────
+  windowId:  number;
+  material:  string;  // 'PVC_700' | 'TPU' | 'TINTED' | 'MOSQUITO'
+
+  // ── Финансово-значимые поля (см / м² / boolean) ─────────────────────────
+  rollWidth:         number;  // см  — ширина подобранного рулона
+  cutWidth:          number;  // см  — maxW + SOLDER_ALLOWANCE
+  cutHeight:         number;  // см  — maxH + SOLDER_ALLOWANCE
+  isRotated:         boolean; //      — деталь повёрнута на 90°
+  productionArea:    number;  // м², 4 знака — реальная площадь (ЗП цеха)
+  retailArea:        number;  // м², 4 знака — Max W × Max H (чек клиента)
+  perimeterWithKant: number;  // см  — внешний периметр с кантом
+
+  // ── Производные (аудит) ─────────────────────────────────────────────────
+  stripLength: number;  // см  — длина полосы вдоль рулона
+  fitsWidth:   number;  // см  — ширина детали поперёк рулона
+
+  // ── Display / production planning ───────────────────────────────────────
+  cutArea:    number;   // м²  — площадь списания (rollWidth × stripLength)
+  wasteArea:  number;   // м²  — геометрический перерасход
+  isOverSize: boolean;  //      — деталь шире максимального рулона
+}
+
+/**
+ * Версионированный снапшот геометрии всего заказа.
+ *
+ * Записывается в Client.geometrySnapshot (Json?) при первой фиксации заказа:
+ *   — source: 'price_lock'   → isPriceLocked = true (isTurningLockOn)
+ *   — source: 'status_close' → статус → completed / rejected (isClosingNow)
+ *
+ * Иммутабелен после создания. Никогда не перезаписывается для frozen orders.
+ *
+ * Совместимость:
+ *   version '1.0' — текущая схема.
+ *   При изменении схемы — инкрементировать version, писать converter.
+ */
+export interface GeometrySnapshotV1 {
+  version:  '1.0';
+  createdAt: string;  // ISO 8601
+
+  /** Событие, при котором создан snapshot. */
+  source: 'price_lock' | 'status_close';
+
+  /** Версия алгоритма calculateWindowGeometry / optimizeRollLayout. */
+  geometryEngineVersion: string;
+
+  // ── Константы геометрического движка на момент создания ─────────────────
+  /** Значение SOLDER_ALLOWANCE (сейчас 6 см). */
+  solderAllowance: number;
+  /** Значение SMART_TOLERANCE (сейчас 4 см). */
+  smartTolerance:  number;
+
+  // ── Конфигурация рулонов ─────────────────────────────────────────────────
+  /** Источник справочника рулонов: 'code_constants' = ROLL_WIDTHS из windowCalculations.ts. */
+  rollConfigSource: 'code_constants';
+  /** Фактически использованный справочник ширин рулонов. */
+  rollWidthsUsed:   Record<string, number[]>;
+
+  // ── Per-window данные ────────────────────────────────────────────────────
+  /**
+   * Ключ — строковое представление windowId (JSON не поддерживает числовые ключи).
+   * При чтении: Number(key) → windowId для сопоставления с WindowItem.id.
+   */
+  windows: Record<string, WindowGeometrySnapshot>;
+}

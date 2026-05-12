@@ -28,6 +28,27 @@ export interface WindowFinance {
 
 export type PriceMap = Record<string, number>;
 
+/**
+ * Финансово-значимые поля геометрии одного изделия.
+ *
+ * Подмножество WindowGeometry — только те поля, которые реально
+ * используются в calculateWindowFinance. Передаётся как precomputedGeo
+ * для frozen orders, чтобы финансовый расчёт был воспроизводим
+ * при изменении ROLL_WIDTHS / SOLDER_ALLOWANCE (BUG-8A-02).
+ *
+ * Источник при чтении из БД: GeometrySnapshotV1.windows[id] → 7 полей.
+ * Источник при отсутствии snapshot: calculateWindowGeometry(window) → superset.
+ */
+export interface FinancialGeometrySnapshot {
+  rollWidth:         number;  // см
+  cutWidth:          number;  // см
+  cutHeight:         number;  // см
+  isRotated:         boolean;
+  productionArea:    number;  // м², 4 знака
+  retailArea:        number;  // м², 4 знака
+  perimeterWithKant: number;  // см
+}
+
 const KANT_STRIP_WIDTH_M = 0.1;
 const KANT_WASTE_STRIPS = 4;
 const KANT_WASTE_LENGTH_M = 0.4;
@@ -285,9 +306,10 @@ function calculateExtrasWork(
 
 export function calculateWindowFinance(
   window: WindowItem,
-  priceMap: PriceMap
+  priceMap: PriceMap,
+  precomputedGeo?: FinancialGeometrySnapshot
 ): WindowFinance {
-  const geo = calculateWindowGeometry(window);
+  const geo = precomputedGeo ?? calculateWindowGeometry(window);
 
   const buyPrice     = resolveBuyPrice(window.material, priceMap);
   const kantPriceM2  = priceMap['c_pr_4']     || 0;
