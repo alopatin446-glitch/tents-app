@@ -24,7 +24,6 @@
 import React from 'react';
 import type {
   WindowItem,
-  FastenerSideState,
   AdditionalElements,
   ZipperItem,
   DividerItem,
@@ -33,6 +32,7 @@ import type {
 } from '@/types';
 import { getInitialFastener } from '@/types';
 import { deriveStrapCount, getOuterTopCm } from '@/lib/logic/extrasCalculations';
+import { calculateFastenerPoints } from '@/lib/logic/fastenerCalculations';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared geometry types
@@ -87,32 +87,50 @@ function windowToSvg(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fastener helpers (unchanged)
+// Fastener helpers — Chapter 6D: единый источник истины через calculateFastenerPoints
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getDotsAlongLine(start: Point, end: Point, targetStepSvg: number): Point[] {
+/**
+ * Строит точки крепежа для одной стороны и рендерит их.
+ *
+ * intervals  — из fastenerPoints.intervalsBySide[side] (единственный источник count)
+ * renderStart — true если данная сторона владеет начальным угловым люверсом
+ * renderEnd   — true если данная сторона владеет конечным угловым люверсом
+ * isDefault   — true для top='default' (Ø10): серый кружок с центральной точкой
+ *
+ * Алгоритм:
+ *   1. Строим intervals+1 точек равномерно от start до end (включая оба края).
+ *   2. Убираем начальную точку если !renderStart (угол принадлежит другой стороне).
+ *   3. Убираем конечную точку если !renderEnd.
+ *   Итого dots.length === ownedPointsBySide[side] — визуальный count = ERP-учёт.
+ */
+function renderSideDotsNew(
+  start:       Point,
+  end:         Point,
+  intervals:   number,
+  renderStart: boolean,
+  renderEnd:   boolean,
+  isDefault:   boolean,
+  circleR:     number,
+  sideKey:     string,
+): React.ReactNode {
+  const n = Math.max(1, intervals);
   const dx = end.x - start.x;
   const dy = end.y - start.y;
-  const totalLen = Math.sqrt(dx * dx + dy * dy);
-  if (totalLen < 1) return [];
-  const n = Math.max(1, Math.round(totalLen / targetStepSvg));
-  return Array.from({ length: n }, (_, i) => {
-    const t = (i + 0.5) / n;
-    return { x: start.x + t * dx, y: start.y + t * dy };
-  });
-}
 
-function renderSideDots(
-  start: Point,
-  end: Point,
-  state: FastenerSideState,
-  targetStepSvg: number,
-  circleR: number,
-  sideKey: string,
-): React.ReactNode {
-  if (state === false) return null;
-  const dots = getDotsAlongLine(start, end, targetStepSvg);
-  const isDefault = state === 'default';
+  // Все n+1 точек (включая угловые)
+  const allPoints: Point[] = Array.from({ length: n + 1 }, (_, i) => ({
+    x: start.x + (i / n) * dx,
+    y: start.y + (i / n) * dy,
+  }));
+
+  // Обрезаем углы, принадлежащие другим сторонам
+  const startIdx = renderStart ? 0         : 1;
+  const endIdx   = renderEnd   ? allPoints.length : allPoints.length - 1;
+  const dots     = allPoints.slice(startIdx, endIdx);
+
+  if (dots.length === 0) return null;
+
   return dots.map((dot, i) => (
     <g key={`${sideKey}-${i}`}>
       <circle
@@ -621,9 +639,14 @@ export default function DrawingCanvas({
   const parallelY = isALower ? y1 : y2;
 
   // ── Fastener setup ─────────────────────────────────────────────────────────
-  const targetStepSvg = 35 * scale;
   const circleR = Math.max(4, Math.min(9, Math.max(kantTop, kantRight, kantBottom, kantLeft) * scale * 0.4));
   const fasteners = item.fasteners || getInitialFastener();
+
+  // Единственный источник точек крепежа — calculateFastenerPoints.
+  // Вычисляется только если крепёж будет рендериться (showFasteners + type != none).
+  const fastenerPoints = (showFasteners && fasteners.type !== 'none')
+    ? calculateFastenerPoints(item)
+    : null;
 
   const midTop1: Point = { x: (x1 + outX1) / 2, y: (y1 + outY1) / 2 };
   const midTop2: Point = { x: (x2 + outX2) / 2, y: (y2 + outY2) / 2 };
@@ -783,14 +806,58 @@ export default function DrawingCanvas({
         </g>
 
         {/* ── Layer 5: Fasteners ──────────────────────────────────────────── */}
-        {showFasteners && fasteners.type !== 'none' && (
-          <g>
-            {renderSideDots(midTop1, midTop2, fasteners.sides.top, targetStepSvg, circleR, 'top')}
-            {renderSideDots(midRight2, midRight3, fasteners.sides.right, targetStepSvg, circleR, 'right')}
-            {renderSideDots(midBottom3, midBottom4, fasteners.sides.bottom, targetStepSvg, circleR, 'bottom')}
-            {renderSideDots(midLeft4, midLeft1, fasteners.sides.left, targetStepSvg, circleR, 'left')}
-          </g>
-        )}
+        {fastenerPoints !== null && (() => {
+          const co    = fastenerPoints.cornerOwnership;
+          const sides = fasteners.sides;
+          const ibs   = fastenerPoints.intervalsBySide;
+
+          return (
+            <g>
+              {/* top = true: основной тип, угловые точки по corner ownership */}
+              {sides.top === true && ibs.top !== null &&
+                renderSideDotsNew(
+                  midTop1, midTop2, ibs.top,
+                  co.TL === 'top', co.TR === 'top',
+                  false, circleR, 'top',
+                )
+              }
+              {/* right */}
+              {sides.right === true && ibs.right !== null &&
+                renderSideDotsNew(
+                  midRight2, midRight3, ibs.right,
+                  co.TR === 'right', co.BR === 'right',
+                  false, circleR, 'right',
+                )
+              }
+              {/* bottom */}
+              {sides.bottom === true && ibs.bottom !== null &&
+                renderSideDotsNew(
+                  midBottom3, midBottom4, ibs.bottom,
+                  co.BR === 'bottom', co.BL === 'bottom',
+                  false, circleR, 'bottom',
+                )
+              }
+              {/* left */}
+              {sides.left === true && ibs.left !== null &&
+                renderSideDotsNew(
+                  midLeft4, midLeft1, ibs.left,
+                  co.BL === 'left', co.TL === 'left',
+                  false, circleR, 'left',
+                )
+              }
+              {/* top = 'default': физический Ø10, всегда владеет TL и TR
+                  Проверено: type=none + top='default' невозможно через UI,
+                  поэтому guard fasteners.type!=='none' (в fastenerPoints) достаточен. */}
+              {sides.top === 'default' && ibs.top !== null &&
+                renderSideDotsNew(
+                  midTop1, midTop2, ibs.top,
+                  true, true,
+                  true, circleR, 'top-default',
+                )
+              }
+            </g>
+          );
+        })()}
 
         {/* ── Layer 6: Extras ─────────────────────────────────────────────── */}
         {showExtras && extras && (

@@ -21,6 +21,10 @@
 import { useMemo, useState } from 'react';
 import { type WindowItem } from '@/types';
 import {
+  calculateFastenerPoints,
+  type FastenerPointsResult,
+} from '@/lib/logic/fastenerCalculations';
+import {
   calculateWindowGeometry,
   calculateOrderOptimization,
   formatArea,
@@ -71,25 +75,9 @@ export interface OrderTotals {
 // Константы
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Целевой шаг между крепежами (см) — совпадает с DrawingCanvas targetStepSvg / scale. */
-const FASTENER_TARGET_STEP_CM = 35;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Типы
 // ─────────────────────────────────────────────────────────────────────────────
-
-interface SideStep {
-  lengthCm: number;
-  count: number;
-  stepCm: number;
-}
-
-interface FastenerSteps {
-  top:    SideStep | null;
-  bottom: SideStep | null;
-  left:   SideStep | null;
-  right:  SideStep | null;
-}
 
 interface WindowRow {
   id: number;
@@ -99,7 +87,7 @@ interface WindowRow {
   geometry: WindowGeometry;
   finance: WindowFinance | null;
   extrasItems: ServiceItem[];
-  fastenerSteps: FastenerSteps;
+  fastenerPoints: FastenerPointsResult;
   item: WindowItem;
 }
 
@@ -131,37 +119,15 @@ function fRub(v: number): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Шаг крепежа (cm) — идентичен логике DrawingCanvas getDotsAlongLine
-// ─────────────────────────────────────────────────────────────────────────────
-
-function calcSideStep(lengthCm: number): SideStep {
-  const n = Math.max(1, Math.round(lengthCm / FASTENER_TARGET_STEP_CM));
-  return { lengthCm, count: n, stepCm: Math.round(lengthCm / n * 10) / 10 };
-}
-
-function buildFastenerSteps(item: WindowItem): FastenerSteps {
-  const ft = item.fasteners;
-  const none = { top: null, bottom: null, left: null, right: null };
-  if (!ft || ft.type === 'none') return none;
-  const { sides } = ft;
-  return {
-    top:    sides.top    === true ? calcSideStep(item.widthTop)     : null,
-    bottom: sides.bottom === true ? calcSideStep(item.widthBottom)  : null,
-    left:   sides.left   === true ? calcSideStep(item.heightLeft)   : null,
-    right:  sides.right  === true ? calcSideStep(item.heightRight)  : null,
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Построение строки
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildRow(item: WindowItem, index: number, pm: PriceMap | null): WindowRow {
-  const geometry      = calculateWindowGeometry(item);
-  const finance       = pm ? calculateWindowFinance(item, pm) : null;
-  const extrasItems   = pm ? calculateExtrasAsServiceItems(item, pm, index) : [];
-  const fastenerSteps = buildFastenerSteps(item);
-  return { id: item.id, index, name: item.name, material: item.material || 'PVC_700', geometry, finance, extrasItems, fastenerSteps, item };
+  const geometry = calculateWindowGeometry(item);
+  const finance = pm ? calculateWindowFinance(item, pm) : null;
+  const extrasItems = pm ? calculateExtrasAsServiceItems(item, pm, index) : [];
+  const fastenerPoints = calculateFastenerPoints(item);
+  return { id: item.id, index, name: item.name, material: item.material || 'PVC_700', geometry, finance, extrasItems, fastenerPoints, item };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -265,54 +231,89 @@ function KantSection({ row, open, onToggle }: { row: WindowRow; open: boolean; o
 
 function FastenerSection({ row, open, onToggle }: { row: WindowRow; open: boolean; onToggle: () => void }) {
   const ft = row.item.fasteners;
-  const f  = row.finance;
+  const f = row.finance;
+  const fp = row.fastenerPoints;
+
   if (!ft || ft.type === 'none') return null;
 
-  const { fastenerSteps: steps } = row;
+  const { sides } = ft;
+  const hasDefaultTop = sides.top === 'default';
 
-  const sideRows: Array<{ key: string; label: string; data: SideStep | null }> = [
-    { key: 'top',    label: 'Верх',  data: steps.top },
-    { key: 'bottom', label: 'Низ',   data: steps.bottom },
-    { key: 'left',   label: 'Лево',  data: steps.left },
-    { key: 'right',  label: 'Право', data: steps.right },
-  ];
-
-  const activeSides = sideRows.filter(s => s.data !== null);
+  // Стороны основного типа крепежа (top=true, bottom/left/right=true)
+  const mainSideRows = ([
+    { key: 'top', label: 'Верх' },
+    { key: 'bottom', label: 'Низ' },
+    { key: 'left', label: 'Лево' },
+    { key: 'right', label: 'Право' },
+  ] as const).filter(({ key }) => sides[key] === true);
 
   return (
     <div className={styles.extraSection}>
       <SectionHeader title={`Крепёж — ${getFastenerLabel(ft.type)}`} open={open} onToggle={onToggle} />
       {open && (
         <div className={styles.sectionBody}>
+          {/* Счётчики точек */}
           <div className={styles.paramGrid}>
             <Row label="Тип" value={getFastenerLabel(ft.type)} />
             {ft.finish && <Row label="Отделка" value={ft.finish} />}
-            <Row label="Точек всего" value={`${ft.pointsCount ?? 0} шт`} />
+            <Row label="Основной крепёж" value={`${fp.mainFastenerPointsCount} шт.`} />
+            {hasDefaultTop && fp.defaultTopEyeletPointsCount > 0 && (
+              <Row label="Верх Ø10" value={`${fp.defaultTopEyeletPointsCount} шт.`} variant="note" />
+            )}
+            <Row label="Физических точек всего" value={`${fp.uniqueTotalPhysicalPoints} шт.`} variant="ok" />
           </div>
 
-          {/* Шаг по сторонам */}
-          {activeSides.length > 0 && (
+          {/* Производственная разбивка по сторонам */}
+          {mainSideRows.length > 0 && (
             <>
-              <div className={styles.stepHeading}>Шаг по сторонам (цель ≈35 см):</div>
+              <div className={styles.stepHeading}>Производственная разбивка по сторонам (≤40 см):</div>
+              <div className={styles.formulaRow}>
+                Физические точки на стороне, включая угловые.
+                Для финансового учёта — строка «Основной крепёж» выше.
+              </div>
               <div className={styles.stepGrid}>
-                {activeSides.map(({ key, label, data }) =>
-                  data ? (
+                {mainSideRows.map(({ key, label }) => {
+                  const count = fp.coveragePointsBySide[key];
+                  const spacing = fp.actualSpacingBySide[key];
+                  const wl = fp.workingLengths[key];
+                  const intv = fp.intervalsBySide[key];
+                  if (count === null) return null;
+                  return (
                     <div key={key} className={styles.stepRow}>
                       <span className={styles.stepLabel}>{label}:</span>
                       <span className={styles.stepValue}>
-                        {data.count} шт × <b>{data.stepCm.toFixed(1)} см</b>
+                        {count} шт × <b>{spacing !== null ? spacing.toFixed(1) : '—'} см</b>
                       </span>
                       <span className={styles.stepFormula}>
-                        ({data.lengthCm.toFixed(0)} ÷ {data.count})
+                        ({wl !== null ? wl.toFixed(0) : '—'} ÷ {intv ?? '—'})
                       </span>
                     </div>
-                  ) : null
-                )}
+                  );
+                })}
               </div>
             </>
           )}
 
-          {/* Финансы */}
+          {/* Шаг для верха Ø10 — отдельно от основного типа */}
+          {hasDefaultTop && fp.defaultTopEyeletPointsCount > 0 && (
+            <>
+              <div className={styles.stepHeading}>Шаг — верх Ø10 (≤40 см):</div>
+              <div className={styles.stepGrid}>
+                <div className={styles.stepRow}>
+                  <span className={styles.stepLabel}>Верх Ø10:</span>
+                  <span className={styles.stepValue}>
+                    {fp.defaultTopEyeletPointsCount} шт ×{' '}
+                    <b>{fp.actualSpacingBySide.top !== null ? fp.actualSpacingBySide.top.toFixed(1) : '—'} см</b>
+                  </span>
+                  <span className={styles.stepFormula}>
+                    ({fp.workingLengths.top !== null ? fp.workingLengths.top.toFixed(0) : '—'} ÷ {fp.intervalsBySide.top ?? '—'})
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Финансовые строки — источник finance, не меняется */}
           {f && (
             <>
               <div className={styles.divider} />
@@ -345,7 +346,7 @@ function ExtrasSection({ row, open, onToggle }: { row: WindowRow; open: boolean;
   // Safe destructuring: legacy-записи могут не иметь поля straps совсем.
   const { zippers = [], dividers = [], cutouts = [], welding = [], hasSkirt = false, hasWeight = false, skirtWidth = 0 } = ae;
   const strapsCount = ae.straps?.count ?? 0;
-  const strapsType  = ae.straps?.type  ?? 'grommet';
+  const strapsType = ae.straps?.type ?? 'grommet';
 
   const outerBottomM = getOuterBottomCm(row.item) / 100;
   const f = row.finance;
@@ -355,7 +356,7 @@ function ExtrasSection({ row, open, onToggle }: { row: WindowRow; open: boolean;
   if (!hasAny) return null;
 
   const totalRetail = row.extrasItems.reduce((s, i) => s + i.totalRetail, 0);
-  const totalCost   = row.extrasItems.reduce((s, i) => s + i.totalCost,   0);
+  const totalCost = row.extrasItems.reduce((s, i) => s + i.totalCost, 0);
 
   function PriceSpan({ slug }: { slug: string }) {
     const si = siMap[slug];
@@ -490,7 +491,7 @@ function FinanceSection({ row, open, onToggle }: { row: WindowRow; open: boolean
   // ── Агрегаты допов этого окна ─────────────────────────────────────────────
   // Берём из row.extrasItems — те же данные, что useCalculationState суммирует
   // в extrasCostTotal / extrasRetailTotal по всем окнам.
-  const extrasWindowCost   = row.extrasItems.reduce((s, i) => s + i.totalCost,   0);
+  const extrasWindowCost = row.extrasItems.reduce((s, i) => s + i.totalCost, 0);
   const extrasWindowRetail = row.extrasItems.reduce((s, i) => s + i.totalRetail, 0);
 
   // ── Полный итог по окну (соответствует полям ClientStep) ──────────────────
@@ -508,10 +509,10 @@ function FinanceSection({ row, open, onToggle }: { row: WindowRow; open: boolean
   //
   // finance.totalExpenses уже содержит overspending, productionCost, fastenersCost.
   // extrasCostWindow — единственное, что не входило в finance.totalExpenses.
-  const windowDisplayCost   = f.costPrice + f.fastenersCost + extrasWindowCost;
+  const windowDisplayCost = f.costPrice + f.fastenersCost + extrasWindowCost;
   const windowTotalExpenses = f.totalExpenses + extrasWindowCost;
-  const windowRetailFull    = f.retailPrice  + extrasWindowRetail;
-  const windowProfit        = windowRetailFull - windowTotalExpenses;
+  const windowRetailFull = f.retailPrice + extrasWindowRetail;
+  const windowProfit = windowRetailFull - windowTotalExpenses;
 
   return (
     <div className={styles.extraSection}>
@@ -665,10 +666,10 @@ export default function CuttingDiagnostics({ windows, priceMap, orderTotals }: C
   const pm = priceMap && Object.keys(priceMap).length > 0 ? priceMap : null;
 
   // Глобальные переключатели секций (одно состояние на всё)
-  const [openKant,     setOpenKant]     = useState(false);
+  const [openKant, setOpenKant] = useState(false);
   const [openFastener, setOpenFastener] = useState(false);
-  const [openExtras,   setOpenExtras]   = useState(false);
-  const [openFinance,  setOpenFinance]  = useState(false);
+  const [openExtras, setOpenExtras] = useState(false);
+  const [openFinance, setOpenFinance] = useState(false);
 
   const rows = useMemo(
     () => windows.map((item, i) => buildRow(item, i, pm)),
@@ -683,15 +684,15 @@ export default function CuttingDiagnostics({ windows, priceMap, orderTotals }: C
   const diagTotals = useMemo(() => {
     if (!pm) return null;
 
-    const sumCostPrice       = rows.reduce((s, r) => s + (r.finance?.costPrice       ?? 0), 0);
-    const sumFastenersCost   = rows.reduce((s, r) => s + (r.finance?.fastenersCost   ?? 0), 0);
-    const sumOverspending    = rows.reduce((s, r) => s + (r.finance?.overspending    ?? 0), 0);
-    const sumProductionCost  = rows.reduce((s, r) => s + (r.finance?.productionCost  ?? 0), 0);
-    const sumTotalExpenses   = rows.reduce((s, r) => s + (r.finance?.totalExpenses   ?? 0), 0);
-    const sumRetailPrice     = rows.reduce((s, r) => s + (r.finance?.retailPrice     ?? 0), 0);
+    const sumCostPrice = rows.reduce((s, r) => s + (r.finance?.costPrice ?? 0), 0);
+    const sumFastenersCost = rows.reduce((s, r) => s + (r.finance?.fastenersCost ?? 0), 0);
+    const sumOverspending = rows.reduce((s, r) => s + (r.finance?.overspending ?? 0), 0);
+    const sumProductionCost = rows.reduce((s, r) => s + (r.finance?.productionCost ?? 0), 0);
+    const sumTotalExpenses = rows.reduce((s, r) => s + (r.finance?.totalExpenses ?? 0), 0);
+    const sumRetailPrice = rows.reduce((s, r) => s + (r.finance?.retailPrice ?? 0), 0);
 
-    const sumExtrasCost   = rows.reduce((s, r) =>
-      s + r.extrasItems.reduce((es, i) => es + i.totalCost,   0), 0);
+    const sumExtrasCost = rows.reduce((s, r) =>
+      s + r.extrasItems.reduce((es, i) => es + i.totalCost, 0), 0);
     const sumExtrasRetail = rows.reduce((s, r) =>
       s + r.extrasItems.reduce((es, i) => es + i.totalRetail, 0), 0);
 
@@ -700,13 +701,13 @@ export default function CuttingDiagnostics({ windows, priceMap, orderTotals }: C
       //   Σ costPrice + Σ fastenersCost + Σ extrasCost
       //   → соответствует ClientStep «Стоимость изделия»
       clientProductCostDisplay: sumCostPrice + sumFastenersCost + sumExtrasCost,
-      totalOverspending:        sumOverspending,
-      totalProductionCost:      sumProductionCost,
+      totalOverspending: sumOverspending,
+      totalProductionCost: sumProductionCost,
       // expensesWithoutMounting =
       //   Σ finance.totalExpenses + Σ extrasCost
       //   → соответствует ClientStep «Всего расходов без монтажа»
-      expensesWithoutMounting:  sumTotalExpenses + sumExtrasCost,
-      totalRetailNoMounting:    sumRetailPrice   + sumExtrasRetail,
+      expensesWithoutMounting: sumTotalExpenses + sumExtrasCost,
+      totalRetailNoMounting: sumRetailPrice + sumExtrasRetail,
     };
   }, [rows, pm]);
 
@@ -749,18 +750,18 @@ export default function CuttingDiagnostics({ windows, priceMap, orderTotals }: C
             {(row.geometry.isOverSize || !row.geometry.isExact) && (
               <div className={styles.warnings}>
                 {row.geometry.isOverSize && <div className={styles.warnOversize}>⚠ Негабарит: алгоритм берёт максимальный рулон.</div>}
-                {!row.geometry.isExact   && <div className={styles.warnApprox}>⚠ Приближённый расчёт: данных crossbar нет.</div>}
+                {!row.geometry.isExact && <div className={styles.warnApprox}>⚠ Приближённый расчёт: данных crossbar нет.</div>}
               </div>
             )}
 
             {/* Кант */}
-            <KantSection     row={row} open={openKant}     onToggle={() => setOpenKant(v => !v)} />
+            <KantSection row={row} open={openKant} onToggle={() => setOpenKant(v => !v)} />
             {/* Крепёж */}
             <FastenerSection row={row} open={openFastener} onToggle={() => setOpenFastener(v => !v)} />
             {/* Допы */}
-            <ExtrasSection   row={row} open={openExtras}   onToggle={() => setOpenExtras(v => !v)} />
+            <ExtrasSection row={row} open={openExtras} onToggle={() => setOpenExtras(v => !v)} />
             {/* Себестоимость */}
-            <FinanceSection  row={row} open={openFinance}  onToggle={() => setOpenFinance(v => !v)} />
+            <FinanceSection row={row} open={openFinance} onToggle={() => setOpenFinance(v => !v)} />
           </div>
         ))}
       </div>

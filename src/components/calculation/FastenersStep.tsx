@@ -5,13 +5,9 @@ import DrawingCanvas from './DrawingCanvas';
 import FastenersParams from './FastenersParams';
 import styles from './FastenersStep.module.css';
 
-// СТАЛО (Архитектурно верно)
-import { calculateWindowGeometry } from '@/lib/logic/windowCalculations';
+import { calculateFastenerPoints } from '@/lib/logic/fastenerCalculations';
 import { getFastenerUnitPrices } from '@/lib/logic/pricingLogic';
 import { type WindowItem, type FastenerConfig, getInitialFastener } from '@/types';
-
-/** Шаг расстановки точек крепления по периметру (см). */
-const FASTENER_STEP_CM = 40;
 
 interface FastenersStepProps {
   windows: WindowItem[];
@@ -42,10 +38,8 @@ export default function FastenersStep({
   const handleParamsChange = useCallback((newConfig: FastenerConfig) => {
     if (!activeWindow) return;
 
-    const geometry = calculateWindowGeometry(activeWindow);
-
-    // Количество точек крепления: минимум 4 по углам, далее — шаг по периметру
-    const pointsCount = Math.max(4, Math.ceil(geometry.perimeter / FASTENER_STEP_CM));
+    const fastenerPoints = calculateFastenerPoints({ ...activeWindow, fasteners: newConfig });
+    const pointsCount = fastenerPoints.mainFastenerPointsCount;
 
     // Цены берём из живого priceMap через тот же маппинг, что и calculateWindowFinance.
     // Fallback — на priceRetail/priceCost из конфига (snapshot закрытой сделки).
@@ -80,6 +74,22 @@ export default function FastenersStep({
 
     onWindowsChange(updatedWindows);
   }, [activeWindow, activeWindowId, windows, onWindowsChange, priceMap]);
+
+  // ── Сводка для infoBar ───────────────────────────────────────────────────
+  // Для активных заказов: runtime-пересчёт через helper.
+  //   — mainFastenerPointsCount:     основной тип крепежа (идёт в pricingLogic)
+  //   — defaultTopEyeletPointsCount: Ø10 верх, отдельный тип (не умножается на цену основного)
+  //   — uniqueTotalPhysicalPoints:   физических точек без дублей (для склада в будущем)
+  //
+  // Для readonly / frozen заказов: null.
+  //   infoBar показывает сохранённый activeFasteners.pointsCount, чтобы
+  //   не расходиться с историческими суммами в "Прибыль и расход".
+  const fastenerSummary = useMemo(
+    () => (!isReadOnly && activeWindow)
+      ? calculateFastenerPoints(activeWindow)
+      : null,
+    [activeWindow, isReadOnly],
+  );
 
   const activeSidesCount = useMemo(() =>
     activeFasteners.type === 'none'
@@ -136,10 +146,36 @@ export default function FastenersStep({
             <span className={styles.infoItem}>
               Выбрано: <strong>{activeWindow.name}</strong>
             </span>
-            {/* НОВЫЙ БЛОК: Выводим количество точек крепления */}
-            <span className={styles.infoItem}>
-              Точек: <strong>{activeFasteners.pointsCount || 0} шт.</strong>
-            </span>
+
+            {/* ── Сводка по точкам ───────────────────────────────────────────
+                Активный заказ + top='default': три строки (main / Ø10 / физических).
+                  — Склад в будущем будет списывать main и Ø10 раздельно.
+                Активный заказ без Ø10 верха: одна строка (Точек: N шт.).
+                Frozen / readonly заказ: одна строка из сохранённого pointsCount
+                  — не пересчитываем, чтобы не расходиться с историческими суммами.
+            ─────────────────────────────────────────────────────────────── */}
+            {fastenerSummary && fastenerSummary.defaultTopEyeletPointsCount > 0 ? (
+              <>
+                <span className={styles.infoItem}>
+                  Основной: <strong>{fastenerSummary.mainFastenerPointsCount} шт.</strong>
+                </span>
+                <span className={styles.infoItem}>
+                  Ø10 верх: <strong>{fastenerSummary.defaultTopEyeletPointsCount} шт.</strong>
+                </span>
+                <span className={styles.infoItem}>
+                  Физических: <strong>{fastenerSummary.uniqueTotalPhysicalPoints} шт.</strong>
+                </span>
+              </>
+            ) : (
+              <span className={styles.infoItem}>
+                Точек: <strong>
+                  {(fastenerSummary
+                    ? fastenerSummary.mainFastenerPointsCount
+                    : activeFasteners.pointsCount) || 0} шт.
+                </strong>
+              </span>
+            )}
+
             <span className={styles.infoItem}>
               Стороны: <strong>{activeSidesCount} / 4</strong>
             </span>
