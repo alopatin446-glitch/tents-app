@@ -12,6 +12,7 @@
 import { useMemo } from 'react';
 import { type WindowItem } from '@/types';
 import { type PriceMap } from '@/lib/logic/pricingLogic';
+import { type GeometrySnapshotV1 } from '@/types';
 import { resolveActivePrices } from '@/lib/logic/priceResolution';
 import CuttingCanvas from './CuttingCanvas';
 import CuttingDiagnostics, { type OrderTotals } from '@/components/calculation/shared/CuttingDiagnostics';
@@ -28,6 +29,11 @@ interface ProductionStepProps {
   savedPrices?: Record<string, number> | null;
   /** Агрегаты из useCalculationState — для сверки с per-window расчётом */
   orderTotals?: OrderTotals;
+  /**
+   * Снапшот геометрии из Client.geometrySnapshot.
+   * Передаётся в CuttingDiagnostics для snapshot-aware display на frozen orders.
+   */
+  geometrySnapshot?: GeometrySnapshotV1 | null;
 }
 
 export default function ProductionStep({
@@ -39,6 +45,7 @@ export default function ProductionStep({
   isPriceLocked = false,
   savedPrices,
   orderTotals,
+  geometrySnapshot,
 }: ProductionStepProps) {
   const activeWindow: WindowItem | undefined = windows.find(
     (w) => w.id === activeWindowId,
@@ -58,10 +65,26 @@ export default function ProductionStep({
     }).prices;
   }, [clientStatus, isPriceLocked, savedPrices, currentPrices]);
 
+  /**
+   * rollWidth для CuttingCanvas.
+   * Для frozen orders (geometrySnapshot присутствует и версия '1.0'):
+   *   берём rollWidth из snapshot — не зависит от изменений ROLL_WIDTHS.
+   * Иначе: live calculateWindowGeometry (active orders, старые frozen без snapshot).
+   * Закрывает live-хвост BUG-8A-02 в правой визуальной части.
+   */
+  const resolvedRollWidth = useMemo(() => {
+    if (!activeWindow) return 0;
+    const snapshotEntry =
+      geometrySnapshot?.version === '1.0'
+        ? geometrySnapshot.windows[String(activeWindow.id)]
+        : undefined;
+    return snapshotEntry?.rollWidth ?? calculateWindowGeometry(activeWindow).rollWidth;
+  }, [activeWindow, geometrySnapshot]);
+
   return (
     <div className={styles.itemsGrid}>
       <aside className={styles.inputPanelWrapper}>
-        <CuttingDiagnostics windows={windows} priceMap={activePrices} orderTotals={orderTotals} />
+        <CuttingDiagnostics windows={windows} priceMap={activePrices} orderTotals={orderTotals} geometrySnapshot={geometrySnapshot} />
       </aside>
 
       <div className={styles.rightColumn}>
@@ -81,7 +104,7 @@ export default function ProductionStep({
           {activeWindow ? (
             <CuttingCanvas
               windowItem={activeWindow}
-              rollWidth={calculateWindowGeometry(activeWindow).rollWidth * 10}
+              rollWidth={resolvedRollWidth * 10}
             />
           ) : (
             <div style={{ color: 'rgba(255,255,255,0.2)' }}>Выберите окно</div>

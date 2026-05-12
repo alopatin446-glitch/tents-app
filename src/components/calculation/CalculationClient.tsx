@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { type WindowItem } from '@/types';
+import { type GeometrySnapshotV1 } from '@/types';
 import { type ClientFormData } from '@/components/calculation/ClientStep';
 import { useCalculationState } from '@/hooks/useCalculationState';
 import { updateClientAction } from '@/app/actions';
@@ -398,6 +399,7 @@ export default function CalculationClient({
             clientStatus={clientDataWithArea.status}
             isPriceLocked={Boolean(clientDataWithArea['isPriceLocked'])}
             savedPrices={(clientDataWithArea as Record<string, unknown>)['savedPrices'] as Record<string, number> | null | undefined}
+            geometrySnapshot={(clientDataWithArea as Record<string, unknown>)['geometrySnapshot'] as GeometrySnapshotV1 | null | undefined}
             orderTotals={{
               // ClientStep «Стоимость изделия» = costPrice + fastenersCostTotal + extrasCostTotal
               clientProductCostDisplay: costPrice + fastenersCostTotal + extrasCostTotal,

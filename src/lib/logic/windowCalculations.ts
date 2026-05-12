@@ -42,7 +42,7 @@ const TRAPEZOID_WIDTH_DELTA = 0.5;
  * ТАМОЖНЯ: параметры здесь — закон.
  */
 export const ROLL_WIDTHS: Record<string, number[]> = {
-  PVC_700:  [140, 150, 180, 200, 220, 240],
+  PVC_700:  [140, 300],
   TPU:      [140],
   TINTED:   [140, 180, 200],
   MOSQUITO: [200],

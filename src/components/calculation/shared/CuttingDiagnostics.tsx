@@ -19,22 +19,23 @@
  */
 
 import { useMemo, useState } from 'react';
-import { type WindowItem } from '@/types';
+import { type WindowItem, type GeometrySnapshotV1, type WindowGeometrySnapshot } from '@/types';
 import {
   calculateFastenerPoints,
   type FastenerPointsResult,
 } from '@/lib/logic/fastenerCalculations';
 import {
   calculateWindowGeometry,
-  calculateOrderOptimization,
   formatArea,
   SOLDER_ALLOWANCE,
   type WindowGeometry,
+  type OrderOptimization,
 } from '@/lib/logic/windowCalculations';
 import {
   calculateWindowFinance,
   type PriceMap,
   type WindowFinance,
+  type FinancialGeometrySnapshot,
 } from '@/lib/logic/pricingLogic';
 import {
   calculateExtrasAsServiceItems,
@@ -122,9 +123,87 @@ function fRub(v: number): string {
 // Построение строки
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildRow(item: WindowItem, index: number, pm: PriceMap | null): WindowRow {
-  const geometry = calculateWindowGeometry(item);
-  const finance = pm ? calculateWindowFinance(item, pm) : null;
+// ─────────────────────────────────────────────────────────────────────────────
+// Snapshot helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Строит Map<windowId, WindowGeometrySnapshot> из GeometrySnapshotV1.
+ * Возвращает null если snapshot отсутствует, невалиден или пустой.
+ * Используется в buildRow и orderSummary для frozen orders.
+ */
+function buildSnapshotMap(
+  snapshot: GeometrySnapshotV1 | null | undefined,
+): Map<number, WindowGeometrySnapshot> | null {
+  if (!snapshot || snapshot.version !== '1.0' || !snapshot.windows) return null;
+
+  const map = new Map<number, WindowGeometrySnapshot>();
+
+  for (const [key, entry] of Object.entries(snapshot.windows)) {
+    const windowId = Number(key);
+    if (!Number.isFinite(windowId)) continue;
+    map.set(windowId, entry);
+  }
+
+  return map.size > 0 ? map : null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Построение строки
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Строит WindowRow для одного изделия.
+ *
+ * snapshotEntry (опционально) — для frozen orders.
+ * При наличии:
+ *   — engine-dependent geo поля (rollWidth, cutWidth, cutHeight, isRotated,
+ *     productionArea, retailArea, perimeterWithKant, cutArea, wasteArea, isOverSize)
+ *     берутся из snapshot.
+ *   — display-only поля (maxWidth, maxHeight, areaWithKant, type, sideTop/Left/Right,
+ *     kantAreaInProduct, kantWasteArea, kantTotalArea, isExact) остаются live —
+ *     они не зависят от ROLL_WIDTHS/SOLDER_ALLOWANCE и всегда корректны.
+ *   — calculateWindowFinance получает precomputedGeo из snapshot.
+ * При отсутствии: поведение идентично прежнему (live geometry).
+ */
+function buildRow(
+  item: WindowItem,
+  index: number,
+  pm: PriceMap | null,
+  snapshotEntry?: WindowGeometrySnapshot,
+): WindowRow {
+  const liveGeometry = calculateWindowGeometry(item);
+
+  const geometry: WindowGeometry = snapshotEntry
+    ? {
+        ...liveGeometry,
+        rollWidth:         snapshotEntry.rollWidth,
+        cutWidth:          snapshotEntry.cutWidth,
+        cutHeight:         snapshotEntry.cutHeight,
+        isRotated:         snapshotEntry.isRotated,
+        productionArea:    snapshotEntry.productionArea,
+        retailArea:        snapshotEntry.retailArea,
+        perimeterWithKant: snapshotEntry.perimeterWithKant,
+        cutArea:           snapshotEntry.cutArea,
+        wasteArea:         snapshotEntry.wasteArea,
+        isOverSize:        snapshotEntry.isOverSize,
+      }
+    : liveGeometry;
+
+  // Explicit pick — только 7 финансово-значимых полей для calculateWindowFinance.
+  const financialGeo: FinancialGeometrySnapshot | undefined = snapshotEntry
+    ? {
+        rollWidth:         snapshotEntry.rollWidth,
+        cutWidth:          snapshotEntry.cutWidth,
+        cutHeight:         snapshotEntry.cutHeight,
+        isRotated:         snapshotEntry.isRotated,
+        productionArea:    snapshotEntry.productionArea,
+        retailArea:        snapshotEntry.retailArea,
+        perimeterWithKant: snapshotEntry.perimeterWithKant,
+      }
+    : undefined;
+
+  const finance = pm ? calculateWindowFinance(item, pm, financialGeo) : null;
   const extrasItems = pm ? calculateExtrasAsServiceItems(item, pm, index) : [];
   const fastenerPoints = calculateFastenerPoints(item);
   return { id: item.id, index, name: item.name, material: item.material || 'PVC_700', geometry, finance, extrasItems, fastenerPoints, item };
@@ -656,13 +735,21 @@ interface CuttingDiagnosticsProps {
    * Опционально — без них блок сверки скрыт (backward compat).
    */
   orderTotals?: OrderTotals;
+  /**
+   * Снапшот геометрии из Client.geometrySnapshot.
+   * Присутствует только для frozen orders (completed/rejected/isPriceLocked).
+   * При наличии — geometry и orderSummary строятся из snapshot,
+   * а не из live calculateWindowGeometry. Закрывает BUG-8A-02 для display.
+   * При отсутствии (null/undefined) — поведение как прежде (live geometry).
+   */
+  geometrySnapshot?: GeometrySnapshotV1 | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Компонент
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function CuttingDiagnostics({ windows, priceMap, orderTotals }: CuttingDiagnosticsProps) {
+export default function CuttingDiagnostics({ windows, priceMap, orderTotals, geometrySnapshot }: CuttingDiagnosticsProps) {
   const pm = priceMap && Object.keys(priceMap).length > 0 ? priceMap : null;
 
   // Глобальные переключатели секций (одно состояние на всё)
@@ -671,12 +758,63 @@ export default function CuttingDiagnostics({ windows, priceMap, orderTotals }: C
   const [openExtras, setOpenExtras] = useState(false);
   const [openFinance, setOpenFinance] = useState(false);
 
-  const rows = useMemo(
-    () => windows.map((item, i) => buildRow(item, i, pm)),
-    [windows, pm],
+  // Snapshot map — строится один раз при изменении geometrySnapshot.
+  // Null для active orders и frozen orders без snapshot (старые записи).
+  const snapshotMap = useMemo(
+    () => buildSnapshotMap(geometrySnapshot),
+    [geometrySnapshot],
   );
 
-  const orderSummary = useMemo(() => calculateOrderOptimization(windows), [windows]);
+  const rows = useMemo(
+    () => windows.map((item, i) => buildRow(item, i, pm, snapshotMap?.get(item.id))),
+    [windows, pm, snapshotMap],
+  );
+
+  // orderSummary строится из уже snapshot-aware rows, а не через
+  // calculateOrderOptimization(windows). Это гарантирует, что batch-группировка,
+  // погонаж, totalCutArea и totalWasteArea совпадают с историческим раскроем
+  // для frozen orders при любых последующих изменениях ROLL_WIDTHS.
+  // Алгоритм идентичен calculateOrderOptimization — только источник geometry другой.
+  // BUG-8A-01 (widthTop вместо maxW для rotated трапеций) намеренно сохранён.
+  const orderSummary = useMemo((): OrderOptimization => {
+    if (rows.length === 0) {
+      return { totalCutArea: 0, totalWasteArea: 0, batches: [] };
+    }
+
+    const batchMap: Record<string, {
+      material: string;
+      rollWidth: number;
+      totalLength: number;
+      windowIds: number[];
+    }> = {};
+
+    for (const row of rows) {
+      const geo = row.geometry;
+      const key = `${row.material}_${geo.rollWidth}`;
+
+      if (!batchMap[key]) {
+        batchMap[key] = {
+          material:    row.material,
+          rollWidth:   geo.rollWidth,
+          totalLength: 0,
+          windowIds:   [],
+        };
+      }
+
+      const length = geo.isRotated
+        ? (Number(row.item.widthTop) + SOLDER_ALLOWANCE)
+        : (Math.max(Number(row.item.heightLeft), Number(row.item.heightRight)) + SOLDER_ALLOWANCE);
+
+      batchMap[key].totalLength += length;
+      batchMap[key].windowIds.push(row.id);
+    }
+
+    return {
+      totalCutArea:   rows.reduce((s, r) => s + r.geometry.cutArea,   0),
+      totalWasteArea: rows.reduce((s, r) => s + r.geometry.wasteArea, 0),
+      batches:        Object.values(batchMap),
+    };
+  }, [rows]);
 
   // ── Агрегаты CuttingDiagnostics — сумма по всем окнам ───────────────────
   // Используются для сверки с orderTotals (значения из useCalculationState).
