@@ -28,6 +28,8 @@ import {
   calculateWindowGeometry,
   formatArea,
   SOLDER_ALLOWANCE,
+  ROLL_WIDTHS,
+  SMART_TOLERANCE,
   type WindowGeometry,
   type OrderOptimization,
 } from '@/lib/logic/windowCalculations';
@@ -207,6 +209,124 @@ function buildRow(
   const extrasItems = pm ? calculateExtrasAsServiceItems(item, pm, index) : [];
   const fastenerPoints = calculateFastenerPoints(item);
   return { id: item.id, index, name: item.name, material: item.material || 'PVC_700', geometry, finance, extrasItems, fastenerPoints, item };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Divider section helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Результат расчёта одной секции-полосы (divider strip).
+ * Используется в orderSummary для учёта раскроя разделительных секций.
+ */
+interface DividerStrip {
+  rollWidth:   number;  // см  — ширина рулона для этой секции
+  stripLength: number;  // см  — длина отреза вдоль рулона (isRotated=false)
+  cutArea:     number;  // м²  — площадь списания
+  wasteArea:   number;  // м²  — перерасход
+  batchKey:    string;  // `${material}_${rollWidth}`
+}
+
+/**
+ * Находит рулон для ширины секции без поворота (isRotated=false принудительно).
+ *
+ * Пояснение: припой у разделителя — вдоль рулона, поворот запрещён.
+ * MOSQUITO: вызывается только из calcDividerStrips, который уже фильтрует москитку.
+ */
+function findRollNoRotation(
+  sectionWidth: number,
+  material: string,
+): { rollWidth: number } {
+  const prodW = sectionWidth + SOLDER_ALLOWANCE;
+  const rolls = [...(ROLL_WIDTHS[material] ?? ROLL_WIDTHS['PVC_700'])].sort((a, b) => a - b);
+  const roll  = rolls.find(r => (prodW - SMART_TOLERANCE) <= r);
+  return { rollWidth: roll ?? rolls[rolls.length - 1] };
+}
+
+/**
+ * Строит массив DividerStrip для одного WindowRow.
+ *
+ * Разделитель делит изделие на секции. Каждая секция раскраивается
+ * из рулона отдельно с isRotated=false (припой идёт вдоль рулона).
+ *
+ * Вертикальные разделители → делят maxWidth на секции по X.
+ * Горизонтальные разделители → делят maxHeight на секции по Y.
+ *
+ * Правило поворота: isRotated=false для всех материалов.
+ *   PVC_700 / TPU / TINTED: запаян вдоль рулона — поворот недопустим.
+ *   MOSQUITO: разделители запрещены бизнес-правилом → пустой массив.
+ *
+ * Backward-compat: dividers=undefined или [] → пустой массив.
+ */
+function calcDividerStrips(row: WindowRow): DividerStrip[] {
+  const dividers = row.item.additionalElements?.dividers ?? [];
+  if (dividers.length === 0 || row.material === 'MOSQUITO') return [];
+
+  const { maxWidth, maxHeight } = row.geometry;
+  const material = row.material;
+  const strips: DividerStrip[] = [];
+
+  // Утилита округления до 2 знаков (площади)
+  const round2 = (v: number) => Math.round(v * 100) / 100;
+
+  // ── Вертикальные разделители → делят ширину на секции ──────────────────
+  const vertDividers = dividers
+    .filter(d => d.orientation === 'vertical')
+    .sort((a, b) => a.position - b.position);
+
+  if (vertDividers.length > 0) {
+    // Позиции границ: [0, pos1, pos2, ..., maxWidth]
+    const xBounds = [0, ...vertDividers.map(d => d.position), maxWidth];
+
+    for (let i = 0; i < xBounds.length - 1; i++) {
+      const secW = xBounds[i + 1] - xBounds[i];
+      const secH = maxHeight;
+      if (secW <= 0) continue;
+
+      const { rollWidth } = findRollNoRotation(secW, material);
+      const stripLength   = secH + SOLDER_ALLOWANCE;   // isRotated=false → длина по высоте
+      const cutArea       = round2(rollWidth * stripLength / 10_000);
+      const wasteArea     = Math.max(0, round2(cutArea - secW * secH / 10_000));
+
+      strips.push({
+        rollWidth,
+        stripLength,
+        cutArea,
+        wasteArea,
+        batchKey: `${material}_${rollWidth}`,
+      });
+    }
+  }
+
+  // ── Горизонтальные разделители → делят высоту на секции ────────────────
+  const horizDividers = dividers
+    .filter(d => d.orientation === 'horizontal')
+    .sort((a, b) => a.position - b.position);
+
+  if (horizDividers.length > 0) {
+    const yBounds = [0, ...horizDividers.map(d => d.position), maxHeight];
+
+    for (let i = 0; i < yBounds.length - 1; i++) {
+      const secW = maxWidth;
+      const secH = yBounds[i + 1] - yBounds[i];
+      if (secH <= 0) continue;
+
+      const { rollWidth } = findRollNoRotation(secW, material);
+      const stripLength   = secH + SOLDER_ALLOWANCE;
+      const cutArea       = round2(rollWidth * stripLength / 10_000);
+      const wasteArea     = Math.max(0, round2(cutArea - secW * secH / 10_000));
+
+      strips.push({
+        rollWidth,
+        stripLength,
+        cutArea,
+        wasteArea,
+        batchKey: `${material}_${rollWidth}`,
+      });
+    }
+  }
+
+  return strips;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -776,6 +896,11 @@ export default function CuttingDiagnostics({ windows, priceMap, orderTotals, geo
   // для frozen orders при любых последующих изменениях ROLL_WIDTHS.
   // Алгоритм идентичен calculateOrderOptimization — только источник geometry другой.
   // BUG-8A-01 (widthTop вместо maxW для rotated трапеций) намеренно сохранён.
+  //
+  // Разделители (dividers): окна с разделителями раскраиваются по секциям.
+  // Для таких окон cutArea/wasteArea/totalLength берётся из calcDividerStrips
+  // (live для всех заказов, т.к. divider-секции в snapshot не хранятся).
+  // Финансы (finance) при этом НЕ меняются — они snapshot-aware через buildRow.
   const orderSummary = useMemo((): OrderOptimization => {
     if (rows.length === 0) {
       return { totalCutArea: 0, totalWasteArea: 0, batches: [] };
@@ -788,6 +913,10 @@ export default function CuttingDiagnostics({ windows, priceMap, orderTotals, geo
       windowIds: number[];
     }> = {};
 
+    let totalCutArea   = 0;
+    let totalWasteArea = 0;
+
+    // ── Основной цикл: snapshot-aware ──────────────────────────────────────
     for (const row of rows) {
       const geo = row.geometry;
       const key = `${row.material}_${geo.rollWidth}`;
@@ -801,18 +930,54 @@ export default function CuttingDiagnostics({ windows, priceMap, orderTotals, geo
         };
       }
 
-      const length = geo.isRotated
-        ? (Number(row.item.widthTop) + SOLDER_ALLOWANCE)
-        : (Math.max(Number(row.item.heightLeft), Number(row.item.heightRight)) + SOLDER_ALLOWANCE);
-
-      batchMap[key].totalLength += length;
+      // windowId всегда фиксируется — для идентификации изделия в группе.
       batchMap[key].windowIds.push(row.id);
+
+      // Изделия с разделителями: totalLength/cutArea/wasteArea считаются
+      // через секции ниже. Основной вклад пропускаем во избежание двойного учёта.
+      const hasDividers =
+        (row.item.additionalElements?.dividers ?? []).length > 0 &&
+        row.material !== 'MOSQUITO';
+
+      if (!hasDividers) {
+        // Оригинальная логика — snapshot-aware. BUG-8A-01 намеренно сохранён.
+        const length = geo.isRotated
+          ? (Number(row.item.widthTop) + SOLDER_ALLOWANCE)
+          : (Math.max(Number(row.item.heightLeft), Number(row.item.heightRight)) + SOLDER_ALLOWANCE);
+
+        batchMap[key].totalLength += length;
+        totalCutArea   += geo.cutArea;
+        totalWasteArea += geo.wasteArea;
+      }
+    }
+
+    // ── Divider-секции: всегда live ─────────────────────────────────────────
+    // Для каждого изделия с разделителями строим отдельные полосы-секции.
+    // Их cutArea/wasteArea/totalLength заменяет вклад основного изделия выше.
+    // MOSQUITO: calcDividerStrips вернёт [] по своему guard-у.
+    for (const row of rows) {
+      const strips = calcDividerStrips(row);
+      if (strips.length === 0) continue;
+
+      for (const strip of strips) {
+        if (!batchMap[strip.batchKey]) {
+          batchMap[strip.batchKey] = {
+            material:    row.material,
+            rollWidth:   strip.rollWidth,
+            totalLength: 0,
+            windowIds:   [],
+          };
+        }
+        batchMap[strip.batchKey].totalLength += strip.stripLength;
+        totalCutArea   += strip.cutArea;
+        totalWasteArea += strip.wasteArea;
+      }
     }
 
     return {
-      totalCutArea:   rows.reduce((s, r) => s + r.geometry.cutArea,   0),
-      totalWasteArea: rows.reduce((s, r) => s + r.geometry.wasteArea, 0),
-      batches:        Object.values(batchMap),
+      totalCutArea,
+      totalWasteArea,
+      batches: Object.values(batchMap),
     };
   }, [rows]);
 
@@ -960,7 +1125,7 @@ export default function CuttingDiagnostics({ windows, priceMap, orderTotals, geo
       )}
 
       {/* Сводка групп раскроя */}
-      <div className={styles.groupsHeading}>Группы раскроя (calculateOrderOptimization)</div>
+      <div className={styles.groupsHeading}>Группы раскроя</div>
       {orderSummary.batches.length > 0 ? (
         <div className={styles.batchList}>
           {orderSummary.batches.map((batch, idx) => (
