@@ -53,7 +53,7 @@ function round2(v: number): number {
  *
  *   Foundation groupedLayouts ≠ real shared layout optimization.
  *   Real grouped cutting (shared constrained production graph, sequence,
- *   remnant reuse between elements) is Chapter B.
+ *   remnant reuse between elements) is a future chapter.
  *
  *   In foundation, each element is still treated as independent.
  *   Grouping here only serves batch planning (how many meters of which roll to prepare).
@@ -113,7 +113,7 @@ function buildExplanations(
     out.push({
       type:    'info',
       message: 'Ни один вариант не прошёл проверку hard constraints. Выбранная стратегия отсутствует.',
-      details: 'Проверьте размеры изделий и доступные рулоны. Возможно, требуется split-стратегия (Chapter B).',
+      details: 'Проверьте размеры изделий и доступные рулоны. Возможно, требуется split-стратегия (Chapter D).',
     });
     return out;
   }
@@ -172,7 +172,7 @@ function buildWarnings(
         out.push({
           level:     'error',
           code:      'ELEMENT_OVERSIZE',
-          message:   `Элемент ${es.element.id} (${es.element.cutW}×${es.element.cutH} см) превышает максимальный рулон для ${es.element.material}. Требуется split-стратегия (техпайка) — Chapter B.`,
+          message:   `Элемент ${es.element.id} (${es.element.cutW}×${es.element.cutH} см) превышает максимальный рулон для ${es.element.material}. Требуется split-стратегия (техпайка) — Chapter D.`,
           elementId: es.element.id,
           windowId:  es.element.windowId,
         });
@@ -184,7 +184,7 @@ function buildWarnings(
     out.push({
       level:   'error',
       code:    'NO_VALID_STRATEGY',
-      message: 'Foundation version: не найдена валидная стратегия. В текущей версии поддерживается только single_piece_all. Split-стратегии реализуются в Chapter B.',
+      message: 'Не найдена валидная стратегия раскроя. Проверьте размеры изделий и доступные рулоны. Split-стратегии с техпайкой — Chapter D.',
     });
   }
 

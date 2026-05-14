@@ -13,11 +13,13 @@ import { useMemo } from 'react';
 import { type WindowItem } from '@/types';
 import { type PriceMap } from '@/lib/logic/pricingLogic';
 import { type GeometrySnapshotV1 } from '@/types';
-import { resolveActivePrices } from '@/lib/logic/priceResolution';
+import { resolveActivePrices, isPriceFixed } from '@/lib/logic/priceResolution';
 import CuttingCanvas from './CuttingCanvas';
 import CuttingDiagnostics, { type OrderTotals } from '@/components/calculation/shared/CuttingDiagnostics';
+import OptimizerPreview from '@/components/calculation/shared/OptimizerPreview';
 import styles from './ItemsStep.module.css';
 import { calculateWindowGeometry } from '@/lib/logic/windowCalculations';
+import { optimizeOrderMaterialPlan } from '@/lib/logic/materialOptimization';
 
 interface ProductionStepProps {
   windows: WindowItem[];
@@ -81,10 +83,46 @@ export default function ProductionStep({
     return snapshotEntry?.rollWidth ?? calculateWindowGeometry(activeWindow).rollWidth;
   }, [activeWindow, geometrySnapshot]);
 
+  /**
+   * ╔══════════════════════════════════════════════════════════════════════╗
+   * ║  DIAGNOSTIC BOUNDARY — READ-ONLY CALCULATION                        ║
+   * ║                                                                      ║
+   * ║  optimizerResult is a readonly diagnostic artifact.                 ║
+   * ║  It MUST NOT:                                                        ║
+   * ║    — replace orderSummary in CuttingDiagnostics                     ║
+   * ║    — affect resolvedRollWidth or CuttingCanvas                      ║
+   * ║    — affect activePrices, diagTotals, or finance calculations       ║
+   * ║    — be synced or patched into current production state             ║
+   * ║    — be stored in component state as mutable value                  ║
+   * ║    — participate in save pipeline                                   ║
+   * ║                                                                      ║
+   * ║  Frozen orders: executionMode='diagnostic' → source='diagnostic_preview'   ║
+   * ║  Live orders:   executionMode='live'       → source='live_optimizer'       ║
+   * ║                                                                      ║
+   * ║  windows dep: always new reference on change (verified: no in-place ║
+   * ║  mutation in useCalculationState — all updates via setWindows+map). ║
+   * ╚══════════════════════════════════════════════════════════════════════╝
+   */
+  const optimizerResult = useMemo(() => {
+    // isPriceFixed is the single source of freeze truth — mirrors priceResolution.ts.
+    // Frozen orders run diagnostic mode so source='diagnostic_preview' in result.
+    const isLive = !isPriceFixed(clientStatus, isPriceLocked);
+    return optimizeOrderMaterialPlan({
+      windows,
+      executionMode: isLive ? 'live' : 'diagnostic',
+      freezeState: {
+        isFinancialFrozen: !isLive,
+      },
+    });
+  }, [windows, clientStatus, isPriceLocked]);
+
   return (
     <div className={styles.itemsGrid}>
       <aside className={styles.inputPanelWrapper}>
+        {/* Authoritative production display — orderSummary + diagTotals */}
         <CuttingDiagnostics windows={windows} priceMap={activePrices} orderTotals={orderTotals} geometrySnapshot={geometrySnapshot} />
+        {/* Diagnostic parallel layer — readonly, NOT authoritative */}
+        <OptimizerPreview result={optimizerResult} />
       </aside>
 
       <div className={styles.rightColumn}>

@@ -3,17 +3,18 @@
  *
  * DOMAIN ENTRYPOINT — deterministic order-level material optimizer.
  *
- * PIPELINE (Chapter A — Foundation):
+ * PIPELINE (Chapter C — Topology-Aware):
  *
  *   Input: OptimizerInput (windows, executionMode, constraints)
  *     │
  *     ├─ Step 1: buildAllMaterialElements
- *     │    WindowItem[] → FilmElement[]
- *     │    Foundation: one element per window (single_piece)
+ *     │    WindowItem[] → MaterialBuildResult { FilmElement[], topologyWarnings[] }
+ *     │    Chapter C: topology-aware (dividers, zippers, welding → sections)
  *     │
  *     ├─ Step 2: generateCandidateVariants
  *     │    FilmElement[] → CandidateVariant[]
  *     │    Foundation: one variant (single_piece_all)
+ *     │    Chapter D: +split_strategy_A, +split_strategy_B (welding composition)
  *     │
  *     ├─ Step 3: validateProductionStrategy (per variant)
  *     │    Hard constraints → filter invalid variants
@@ -90,14 +91,17 @@ export function optimizeOrderMaterialPlan(
   const { windows, executionMode } = input;
 
   // ── Step 1: Build film elements ──────────────────────────────────────────
-  // Foundation: one FilmElement per WindowItem (single_piece, bounding box).
-  // Chapter B: topology-aware split elements when dividers/welding require it.
-  const materialElements = buildAllMaterialElements(windows);
+  // Chapter C: topology-aware. Multiple elements per window when full-span
+  // dividers, zippers, or welding items declare physical material splits.
+  // Topology warnings (TOPOLOGY_FORBIDDEN, TOPOLOGY_MIXED_NOT_SUPPORTED, etc.)
+  // are collected here and merged into the final result.warnings below.
+  const { elements: materialElements, warnings: topologyWarnings } =
+    buildAllMaterialElements(windows);
 
   // ── Step 2: Generate candidate variants ─────────────────────────────────
   // Foundation: [single_piece_all].
   // remnantOptions from input are forwarded so callers can override 80×80 default.
-  // Chapter B: +[split_strategy_A, split_strategy_B].
+  // Chapter D: +[split_strategy_A, split_strategy_B] (welding composition).
   const rawVariants = generateCandidateVariants(materialElements, input.remnantOptions);
 
   // ── Step 3: Validate (hard constraints) ─────────────────────────────────
@@ -150,17 +154,16 @@ export function optimizeOrderMaterialPlan(
 
     explanations,
     scoringBreakdown,
-    warnings,
+    warnings: [...topologyWarnings, ...warnings],
 
     optimizerMetadata: {
       windowCount:    windows.length,
       elementCount:   materialElements.length,
       variantCount:   scoredVariants.length,
       processingNote: [
-        'Foundation version: single_piece_all strategy only.',
-        'Split strategies (техпайка, welding composition) → Chapter B.',
-        'Topology-aware element generation (dividers, zippers) → Chapter B.',
-        'Snapshot persistence (optimizerSnapshot) → Chapter B.',
+        'Chapter C: topology-aware element generation (dividers, zippers, welding) — done.',
+        'Split strategies (welding composition, multi-roll) → Chapter D.',
+        'Snapshot persistence (optimizerSnapshot) → Chapter D.',
       ].join(' '),
     },
 

@@ -489,6 +489,22 @@ export default function ExtrasStep({
                   onChange={(e) => updateDivider(d.id, { width: parseFloat(e.target.value) || 1 })}
                 />
               </div>
+
+              <div className={styles.fieldRow}>
+                <label className={styles.fieldLabel}>Отступ в начале (см):</label>
+                <input type="number" className={styles.numInput} min={0}
+                  value={d.offsetStart ?? 0} disabled={isReadOnly}
+                  onChange={(e) => updateDivider(d.id, { offsetStart: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+
+              <div className={styles.fieldRow}>
+                <label className={styles.fieldLabel}>Отступ в конце (см):</label>
+                <input type="number" className={styles.numInput} min={0}
+                  value={d.offsetEnd ?? 0} disabled={isReadOnly}
+                  onChange={(e) => updateDivider(d.id, { offsetEnd: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
             </div>
           ))}
 

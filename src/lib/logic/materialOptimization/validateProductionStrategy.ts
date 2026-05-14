@@ -112,6 +112,13 @@ const HARD_CONSTRAINTS: HardConstraint[] = [
    * MOSQUITO_NO_WELDING
    * MOSQUITO material: welding seams (техпайка) are forbidden.
    * Any element from MOSQUITO with a seam_welding edge is rejected.
+   *
+   * NOTE: buildMaterialElements already handles MOSQUITO + welding by returning
+   * a sole_element fallback with TOPOLOGY_FORBIDDEN warning.
+   * That fallback is a valid single_piece element and is NOT rejected here.
+   * This constraint is a DEFENSE-IN-DEPTH guard for elements that somehow
+   * bypassed buildMaterialElements' own guard (e.g. a future code path error).
+   * In normal flow it should never fire.
    */
   {
     id:          'MOSQUITO_NO_WELDING',
@@ -128,6 +135,36 @@ const HARD_CONSTRAINTS: HardConstraint[] = [
       .map(es => ({
         constraintId: 'MOSQUITO_NO_WELDING',
         description:  `Элемент ${es.element.id} (MOSQUITO) содержит шов техпайки — запрещено бизнес-правилом`,
+        severity:     'hard' as const,
+      })),
+  },
+
+  /**
+   * TOPOLOGY_FORBIDDEN_INVARIANT
+   * Chapter C safety-net: MOSQUITO elements must not be split_part with seam_divider edges.
+   * buildMaterialElements already prevents this by returning sole_element fallback.
+   * This constraint fires ONLY if that invariant is somehow violated downstream.
+   *
+   * IMPORTANT: This does NOT reject sole_element fallbacks from forbidden-topology windows.
+   * A sole_element (topologyRole='sole_element') from a MOSQUITO window is always valid here.
+   */
+  {
+    id:          'TOPOLOGY_FORBIDDEN_INVARIANT',
+    description: 'MOSQUITO: разделитель как материальный split запрещён',
+    check: (v) => v.elementStrategies
+      .filter(es => {
+        if (es.element.material !== 'MOSQUITO') return false;
+        // Only fire if element is actually a split_section (not a safe sole_element fallback)
+        if (es.element.topologyRole !== 'split_section') return false;
+        const edges = [
+          es.element.edgeLeft, es.element.edgeRight,
+          es.element.edgeTop,  es.element.edgeBottom,
+        ];
+        return edges.some(e => e.type === 'seam_divider');
+      })
+      .map(es => ({
+        constraintId: 'TOPOLOGY_FORBIDDEN_INVARIANT',
+        description:  `Элемент ${es.element.id} (MOSQUITO) является split_section с seam_divider — нарушен invariant buildMaterialElements`,
         severity:     'hard' as const,
       })),
   },

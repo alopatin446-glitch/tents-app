@@ -102,8 +102,9 @@ export type OrientationConstraint = 'fixed_normal' | 'can_rotate';
  *   — NOT created by UI extras automatically.
  *   — Determined by physical material topology.
  *
- * Foundation version: one FilmElement per WindowItem (single_piece strategy).
- * Chapter B: topology-aware split strategies produce multiple elements per window.
+ * Foundation version: one FilmElement per WindowItem (single_piece, sole_element).
+ * Chapter C: topology-aware splits produce multiple FilmElements per window
+ *   when full-span dividers / full-span zippers / welding items declare splits.
  */
 export interface FilmElement {
   /** Unique within the optimization run. Format: `${windowId}_el${n}` */
@@ -133,13 +134,65 @@ export interface FilmElement {
   orientationConstraint: OrientationConstraint;
 
   // ── Strategy ─────────────────────────────────────────────────────────────
-  /** single_piece = no seams. split_part = one part of a welding composition. */
+  /** single_piece = no seams. split_part = one section of a topology split. */
   strategyType: 'single_piece' | 'split_part';
-  /** Links split_part elements that together form one logical window element. */
+  /** Links split_part elements that together form one logical window. */
   splitGroupId?: string;
 
   // ── Origin ────────────────────────────────────────────────────────────────
   originType: 'window_body' | 'welding_composition';
+
+  // ── Topology metadata (Chapter C) ─────────────────────────────────────────
+
+  /**
+   * Why this element exists in the film topology.
+   * 'sole_element'  — window has no physical splits; this is the only element.
+   * 'split_section' — this is one section of a multi-section window.
+   */
+  topologyRole: 'sole_element' | 'split_section';
+
+  /**
+   * For split_section: which axis was split.
+   * null for sole_element.
+   */
+  splitAxis: 'vertical' | 'horizontal' | null;
+
+  /**
+   * For split_section: zero-based index of this section along the split axis.
+   * Deterministic: left-to-right for vertical splits, top-to-bottom for horizontal.
+   * null for sole_element.
+   */
+  sectionIndex: number | null;
+
+  /**
+   * What caused this split.
+   * 'none'    — no split (sole_element)
+   * 'divider' — DividerItem (full-span: offsetStart≈0 && offsetEnd≈0)
+   * 'zipper'  — ZipperItem (full-span, with explicit non-undefined offsets)
+   * 'welding' — WeldingItem (always a split when present)
+   */
+  splitSourceType: 'none' | 'divider' | 'zipper' | 'welding';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Material build result
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Return type of buildMaterialElements / buildAllMaterialElements.
+ *
+ * Separates the calculation artifact (elements) from build-time topology warnings.
+ * Topology warnings are generated at element-build time (closest to the source)
+ * and flow into OrderMaterialOptimizationResult.warnings via optimizeOrderMaterialPlan.
+ *
+ * Examples of build-time warnings:
+ *   — TOPOLOGY_FORBIDDEN: MOSQUITO with dividers/welding → fallback sole_element
+ *   — TOPOLOGY_MIXED: both V and H splits → fallback sole_element (Chapter D)
+ *   — PARTIAL_DIVIDER_NO_SPLIT: partial divider detected, not used as split
+ */
+export interface MaterialBuildResult {
+  elements: FilmElement[];
+  warnings: OptimizerWarning[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

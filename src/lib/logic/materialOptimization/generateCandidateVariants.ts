@@ -32,6 +32,7 @@ import {
   ROLL_WIDTHS,
   SMART_TOLERANCE,
 } from '@/lib/logic/windowCalculations';
+import { buildTopologySummary } from './topologySummary';
 import type {
   FilmElement,
   ElementRollFit,
@@ -187,7 +188,7 @@ function detectElementConstraintViolations(
   if (fit.isOverSize) {
     violations.push({
       constraintId: 'ROLL_FITTING',
-      description:  `Элемент ${el.id} (${el.cutW}×${el.cutH} см) превышает максимальный рулон для ${el.material}. Требуется split-стратегия (Chapter B).`,
+      description:  `Элемент ${el.id} (${el.cutW}×${el.cutH} см) превышает максимальный рулон для ${el.material}. Требуется split-стратегия (Chapter D).`,
       severity:     'hard',
     });
   }
@@ -224,10 +225,12 @@ function countRollSwitches(strategies: ElementProductionStrategy[]): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Variant 1 (Foundation): single_piece_all
+ * Variant 1 (topology-aware): all elements from the current order.
  *
- * Every element is manufactured as a single continuous piece of material.
- * No seams. No welding. No splits.
+ * The variant name 'single_piece_all' is an internal ID — it does NOT mean
+ * "no seams". Split sections are included and seams are counted from topology.
+ * Human explanations always come from buildTopologySummary, never from this ID.
+ *
  * Oversized elements are marked invalid (ROLL_FITTING violation).
  */
 function buildSinglePieceAllVariant(
@@ -245,7 +248,11 @@ function buildSinglePieceAllVariant(
 
   const uniqueRollWidths = [...new Set(strategies.map(es => es.rollFit.rollWidth))].sort((a, b) => a - b);
   const rollSwitchCount  = countRollSwitches(strategies);
-  const seamCount        = 0;  // no seams in single_piece strategy
+
+  // Topology-aware seam count: N split_part elements per group → N-1 seams.
+  // Split sections from dividers/zippers/welding are counted correctly.
+  // sole_element windows contribute 0 seams. No double-counting.
+  const { seamCount, explanation: topologyExplanation } = buildTopologySummary(elements);
 
   const potentialRemnants = strategies
     .map(es => detectRemnant(es.element, es.rollFit, thresholds))
@@ -254,7 +261,10 @@ function buildSinglePieceAllVariant(
   return {
     id:           'v1_single_piece_all',
     strategyType: 'single_piece_all',
-    description:  'Все элементы — цельные полотна, без швов. Каждый элемент раскраивается из рулона отдельно.',
+    // Description is topology-aware — built from actual section/seam counts.
+    // NOT derived from strategyType string to avoid misleading "no seams" text
+    // when split sections are present.
+    description:  topologyExplanation,
 
     elementStrategies:    strategies,
     totalCutArea,
@@ -280,7 +290,7 @@ function buildSinglePieceAllVariant(
  *
  * Foundation: returns [single_piece_all].
  *
- * Chapter B will add:
+ * Chapter D will add:
  *   — split_strategy_A (welding at optimal seam point)
  *   — split_strategy_B (alternative seam / different grouping)
  *
@@ -296,7 +306,7 @@ export function generateCandidateVariants(
 
   const v1 = buildSinglePieceAllVariant(elements, thresholds);
 
-  // Chapter B: add v2, v3 here before returning.
+  // Chapter D: add v2, v3 here before returning.
   // Do NOT return early on validity — all variants must reach validateProductionStrategy.
 
   return [v1];

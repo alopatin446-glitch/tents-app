@@ -1,0 +1,281 @@
+/*
+ * OptimizerPreview.module.css
+ *
+ * Стили диагностического компонента OptimizerPreview.
+ * Намеренно использует другой accent-цвет (amber/orange) по сравнению
+ * с authoritative CuttingDiagnostics (green) — чтобы визуально
+ * было ясно: это diagnostic layer, а не production truth.
+ */
+
+/* ── Root wrapper ─────────────────────────────────────────────────────────── */
+
+.root {
+  margin-top: 16px;
+  border: 1px solid rgba(251, 191, 36, 0.3);   /* amber-400/30 */
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.04);
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ── Header / toggle ─────────────────────────────────────────────────────── */
+
+.toggleButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  gap: 8px;
+}
+
+.toggleButton:hover {
+  background: rgba(251, 191, 36, 0.06);
+  border-radius: 8px 8px 0 0;
+}
+
+.toggleLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggleChevron {
+  opacity: 0.5;
+  font-size: 11px;
+  transition: transform 0.15s ease;
+}
+
+.toggleChevron--open {
+  transform: rotate(180deg);
+}
+
+/* ── Source badge ────────────────────────────────────────────────────────── */
+
+.sourceBadge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.sourceBadge--live {
+  background: rgba(34, 197, 94, 0.15);
+  color: rgb(134, 239, 172);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.sourceBadge--diagnostic {
+  background: rgba(251, 191, 36, 0.15);
+  color: rgb(253, 224, 71);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+/* ── Content area ────────────────────────────────────────────────────────── */
+
+.content {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Diagnostic disclaimer ───────────────────────────────────────────────── */
+
+.disclaimer {
+  padding: 8px 10px;
+  background: rgba(251, 191, 36, 0.08);
+  border-left: 3px solid rgba(251, 191, 36, 0.5);
+  border-radius: 0 4px 4px 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+}
+
+/* ── Section heading ─────────────────────────────────────────────────────── */
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 6px;
+}
+
+/* ── Warnings ────────────────────────────────────────────────────────────── */
+
+.warningList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.warning {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.warning--error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: rgb(252, 165, 165);
+}
+
+.warning--warning {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  color: rgb(253, 224, 71);
+}
+
+.warning--info {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: rgb(165, 180, 252);
+}
+
+.warningIcon {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+/* ── Batch list ──────────────────────────────────────────────────────────── */
+
+.batchList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.batchCard {
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+.batchHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.batchMaterial {
+  font-weight: 600;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.batchRoll {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.batchStats {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.batchStat strong {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* ── Totals ──────────────────────────────────────────────────────────────── */
+
+.totalsRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+}
+
+.totalsLabel {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.totalsValue {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.totalsValue--waste {
+  color: rgb(253, 186, 116);  /* amber-300 */
+}
+
+/* ── Remnants ────────────────────────────────────────────────────────────── */
+
+.remnantList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.remnantItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 8px;
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.remnantMeta {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.remnantNote {
+  margin-top: 4px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
+
+/* ── No strategy ─────────────────────────────────────────────────────────── */
+
+.noStrategy {
+  padding: 10px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+}
+
+/* ── Explanations ────────────────────────────────────────────────────────── */
+
+.explanationList {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.explanation {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.4;
+}
+
+.explanation--selected {
+  color: rgba(134, 239, 172, 0.8);
+}
+
+.explanation--rejected {
+  color: rgba(252, 165, 165, 0.7);
+}
