@@ -21,7 +21,7 @@
 // Engine constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const OPTIMIZER_ENGINE_VERSION = '1.0.0-foundation';
+export const OPTIMIZER_ENGINE_VERSION = '1.1.0-chapter-d';
 
 /**
  * Overlap allowance per seam side (cm).
@@ -87,6 +87,87 @@ export interface EdgeSpec {
  * can_rotate    — optimizer may rotate element 90° to minimise waste.
  */
 export type OrientationConstraint = 'fixed_normal' | 'can_rotate';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Element placement within a shared layout (Chapter D)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Describes how a single FilmElement is placed within a SharedLayout.
+ *
+ * xOffset:      position from the left edge of the roll (cm, rollWidth axis).
+ * placedWidth:  dimension placed ACROSS the roll (= cutW, or cutH when isRotated).
+ * placedLength: dimension placed ALONG the roll (= cutH, or cutW when isRotated).
+ *
+ * Placements within one SharedLayout are sequential (non-overlapping).
+ * xOffset[i+1] = xOffset[i] + placedWidth[i].
+ */
+export interface ElementPlacement {
+  elementId:    string;
+  windowId:     number;
+  xOffset:      number;   // cm — from left edge of roll
+  placedWidth:  number;   // cm — dimension across the roll
+  placedLength: number;   // cm — dimension along the roll
+  isRotated:    boolean;  // true = element cutH placed across roll (can_rotate only)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared layout — physical roll strip shared by multiple elements (Chapter D)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A SharedLayout is a single physical roll strip from which multiple
+ * compatible FilmElements are cut side-by-side in one pass.
+ *
+ * PRODUCTION SEMANTICS:
+ *   One SharedLayout = one roll run = one operator setup.
+ *   layoutLength = max(placedLength) — the strip is as long as the tallest element.
+ *   layoutWidthUsed = sum(placedWidth) — total width consumed across the roll.
+ *   remnantWidthCm = rollWidth − layoutWidthUsed (unused width on this strip).
+ *
+ * OPTIMIZER ROLE:
+ *   SharedLayout is CANDIDATE VARIANT metadata only.
+ *   It is NOT an ERP allocation. It does NOT affect totalExpenses.
+ *   It does NOT create warehouse remnant credits.
+ *   It does NOT replace the production plan in frozen orders.
+ *
+ * COMPATIBILITY INVARIANTS (enforced by buildSharedLayouts):
+ *   — All elements have the same material.
+ *   — fixed_normal elements are never rotated.
+ *   — layoutWidthUsed <= rollWidth (hard constraint).
+ *   — Elements from the same splitGroup appear together (siblings intact).
+ *
+ * @chapter-d
+ */
+export interface SharedLayout {
+  /** Deterministic: `shared_${material}_${rollWidth}_${n}` */
+  id:              string;
+  material:        string;
+  rollWidth:       number;   // cm — the roll used for this strip
+
+  placements:      ElementPlacement[];
+  layoutWidthUsed: number;   // cm — sum(placedWidth); must be <= rollWidth
+  layoutLength:    number;   // cm — max(placedLength); strip length along roll
+
+  cutArea:         number;   // m² — rollWidth × layoutLength / 10000
+  productionArea:  number;   // m² — sum(physW × physH / 10000) for all elements
+  wasteArea:       number;   // m² — cutArea − productionArea
+
+  /**
+   * Unused roll width after all elements are placed.
+   * = rollWidth − layoutWidthUsed.
+   * Candidate remnant if >= MIN_REMNANT threshold (metadata only).
+   */
+  remnantWidthCm:  number;   // cm
+
+  elementCount:    number;
+
+  /**
+   * Human-readable explanation of why these elements are grouped.
+   * Always populated. No silent grouping.
+   */
+  explanation:     string;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FilmElement — the core production unit
@@ -208,6 +289,14 @@ export interface ElementRollFit {
   cutArea:         number;  // m² — rollWidth × stripLength / 10000
   productionArea:  number;  // m² — physW × physH / 10000
   wasteArea:       number;  // m² — max(0, cutArea − productionArea)
+
+  /**
+   * Chapter D: ID of the SharedLayout this element belongs to.
+   * undefined = element is placed individually (v1 behaviour preserved).
+   * When set, cutArea is a prorated share for scoring purposes.
+   * The authoritative shared cut area is in SharedLayout.cutArea.
+   */
+  sharedLayoutId?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -295,7 +384,7 @@ export interface VariantScore {
  */
 export interface CandidateVariant {
   id:           string;
-  strategyType: 'single_piece_all' | 'split_strategy_A' | 'split_strategy_B';
+  strategyType: 'single_piece_all' | 'split_strategy_A' | 'split_strategy_B' | 'grouped_shared_row';
   description:  string;
 
   elementStrategies: ElementProductionStrategy[];
@@ -315,6 +404,18 @@ export interface CandidateVariant {
 
   // ── Scoring (only for valid variants) ────────────────────────────────────
   score?: VariantScore;
+
+  // ── Chapter D: grouped shared row data ───────────────────────────────────
+  /**
+   * Populated only for grouped_shared_row variants.
+   * Carries the actual SharedLayout objects from buildOrderSharedLayouts
+   * so that selectBestStrategy can build accurate GroupedLayouts without
+   * reconstructing from sharedLayoutId alone.
+   *
+   * undefined for single_piece_all — backward compatible.
+   * NOT persisted to snapshot. Runtime diagnostic metadata only.
+   */
+  sharedLayouts?: SharedLayout[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -336,6 +437,17 @@ export interface GroupedLayout {
   totalLength:    number;    // cm — sum of strip lengths along roll
   totalCutArea:   number;    // m²
   totalWasteArea: number;    // m²
+
+  /**
+   * Chapter D: physical shared strips within this batch.
+   * Populated only for grouped_shared_row variants.
+   * undefined for single_piece_all — backward compatible.
+   *
+   * Each SharedLayout describes one roll run where elements are cut side-by-side.
+   * One GroupedLayout may contain multiple SharedLayouts if elements were split
+   * into sub-groups (e.g. total width exceeded rollWidth for the full group).
+   */
+  sharedLayouts?: SharedLayout[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -30,6 +30,7 @@ import type {
   CandidateVariant,
   CandidateVariantSummary,
   GroupedLayout,
+  SharedLayout,
   OptimizerExplanation,
   OptimizerWarning,
   ScoringBreakdown,
@@ -45,27 +46,27 @@ function round2(v: number): number {
 }
 
 /**
- * Groups element strategies by (material, rollWidth) into roll batch summaries.
+ * Builds GroupedLayouts from the selected variant.
  *
- * FOUNDATION NOTE:
- *   This is a ROLL BATCH SUMMARY — elements are grouped by shared roll type,
- *   NOT by physical shared layout on a roll.
+ * SINGLE_PIECE_ALL (v1):
+ *   Roll batch summary — elements grouped by (material, rollWidth).
+ *   totalLength = sum of strip lengths. Backward compatible, unchanged from foundation.
  *
- *   Foundation groupedLayouts ≠ real shared layout optimization.
- *   Real grouped cutting (shared constrained production graph, sequence,
- *   remnant reuse between elements) is a future chapter.
+ * GROUPED_SHARED_ROW (v2, Chapter D):
+ *   Builds GroupedLayouts from actual SharedLayouts collected from elementStrategies.
+ *   Each SharedLayout becomes a GroupedLayout with sharedLayouts populated.
+ *   Elements NOT in a SharedLayout contribute to a standard batch summary entry.
  *
- *   In foundation, each element is still treated as independent.
- *   Grouping here only serves batch planning (how many meters of which roll to prepare).
- *
- * totalLength is the sum of cut dimensions along the roll per element:
- *   — isRotated=false: cutH along roll
- *   — isRotated=true:  cutW along roll
- *
- * ElementIds link back to FilmElement for audit/display.
- * WindowIds are NOT stored here — that belongs to the UI layer.
+ * Both paths produce the same GroupedLayout shape for UI compatibility.
+ * The sharedLayouts? field is optional — UI ignores it gracefully on v1.
  */
 function buildGroupedLayouts(variant: CandidateVariant): GroupedLayout[] {
+  // ── v2: grouped_shared_row ────────────────────────────────────────────────
+  if (variant.strategyType === 'grouped_shared_row') {
+    return buildGroupedLayoutsForSharedRow(variant);
+  }
+
+  // ── v1 / default: roll batch summary (foundation behaviour unchanged) ─────
   const map = new Map<string, GroupedLayout>();
 
   for (const es of variant.elementStrategies) {
@@ -81,6 +82,7 @@ function buildGroupedLayouts(variant: CandidateVariant): GroupedLayout[] {
         totalLength:    0,
         totalCutArea:   0,
         totalWasteArea: 0,
+        // sharedLayouts: undefined — v1, backward compatible
       });
     }
 
@@ -91,8 +93,161 @@ function buildGroupedLayouts(variant: CandidateVariant): GroupedLayout[] {
     layout.totalWasteArea  = round2(layout.totalWasteArea + es.rollFit.wasteArea);
   }
 
-  // Sort batches by (material, rollWidth) for deterministic output
   return [...map.values()].sort((a, b) =>
+    a.material !== b.material
+      ? a.material.localeCompare(b.material)
+      : a.rollWidth - b.rollWidth,
+  );
+}
+
+/**
+ * Chapter D: builds GroupedLayouts for grouped_shared_row variants.
+ *
+ * Uses variant.sharedLayouts (the real SharedLayout objects carried from
+ * buildGroupedSharedRowVariant) when available. This avoids lossy reconstruction
+ * from sharedLayoutId alone (which would leave placements, layoutWidthUsed,
+ * productionArea, and remnantWidthCm as placeholder zeros).
+ *
+ * Fallback path (variant.sharedLayouts unavailable, defensive):
+ *   Reconstructs a minimal GroupedLayout from elementStrategies.rollFit data.
+ *   Used only if the field is missing — should not happen in normal flow.
+ *
+ * GROUPED GroupedLayout:
+ *   batchKey:      `${material}_${rollWidth}` (same as v1 format for UI compat)
+ *   totalLength:   SharedLayout.layoutLength (one strip, NOT sum of element lengths)
+ *   totalCutArea:  SharedLayout.cutArea (authoritative, NOT sum of prorated values)
+ *   totalWasteArea: SharedLayout.wasteArea
+ *   sharedLayouts: [SharedLayout] — the real data from buildSharedLayouts
+ *
+ * INDIVIDUAL GroupedLayout (elements not in any shared layout):
+ *   Standard roll batch summary (same as v1 logic). sharedLayouts: undefined.
+ *
+ * Both types appear in the same result array, sorted by (material, rollWidth).
+ */
+function buildGroupedLayoutsForSharedRow(variant: CandidateVariant): GroupedLayout[] {
+  const individualMap = new Map<string, GroupedLayout>();
+
+  // ── Path A: use real SharedLayouts from variant (preferred) ──────────────
+  if (variant.sharedLayouts && variant.sharedLayouts.length > 0) {
+    const sharedGroupedLayouts: GroupedLayout[] = [];
+
+    // Build a set of elementIds in any SharedLayout (to identify individual elements)
+    const groupedElementIds = new Set<string>();
+    for (const sl of variant.sharedLayouts) {
+      for (const p of sl.placements) groupedElementIds.add(p.elementId);
+    }
+
+    // Each SharedLayout → one GroupedLayout
+    for (const sl of variant.sharedLayouts) {
+      sharedGroupedLayouts.push({
+        batchKey:       `${sl.material}_${sl.rollWidth}`,
+        material:       sl.material,
+        rollWidth:      sl.rollWidth,
+        elementIds:     sl.placements.map(p => p.elementId),
+        totalLength:    sl.layoutLength,      // one shared strip, not sum
+        totalCutArea:   sl.cutArea,           // authoritative SharedLayout area
+        totalWasteArea: sl.wasteArea,
+        sharedLayouts:  [sl],                 // real data with placements, widths, explanation
+      });
+    }
+
+    // Individual elements (not in any SharedLayout) → standard batch summary
+    for (const es of variant.elementStrategies) {
+      if (groupedElementIds.has(es.element.id)) continue;
+      const { rollFit, element } = es;
+      const key         = `${element.material}_${rollFit.rollWidth}`;
+      const stripLength = rollFit.isRotated ? element.cutW : element.cutH;
+      if (!individualMap.has(key)) {
+        individualMap.set(key, {
+          batchKey:       key,
+          material:       element.material,
+          rollWidth:      rollFit.rollWidth,
+          elementIds:     [],
+          totalLength:    0,
+          totalCutArea:   0,
+          totalWasteArea: 0,
+        });
+      }
+      const gl = individualMap.get(key)!;
+      gl.elementIds.push(element.id);
+      gl.totalLength    += stripLength;
+      gl.totalCutArea    = round2(gl.totalCutArea   + rollFit.cutArea);
+      gl.totalWasteArea  = round2(gl.totalWasteArea + rollFit.wasteArea);
+    }
+
+    return [
+      ...sharedGroupedLayouts,
+      ...[...individualMap.values()],
+    ].sort((a, b) =>
+      a.material !== b.material
+        ? a.material.localeCompare(b.material)
+        : a.rollWidth - b.rollWidth,
+    );
+  }
+
+  // ── Path B: fallback reconstruction from elementStrategies (defensive) ───
+  // Reached only if variant.sharedLayouts is missing.
+  // Reconstructs minimal GroupedLayouts from rollFit.sharedLayoutId grouping.
+  const sharedMap = new Map<string, {
+    elementIds:    string[];
+    rollWidth:     number;
+    material:      string;
+    placedLengths: number[];
+    wasteArea:     number;
+  }>();
+
+  for (const es of variant.elementStrategies) {
+    const { rollFit, element } = es;
+    if (rollFit.sharedLayoutId) {
+      const key = rollFit.sharedLayoutId;
+      if (!sharedMap.has(key)) {
+        sharedMap.set(key, {
+          elementIds: [], rollWidth: rollFit.rollWidth,
+          material: element.material, placedLengths: [], wasteArea: 0,
+        });
+      }
+      const e = sharedMap.get(key)!;
+      e.elementIds.push(element.id);
+      e.placedLengths.push(rollFit.isRotated ? element.cutW : element.cutH);
+      e.wasteArea = round2(e.wasteArea + rollFit.wasteArea);
+    } else {
+      const key         = `${element.material}_${rollFit.rollWidth}`;
+      const stripLength = rollFit.isRotated ? element.cutW : element.cutH;
+      if (!individualMap.has(key)) {
+        individualMap.set(key, {
+          batchKey: key, material: element.material,
+          rollWidth: rollFit.rollWidth, elementIds: [],
+          totalLength: 0, totalCutArea: 0, totalWasteArea: 0,
+        });
+      }
+      const gl = individualMap.get(key)!;
+      gl.elementIds.push(element.id);
+      gl.totalLength    += stripLength;
+      gl.totalCutArea    = round2(gl.totalCutArea   + rollFit.cutArea);
+      gl.totalWasteArea  = round2(gl.totalWasteArea + rollFit.wasteArea);
+    }
+  }
+
+  const fallbackShared: GroupedLayout[] = [];
+  for (const [, entry] of sharedMap) {
+    const layoutLength = Math.max(...entry.placedLengths);
+    const cutArea      = round2(entry.rollWidth * layoutLength / 10_000);
+    fallbackShared.push({
+      batchKey:       `${entry.material}_${entry.rollWidth}`,
+      material:       entry.material,
+      rollWidth:      entry.rollWidth,
+      elementIds:     entry.elementIds,
+      totalLength:    round2(layoutLength),
+      totalCutArea:   cutArea,
+      totalWasteArea: entry.wasteArea,
+      // sharedLayouts: undefined — can't reconstruct full data without original objects
+    });
+  }
+
+  return [
+    ...fallbackShared,
+    ...[...individualMap.values()],
+  ].sort((a, b) =>
     a.material !== b.material
       ? a.material.localeCompare(b.material)
       : a.rollWidth - b.rollWidth,

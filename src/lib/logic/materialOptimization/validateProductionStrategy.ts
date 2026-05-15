@@ -168,6 +168,52 @@ const HARD_CONSTRAINTS: HardConstraint[] = [
         severity:     'hard' as const,
       })),
   },
+
+  /**
+   * SHARED_LAYOUT_CONSISTENCY (Chapter D)
+   * Defense-in-depth guard for grouped_shared_row variants.
+   *
+   * In normal flow, buildSharedLayouts guarantees:
+   *   — layoutWidthUsed ≤ rollWidth (FFD invariant)
+   *   — fixed_normal elements are never rotated (resolveOrientation)
+   *   — rollWidth is always from ROLL_WIDTHS for the element's material
+   *
+   * This constraint fires ONLY if those invariants are somehow violated
+   * after buildSharedLayouts (e.g. a future code path error).
+   *
+   * Two checks:
+   *   A. rollWidth in rollFit must be a valid roll for that material.
+   *   B. fixed_normal elements must NOT be rotated (isRotated = false).
+   */
+  {
+    id:          'SHARED_LAYOUT_CONSISTENCY',
+    description: 'Grouped shared layout: rollWidth валиден, ориентация соблюдена',
+    check: (v) => {
+      if (v.strategyType !== 'grouped_shared_row') return [];
+      const violations: ConstraintViolation[] = [];
+      for (const es of v.elementStrategies) {
+        if (!es.rollFit.sharedLayoutId) continue;
+        const validRolls = ROLL_WIDTHS[es.element.material] ?? ROLL_WIDTHS['PVC_700'];
+        // Check A: rollWidth must be a valid roll for this material
+        if (!validRolls.includes(es.rollFit.rollWidth)) {
+          violations.push({
+            constraintId: 'SHARED_LAYOUT_CONSISTENCY',
+            description:  `Элемент ${es.element.id} в shared layout: rollWidth=${es.rollFit.rollWidth} не является валидным рулоном для ${es.element.material}`,
+            severity:     'hard',
+          });
+        }
+        // Check B: fixed_normal elements must not be rotated
+        if (es.element.orientationConstraint === 'fixed_normal' && es.rollFit.isRotated) {
+          violations.push({
+            constraintId: 'SHARED_LAYOUT_CONSISTENCY',
+            description:  `Элемент ${es.element.id} (fixed_normal) помечен как rotated в shared layout — нарушен invariant buildSharedLayouts`,
+            severity:     'hard',
+          });
+        }
+      }
+      return violations;
+    },
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

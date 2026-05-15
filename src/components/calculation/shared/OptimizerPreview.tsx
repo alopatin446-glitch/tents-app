@@ -197,6 +197,10 @@ export default function OptimizerPreview({ result }: OptimizerPreviewProps) {
               </div>
               <div className={styles.batchList}>
                 {result.groupedLayouts.map((layout) => (
+                  // Chapter D bug fix: key uses layout.batchKey which is now sl.id
+                  // for v2 shared layouts (guaranteed unique) and material_rollWidth
+                  // for v1 / individual layouts (deduplicated in Map).
+                  // No more React duplicate key warning from batchKey collision.
                   <div key={layout.batchKey} className={styles.batchCard}>
                     <div className={styles.batchHeader}>
                       <span className={styles.batchMaterial}>
@@ -208,7 +212,12 @@ export default function OptimizerPreview({ result }: OptimizerPreviewProps) {
                     </div>
                     <div className={styles.batchStats}>
                       <span>
-                        Погонаж: <strong>{fLength(layout.totalLength)}</strong>
+                        {/* Chapter D bug fix: label differs for shared (one strip) vs individual (sum) */}
+                        {layout.sharedLayouts && layout.sharedLayouts.length > 0
+                          ? 'Полоса:'
+                          : 'Погонаж:'
+                        }{' '}
+                        <strong>{fLength(layout.totalLength)}</strong>
                       </span>
                       <span>
                         Площадь: <strong>{fArea(layout.totalCutArea)}</strong>
@@ -217,6 +226,60 @@ export default function OptimizerPreview({ result }: OptimizerPreviewProps) {
                         Отход: <strong>{fArea(layout.totalWasteArea)}</strong>
                       </span>
                     </div>
+
+                    {/* Chapter D bug fix: SharedLayout details for v2 grouped variants.
+                        Renders explanation, element count, width utilisation, remnant.
+                        Only shown when layout.sharedLayouts is populated (v2 only).
+                        v1 layouts have sharedLayouts=undefined — block is skipped. */}
+                    {layout.sharedLayouts && layout.sharedLayouts.length > 0 && (
+                      <div style={{
+                        marginTop: '6px',
+                        paddingTop: '6px',
+                        borderTop: '1px solid rgba(255,255,255,0.06)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                      }}>
+                        {layout.sharedLayouts.map(sl => (
+                          <div key={sl.id}>
+                            {/* Width utilisation bar: layoutWidthUsed / rollWidth */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontSize: '11px',
+                              color: 'rgba(255,255,255,0.5)',
+                              marginBottom: '3px',
+                            }}>
+                              <span>
+                                {sl.elementCount} эл.
+                              </span>
+                              <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+                              <span>
+                                {sl.layoutWidthUsed} / {sl.rollWidth} см ширина
+                              </span>
+                              {sl.remnantWidthCm > 0 && (
+                                <>
+                                  <span style={{ color: 'rgba(255,255,255,0.3)' }}>·</span>
+                                  <span style={{ color: 'rgba(99,102,241,0.8)' }}>
+                                    остаток {sl.remnantWidthCm} см
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                            {/* explanation — always populated in Chapter D */}
+                            <div style={{
+                              fontSize: '10px',
+                              color: 'rgba(255,255,255,0.3)',
+                              lineHeight: '1.4',
+                              fontStyle: 'italic',
+                            }}>
+                              {sl.explanation}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
