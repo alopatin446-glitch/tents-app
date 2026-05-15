@@ -261,9 +261,47 @@ export default function ItemsStep({
   });
 
   useEffect(() => {
-    if (windows && windows.length > 0) {
-      setLocalWindows(windows.map(toWindowItemDraft));
-    }
+    if (!windows || windows.length === 0) return;
+
+    setLocalWindows((prev) => {
+      // Структурное изменение (разное кол-во или другие id) → полный сброс из пропсов.
+      // Это происходит при добавлении/удалении/загрузке окон извне компонента.
+      if (prev.length !== windows.length) return windows.map(toWindowItemDraft);
+
+      const prevIds = prev.map((w) => w.id).join(',');
+      const nextIds = windows.map((w) => w.id).join(',');
+      if (prevIds !== nextIds) return windows.map(toWindowItemDraft);
+
+      // Та же структура: мержим входящие пропсы, но СОХРАНЯЕМ строковые черновики
+      // числовых полей, если их разрешённое значение совпадает с входящим числом.
+      //
+      // ПРИЧИНА БАГА (fix): onDraftChange вызывается на каждом нажатии клавиши
+      // с РАЗРЕШЁННЫМИ числами. parseFloat("108.") === 108, поэтому "108." сразу
+      // превращается в 108 в родителе. useEffect получает 108 обратно и заменял
+      // строку "108." числом, уничтожая незавершённый ввод десятичной части.
+      // Теперь "108." выживает до следующего нажатия (пользователь добивает "5").
+      return prev.map((draft, i) => {
+        const incoming = windows[i];
+        // Базовая копия — все поля из входящего (нечисловые всегда обновляются)
+        const merged: WindowItemDraft = { ...(incoming as WindowItemDraft) };
+
+        // Числовые строковые черновики: сохранить, если разрешённое значение то же
+        (Object.keys(draft) as Array<keyof WindowItemDraft>).forEach((key) => {
+          const draftVal = draft[key];
+          if (typeof draftVal !== 'string') return;                    // только строки-черновики
+          const incomingVal = incoming[key as keyof WindowItem];
+          if (typeof incomingVal !== 'number') return;                 // только числовые поля
+          if (resolveNumericField(draftVal) === incomingVal) {
+            // Строка разрешается в то же число — сохраняем строку
+            // Примеры: "108." → 108, "0." → 0, "12.5" → 12.5, "" → 0
+            (merged as Record<string, unknown>)[key] = draftVal;
+          }
+          // Если числа разошлись — победит входящее (уже в merged как incoming)
+        });
+
+        return merged;
+      });
+    });
   }, [windows]);
 
   useEffect(() => {
