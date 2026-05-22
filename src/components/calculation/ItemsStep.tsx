@@ -50,32 +50,46 @@ type WindowItemDraft = Omit<WindowItem, WindowNumericField> & {
   [K in WindowNumericField]: number | string;
 };
 
+function normalizeNumericInput(value: string): string {
+  let normalized = value
+    .replace(/,/g, '.')
+    .replace(/[^0-9.]/g, '');
+
+  const parts = normalized.split('.');
+  if (parts.length > 2) {
+    normalized = `${parts[0]}.${parts.slice(1).join('')}`;
+  }
+
+  return normalized;
+}
+
 function resolveNumericField(value: number | string): number {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const parsed = Number.parseFloat(value.replace(',', '.'));
+
+  const parsed = Number.parseFloat(normalizeNumericInput(value));
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function resolveDraftToWindowItem(draft: WindowItemDraft): WindowItem {
   return {
-    id:                draft.id,
-    name:              draft.name,
-    kantColor:         draft.kantColor,
-    material:          draft.material,
-    isTrapezoid:       draft.isTrapezoid,
-    fasteners:         draft.fasteners,
+    id: draft.id,
+    name: draft.name,
+    kantColor: draft.kantColor,
+    material: draft.material,
+    isTrapezoid: draft.isTrapezoid,
+    fasteners: draft.fasteners,
     additionalElements: draft.additionalElements,
-    widthTop:          resolveNumericField(draft.widthTop),
-    heightRight:       resolveNumericField(draft.heightRight),
-    widthBottom:       resolveNumericField(draft.widthBottom),
-    heightLeft:        resolveNumericField(draft.heightLeft),
-    kantTop:           resolveNumericField(draft.kantTop),
-    kantRight:         resolveNumericField(draft.kantRight),
-    kantBottom:        resolveNumericField(draft.kantBottom),
-    kantLeft:          resolveNumericField(draft.kantLeft),
-    diagonalLeft:      resolveNumericField(draft.diagonalLeft),
-    diagonalRight:     resolveNumericField(draft.diagonalRight),
-    crossbar:          resolveNumericField(draft.crossbar),
+    widthTop: resolveNumericField(draft.widthTop),
+    heightRight: resolveNumericField(draft.heightRight),
+    widthBottom: resolveNumericField(draft.widthBottom),
+    heightLeft: resolveNumericField(draft.heightLeft),
+    kantTop: resolveNumericField(draft.kantTop),
+    kantRight: resolveNumericField(draft.kantRight),
+    kantBottom: resolveNumericField(draft.kantBottom),
+    kantLeft: resolveNumericField(draft.kantLeft),
+    diagonalLeft: resolveNumericField(draft.diagonalLeft),
+    diagonalRight: resolveNumericField(draft.diagonalRight),
+    crossbar: resolveNumericField(draft.crossbar),
   };
 }
 
@@ -86,9 +100,9 @@ function toWindowItemDraft(item: WindowItem): WindowItemDraft {
 function getTrapezoidWarning(item: WindowItemDraft | undefined): string | null {
   if (!item) return null;
 
-  const widthTop    = resolveNumericField(item.widthTop);
+  const widthTop = resolveNumericField(item.widthTop);
   const widthBottom = resolveNumericField(item.widthBottom);
-  const heightLeft  = resolveNumericField(item.heightLeft);
+  const heightLeft = resolveNumericField(item.heightLeft);
   const heightRight = resolveNumericField(item.heightRight);
 
   const hasTrapezoidDifference =
@@ -100,9 +114,9 @@ function getTrapezoidWarning(item: WindowItemDraft | undefined): string | null {
   }
 
   if (item.isTrapezoid) {
-    const diagonalLeft  = resolveNumericField(item.diagonalLeft);
+    const diagonalLeft = resolveNumericField(item.diagonalLeft);
     const diagonalRight = resolveNumericField(item.diagonalRight);
-    const crossbar      = resolveNumericField(item.crossbar);
+    const crossbar = resolveNumericField(item.crossbar);
 
     if (diagonalLeft <= 0 || diagonalRight <= 0 || crossbar <= 0) {
       return '⚠ Для точного расчёта трапеции нужно заполнить: диагональ A-C, диагональ B-D и параллель.';
@@ -121,7 +135,7 @@ function getMosquitoSizeWarning(item: WindowItemDraft | undefined): string | nul
   if (!item) return null;
   if (item.material !== 'MOSQUITO') return null;
 
-  const maxWidth  = Math.max(
+  const maxWidth = Math.max(
     resolveNumericField(item.widthTop),
     resolveNumericField(item.widthBottom),
   );
@@ -144,17 +158,17 @@ function getMosquitoSizeWarning(item: WindowItemDraft | undefined): string | nul
 // ─────────────────────────────────────────────────────────────────────────────
 
 const geometryFields: Array<{ label: string; field: WindowNumericField }> = [
-  { label: 'Верх',  field: 'widthTop'    },
+  { label: 'Верх', field: 'widthTop' },
   { label: 'Право', field: 'heightRight' },
-  { label: 'Низ',   field: 'widthBottom' },
-  { label: 'Лево',  field: 'heightLeft'  },
+  { label: 'Низ', field: 'widthBottom' },
+  { label: 'Лево', field: 'heightLeft' },
 ];
 
 const kantFields: Array<{ label: string; field: WindowNumericField }> = [
-  { label: 'Верх',  field: 'kantTop'    },
-  { label: 'Право', field: 'kantRight'  },
-  { label: 'Низ',   field: 'kantBottom' },
-  { label: 'Лево',  field: 'kantLeft'   },
+  { label: 'Верх', field: 'kantTop' },
+  { label: 'Право', field: 'kantRight' },
+  { label: 'Низ', field: 'kantBottom' },
+  { label: 'Лево', field: 'kantLeft' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -178,11 +192,11 @@ interface WindowCalculationDebugRow {
 
 function getMaterialLabel(material: string): string {
   switch (material) {
-    case 'PVC_700':  return 'ПВХ 700';
-    case 'TINTED':   return 'Тонировка';
-    case 'TPU':      return 'TPU';
+    case 'PVC_700': return 'ПВХ 700';
+    case 'TINTED': return 'Тонировка';
+    case 'TPU': return 'TPU';
     case 'MOSQUITO': return 'Москитка';
-    default:         return material || '—';
+    default: return material || '—';
   }
 }
 
@@ -200,21 +214,21 @@ function buildDebugRow(item: WindowItem, index: number): WindowCalculationDebugR
   const geometry = calculateWindowGeometry(item);
 
   // Все размерные параметры — только из ядра, никакой ручной арифметики в UI
-  const innerWidth  = geometry.maxWidth;
+  const innerWidth = geometry.maxWidth;
   const innerHeight = geometry.maxHeight;
-  const cutWidthRaw  = geometry.cutWidth;
+  const cutWidthRaw = geometry.cutWidth;
   const cutHeightRaw = geometry.cutHeight;
 
   const widthAcrossRoll = geometry.isRotated ? cutHeightRaw : cutWidthRaw;
-  const cutLength       = geometry.isRotated ? cutWidthRaw  : cutHeightRaw;
-  const chargedWidth    = geometry.isOverSize
+  const cutLength = geometry.isRotated ? cutWidthRaw : cutHeightRaw;
+  const chargedWidth = geometry.isOverSize
     ? widthAcrossRoll
     : Math.max(geometry.rollWidth, widthAcrossRoll);
 
   return {
     id: item.id,
     index,
-    name:     item.name,
+    name: item.name,
     material: item.material || 'PVC_700',
     innerWidth,
     innerHeight,
@@ -370,7 +384,7 @@ export default function ItemsStep({
 
   const addWindow = (): void => {
     if (isReadOnly) return;
-    const newId     = Date.now();
+    const newId = Date.now();
     const newWindow = createDefaultWindowItem(newId, localWindows.length + 1);
     updateAll([...localWindows, toWindowItemDraft(newWindow)]);
     onActiveWindowChange(newId);
@@ -403,10 +417,8 @@ export default function ItemsStep({
     rawValue: string,
   ): void => {
     if (isReadOnly) return;
-    let value = rawValue.replace(',', '.').replace(/[^0-9.]/g, '');
-    const parts = value.split('.');
-    if (parts.length > 2) value = `${parts[0]}.${parts.slice(1).join('')}`;
-    handleChange(id, field, value);
+
+    handleChange(id, field, normalizeNumericInput(rawValue));
   };
 
   const handleSaveClick = (): void => {
