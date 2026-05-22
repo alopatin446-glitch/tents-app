@@ -70,19 +70,34 @@
   gap: 10px;
   margin-bottom: 20px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 /* 3. ВКЛАДКИ (Окно 1, Окно 2) */
 .tabItem {
-  padding: 10px 24px;
+  padding: 10px 14px 10px 24px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 30px !important;
-  /* БЫЛО 12px */
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.closeTab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  line-height: 1;
 }
 
 .activeTab {
