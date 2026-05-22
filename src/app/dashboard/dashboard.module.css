@@ -66,7 +66,7 @@
 /* Кнопка ВЫЙТИ в красном неоновом стиле */
 .heroButton {
   background: transparent;
-  border: 2px solid #FF4D4D; /* Тот самый красный цвет */
+  border: 2px solid #FF4D4D;
   color: #FF4D4D;
   padding: 8px 20px;
   border-radius: var(--radius-button);
@@ -76,12 +76,23 @@
   text-transform: uppercase;
   transition: 0.3s ease;
   letter-spacing: 1px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.heroButton svg {
+  flex-shrink: 0;
 }
 
 .heroButton:hover {
   background: #FF4D4D;
   color: #ffffff;
-  box-shadow: 0 0 20px rgba(255, 77, 77, 0.6); /* Красное свечение при наведении */
+  box-shadow: 0 0 20px rgba(255, 77, 77, 0.6);
+  /* Красное свечение при наведении */
 }
 
 /* Основная колонка контента */
@@ -103,7 +114,8 @@
 /* Сетка дашборда */
 .dashboardGrid {
   display: grid;
-  grid-template-columns: 350px 1fr; /* Левая карточка фиксирована, правая сетка тянется */
+  grid-template-columns: 350px 1fr;
+  /* Левая карточка фиксирована, правая сетка тянется */
 }
 
 /* Карточки (и левая большая, и маленькие справа) */
@@ -185,5 +197,6 @@
 .statCardLink {
   text-decoration: none;
   color: inherit;
-  display: block; /* Чтобы ссылка занимала всю площадь квадрата */
+  display: block;
+  /* Чтобы ссылка занимала всю площадь квадрата */
 }
