@@ -713,18 +713,18 @@ export default function ItemsStep({
               <div className={styles.statLabel}>
                 Производство:{' '}
                 <span title="Реальная площадь изделия (основа ЗП сварщика)">
-                  {activeItemGeometry.productionArea.toFixed(4)} м²
+                  {activeItemGeometry.productionArea.toFixed(2)} м²
                 </span>
               </div>
 
               {/* retailArea: Max W × Max H → основа розничной цены */}
               <div className={styles.statLabel}>
-                Чек (габарит):{' '}
+                Габариты:{' '}
                 <span
                   style={{ color: '#7BFF00' }}
                   title="Max Width × Max Height — основа розничной цены"
                 >
-                  {activeItemGeometry.retailArea.toFixed(4)} м²
+                  {activeItemGeometry.retailArea.toFixed(2)} м²
                 </span>
               </div>
 

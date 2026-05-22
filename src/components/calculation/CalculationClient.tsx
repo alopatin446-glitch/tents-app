@@ -309,8 +309,9 @@ export default function CalculationClient({
         </button>
 
         <div className={styles.areaIndicator}>
-          <strong>{totalAreaMaterial.toFixed(2)} м²</strong>
-          <strong>{totalAreaWithKant.toFixed(2)} м²</strong>
+          <strong>Габ: {totalAreaMaterial.toFixed(2)} м²</strong>
+          <strong>|</strong>
+          <strong>Кант: {totalAreaWithKant.toFixed(2)} м²</strong>
           {isSaving && <span>Сохранение…</span>}
         </div>
       </div>
