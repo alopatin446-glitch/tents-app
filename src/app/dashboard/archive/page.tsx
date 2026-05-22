@@ -68,11 +68,27 @@ export default async function ArchivePage({ searchParams }: ArchivePageProps) {
     },
     ...(query
       ? {
-          address: {
-            contains: query,
-            mode: 'insensitive' as const,
+        OR: [
+          {
+            fio: {
+              contains: query,
+              mode: 'insensitive' as const,
+            },
           },
-        }
+          {
+            phone: {
+              contains: query,
+              mode: 'insensitive' as const,
+            },
+          },
+          {
+            address: {
+              contains: query,
+              mode: 'insensitive' as const,
+            },
+          },
+        ],
+      }
       : {}),
   };
 

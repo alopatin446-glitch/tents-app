@@ -113,7 +113,9 @@ function buildGroupedLayouts(variant: CandidateVariant): GroupedLayout[] {
  *   Used only if the field is missing — should not happen in normal flow.
  *
  * GROUPED GroupedLayout:
- *   batchKey:      `${material}_${rollWidth}` (same as v1 format for UI compat)
+ *   batchKey:      sl.id — SharedLayout.id, guaranteed unique            // Chapter D bug fix
+ *                  (was: `${material}_${rollWidth}` which collides when
+ *                   multiple SharedLayouts share the same material+rollWidth)
  *   totalLength:   SharedLayout.layoutLength (one strip, NOT sum of element lengths)
  *   totalCutArea:  SharedLayout.cutArea (authoritative, NOT sum of prorated values)
  *   totalWasteArea: SharedLayout.wasteArea
@@ -121,6 +123,8 @@ function buildGroupedLayouts(variant: CandidateVariant): GroupedLayout[] {
  *
  * INDIVIDUAL GroupedLayout (elements not in any shared layout):
  *   Standard roll batch summary (same as v1 logic). sharedLayouts: undefined.
+ *   batchKey: `${material}_${rollWidth}` — no collision risk for individual
+ *   elements because they are accumulated in a Map keyed by material+rollWidth.
  *
  * Both types appear in the same result array, sorted by (material, rollWidth).
  */
@@ -140,7 +144,11 @@ function buildGroupedLayoutsForSharedRow(variant: CandidateVariant): GroupedLayo
     // Each SharedLayout → one GroupedLayout
     for (const sl of variant.sharedLayouts) {
       sharedGroupedLayouts.push({
-        batchKey:       `${sl.material}_${sl.rollWidth}`,
+        // Chapter D bug fix: use sl.id (e.g. "shared_PVC_700_200_0") instead of
+        // `${sl.material}_${sl.rollWidth}` — the old key collides when multiple
+        // SharedLayouts share the same material+rollWidth (e.g. FFD produces
+        // two bins for PVC_700 on rollWidth=200). SharedLayout.id is always unique.
+        batchKey:       sl.id,
         material:       sl.material,
         rollWidth:      sl.rollWidth,
         elementIds:     sl.placements.map(p => p.elementId),
@@ -229,11 +237,14 @@ function buildGroupedLayoutsForSharedRow(variant: CandidateVariant): GroupedLayo
   }
 
   const fallbackShared: GroupedLayout[] = [];
-  for (const [, entry] of sharedMap) {
-    const layoutLength = Math.max(...entry.placedLengths);
+  for (const [sharedLayoutId, entry] of sharedMap) {
+    // Chapter D bug fix: guard against empty placedLengths to prevent Math.max() = -Infinity
+    const layoutLength = entry.placedLengths.length > 0
+      ? Math.max(...entry.placedLengths)
+      : 0;
     const cutArea      = round2(entry.rollWidth * layoutLength / 10_000);
     fallbackShared.push({
-      batchKey:       `${entry.material}_${entry.rollWidth}`,
+      batchKey:       sharedLayoutId,  // sharedLayoutId is already unique
       material:       entry.material,
       rollWidth:      entry.rollWidth,
       elementIds:     entry.elementIds,
