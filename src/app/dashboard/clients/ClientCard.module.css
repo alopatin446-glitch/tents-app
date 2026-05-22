@@ -1,5 +1,6 @@
 .card {
-  width: 100%; /* Занимает всю ширину колонки */
+  width: 100%;
+  /* Занимает всю ширину колонки */
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -46,6 +47,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   padding-top: 12px;
 }
@@ -54,6 +57,7 @@
   color: #7BFF00;
   font-weight: 900;
   font-size: 1rem;
+  flex-shrink: 0;
 }
 
 .phoneShort {
