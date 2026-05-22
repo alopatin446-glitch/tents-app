@@ -89,7 +89,7 @@ function normalizeSavedPrices(value: unknown): Record<string, number> | undefine
     return undefined;
   }
 
-  const obj  = value as Record<string, unknown>;
+  const obj = value as Record<string, unknown>;
   const keys = Object.keys(obj);
 
   if (keys.length === 0) return undefined;
@@ -127,37 +127,37 @@ function buildGeometrySnapshot(
     const geo = calculateWindowGeometry(win);
 
     // stripLength и fitsWidth хранятся в сантиметрах.
-    const stripLength = geo.isRotated ? geo.cutWidth  : geo.cutHeight;
-    const fitsWidth   = geo.isRotated ? geo.cutHeight : geo.cutWidth;
+    const stripLength = geo.isRotated ? geo.cutWidth : geo.cutHeight;
+    const fitsWidth = geo.isRotated ? geo.cutHeight : geo.cutWidth;
 
     windowSnapshots[String(win.id)] = {
-      windowId:          win.id,
-      material:          win.material,
-      rollWidth:         geo.rollWidth,
-      cutWidth:          geo.cutWidth,
-      cutHeight:         geo.cutHeight,
-      isRotated:         geo.isRotated,
-      productionArea:    geo.productionArea,
-      retailArea:        geo.retailArea,
+      windowId: win.id,
+      material: win.material,
+      rollWidth: geo.rollWidth,
+      cutWidth: geo.cutWidth,
+      cutHeight: geo.cutHeight,
+      isRotated: geo.isRotated,
+      productionArea: geo.productionArea,
+      retailArea: geo.retailArea,
       perimeterWithKant: geo.perimeterWithKant,
       stripLength,
       fitsWidth,
-      cutArea:           geo.cutArea,
-      wasteArea:         geo.wasteArea,
-      isOverSize:        geo.isOverSize ?? false,
+      cutArea: geo.cutArea,
+      wasteArea: geo.wasteArea,
+      isOverSize: geo.isOverSize ?? false,
     };
   }
 
   return {
-    version:               '1.0',
-    createdAt:             new Date().toISOString(),
+    version: '1.0',
+    createdAt: new Date().toISOString(),
     source,
     geometryEngineVersion: '1.0.0',
-    solderAllowance:       SOLDER_ALLOWANCE,
-    smartTolerance:        SMART_TOLERANCE,
-    rollConfigSource:      'code_constants',
-    rollWidthsUsed:        ROLL_WIDTHS,
-    windows:               windowSnapshots,
+    solderAllowance: SOLDER_ALLOWANCE,
+    smartTolerance: SMART_TOLERANCE,
+    rollConfigSource: 'code_constants',
+    rollWidthsUsed: ROLL_WIDTHS,
+    windows: windowSnapshots,
   };
 }
 
@@ -309,7 +309,7 @@ export async function updateClientAction(
           phone: (data.phone as string) || '',
           address: (data.address as string) || '',
           source: (data.source as string) || '',
-          status: normalizeStatus(data.status ?? 'negotiation'),
+          status: normalizeStatus(data.status === 'new' ? 'negotiation' : (data.status ?? 'negotiation')),
           totalPrice: Number(data.totalPrice) || 0,
           advance: Number(data.advance) || 0,
           balance: Number(data.balance) || 0,
@@ -477,25 +477,25 @@ export async function createClientAction(data: {
   try {
     const user = await requireAuth();
 
-    const fio          = toRequiredString(data.fio, 'Без имени');
-    const phone        = toRequiredString(data.phone, '');
-    const address      = toNullableString(data.address);
-    const source       = toNullableString(data.source);
-    const status       = normalizeStatus(data.status ?? 'negotiation');
-    const paymentType  = toNullableString(data.paymentType);
-    const managerComment  = toNullableString(data.managerComment);
+    const fio = toRequiredString(data.fio, 'Без имени');
+    const phone = toRequiredString(data.phone, '');
+    const address = toNullableString(data.address);
+    const source = toNullableString(data.source);
+    const status = normalizeStatus(data.status === 'new' ? 'negotiation' : (data.status ?? 'negotiation'));
+    const paymentType = toNullableString(data.paymentType);
+    const managerComment = toNullableString(data.managerComment);
     const engineerComment = toNullableString(data.engineerComment);
 
-    const totalPrice     = toFinancialNumber(data.totalPrice     as string | number | null | undefined, 0);
-    const advance        = toFinancialNumber(data.advance        as string | number | null | undefined, 0);
-    const costPrice      = toFinancialNumber(data.costPrice      as string | number | null | undefined, 0);
-    const overspending   = toFinancialNumber(data.overspending   as string | number | null | undefined, 0);
+    const totalPrice = toFinancialNumber(data.totalPrice as string | number | null | undefined, 0);
+    const advance = toFinancialNumber(data.advance as string | number | null | undefined, 0);
+    const costPrice = toFinancialNumber(data.costPrice as string | number | null | undefined, 0);
+    const overspending = toFinancialNumber(data.overspending as string | number | null | undefined, 0);
     const productionCost = toFinancialNumber(data.productionCost as string | number | null | undefined, 0);
-    const mountingCost   = toFinancialNumber(data.mountingCost   as string | number | null | undefined, 0);
-    const balance        = calculateClientBalance(totalPrice, advance);
+    const mountingCost = toFinancialNumber(data.mountingCost as string | number | null | undefined, 0);
+    const balance = calculateClientBalance(totalPrice, advance);
 
     const measurementDate = toNullableDate(data.measurementDate);
-    const installDate     = toNullableDate(data.installDate);
+    const installDate = toNullableDate(data.installDate);
 
     const created = await prisma.client.create({
       data: {
