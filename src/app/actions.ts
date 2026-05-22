@@ -626,10 +626,21 @@ export async function loginAction(
 export async function logoutAction(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
   if (token) {
     await prisma.session.deleteMany({
       where: { tokenHash: hashSessionToken(token) },
     });
   }
-  cookieStore.delete(SESSION_COOKIE_NAME);
+
+  cookieStore.set(SESSION_COOKIE_NAME, '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    expires: new Date(0),
+    maxAge: 0,
+  });
+
+  revalidatePath('/dashboard');
 }
