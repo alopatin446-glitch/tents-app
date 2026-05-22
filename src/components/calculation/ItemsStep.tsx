@@ -744,7 +744,7 @@ export default function ItemsStep({
               )}
 
               {!activeItemGeometry.isExact && (
-                <div className={styles.statLabel} style={{ color: '#ff9900', fontSize: '0.7rem' }}>
+                <div className={styles.statLabel} style={{ color: '#f19306ee', fontSize: '0.7rem' }}>
                   ⚠ Приближённый расчёт
                 </div>
               )}
