@@ -5,7 +5,7 @@
   --text-white: #FFFFFF;
   --neon-shadow: 0 0 15px rgba(123, 255, 0, 0.4);
   /* Главный рычаг дизайна */
-  --radius-button: 50px; 
+  --radius-button: 50px;
 }
 
 * {
@@ -15,9 +15,14 @@
 }
 
 body {
-  min-height: 100vh; /* Исправлено: min-height вместо height */
+  min-height: 100vh;
+  /* Исправлено: min-height вместо height */
   background: var(--bg-main);
   color: var(--text-white);
   font-family: 'Montserrat', sans-serif;
   overflow-x: hidden;
+}
+
+html {
+  scrollbar-gutter: stable;
 }
