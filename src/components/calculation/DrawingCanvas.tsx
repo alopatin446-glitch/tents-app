@@ -24,6 +24,7 @@
 import React from 'react';
 import type {
   WindowItem,
+  FastenerType,
   AdditionalElements,
   ZipperItem,
   DividerItem,
@@ -105,48 +106,93 @@ function windowToSvg(
  *   Итого dots.length === ownedPointsBySide[side] — визуальный count = ERP-учёт.
  */
 function renderSideDotsNew(
-  start:       Point,
-  end:         Point,
-  intervals:   number,
+  start: Point,
+  end: Point,
+  intervals: number,
   renderStart: boolean,
-  renderEnd:   boolean,
-  isDefault:   boolean,
-  circleR:     number,
-  sideKey:     string,
+  renderEnd: boolean,
+  isDefault: boolean,
+  circleR: number,
+  sideKey: string,
+  fastenerType: FastenerType,
 ): React.ReactNode {
   const n = Math.max(1, intervals);
   const dx = end.x - start.x;
   const dy = end.y - start.y;
 
-  // Все n+1 точек (включая угловые)
   const allPoints: Point[] = Array.from({ length: n + 1 }, (_, i) => ({
     x: start.x + (i / n) * dx,
     y: start.y + (i / n) * dy,
   }));
 
-  // Обрезаем углы, принадлежащие другим сторонам
-  const startIdx = renderStart ? 0         : 1;
-  const endIdx   = renderEnd   ? allPoints.length : allPoints.length - 1;
-  const dots     = allPoints.slice(startIdx, endIdx);
+  const startIdx = renderStart ? 0 : 1;
+  const endIdx = renderEnd ? allPoints.length : allPoints.length - 1;
+  const dots = allPoints.slice(startIdx, endIdx);
 
   if (dots.length === 0) return null;
 
-  return dots.map((dot, i) => (
-    <g key={`${sideKey}-${i}`}>
-      <circle
-        cx={dot.x} cy={dot.y} r={circleR}
-        fill={isDefault ? 'rgba(190,190,190,0.9)' : 'rgba(220,220,220,0.95)'}
-        stroke="rgba(255,255,255,0.6)" strokeWidth="1"
-      />
-      {isDefault && (
-        <circle
-          cx={dot.x} cy={dot.y} r={circleR * 0.42}
-          fill="rgba(30,40,60,0.85)"
-          stroke="rgba(150,150,150,0.7)" strokeWidth="0.8"
-        />
-      )}
-    </g>
-  ));
+  return dots.map((dot, i) => {
+    const fill = isDefault ? 'rgba(190,190,190,0.9)' : 'rgba(220,220,220,0.95)';
+    const stroke = 'rgba(255,255,255,0.6)';
+    const strokeWidth = '1';
+
+    return (
+      <g key={`${sideKey}-${i}`}>
+        {fastenerType === 'strap' ? (
+          <rect
+            x={dot.x - circleR}
+            y={dot.y - circleR * 0.75}
+            width={circleR * 2}
+            height={circleR * 1.5}
+            rx={1}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+          />
+        ) : fastenerType === 'staple_pa' || fastenerType === 'staple_metal' ? (
+          <ellipse
+            cx={dot.x}
+            cy={dot.y}
+            rx={circleR * 1.4}
+            ry={circleR * 0.9}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+          />
+        ) : fastenerType === 'french_lock' ? (
+          <ellipse
+            cx={dot.x}
+            cy={dot.y}
+            rx={circleR * 0.9}
+            ry={circleR * 0.6}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+          />
+        ) : (
+          <circle
+            cx={dot.x}
+            cy={dot.y}
+            r={circleR}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+          />
+        )}
+
+        {isDefault && fastenerType === 'eyelet_10' && (
+          <circle
+            cx={dot.x}
+            cy={dot.y}
+            r={circleR * 0.42}
+            fill="rgba(30,40,60,0.85)"
+            stroke="rgba(150,150,150,0.7)"
+            strokeWidth="0.8"
+          />
+        )}
+      </g>
+    );
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -807,9 +853,9 @@ export default function DrawingCanvas({
 
         {/* ── Layer 5: Fasteners ──────────────────────────────────────────── */}
         {fastenerPoints !== null && (() => {
-          const co    = fastenerPoints.cornerOwnership;
+          const co = fastenerPoints.cornerOwnership;
           const sides = fasteners.sides;
-          const ibs   = fastenerPoints.intervalsBySide;
+          const ibs = fastenerPoints.intervalsBySide;
 
           return (
             <g>
@@ -819,6 +865,7 @@ export default function DrawingCanvas({
                   midTop1, midTop2, ibs.top,
                   co.TL === 'top', co.TR === 'top',
                   false, circleR, 'top',
+                  fasteners.type,
                 )
               }
               {/* right */}
@@ -827,6 +874,7 @@ export default function DrawingCanvas({
                   midRight2, midRight3, ibs.right,
                   co.TR === 'right', co.BR === 'right',
                   false, circleR, 'right',
+                  fasteners.type,
                 )
               }
               {/* bottom */}
@@ -835,6 +883,7 @@ export default function DrawingCanvas({
                   midBottom3, midBottom4, ibs.bottom,
                   co.BR === 'bottom', co.BL === 'bottom',
                   false, circleR, 'bottom',
+                  fasteners.type,
                 )
               }
               {/* left */}
@@ -843,6 +892,7 @@ export default function DrawingCanvas({
                   midLeft4, midLeft1, ibs.left,
                   co.BL === 'left', co.TL === 'left',
                   false, circleR, 'left',
+                  fasteners.type,
                 )
               }
               {/* top = 'default': физический Ø10, всегда владеет TL и TR
@@ -853,6 +903,7 @@ export default function DrawingCanvas({
                   midTop1, midTop2, ibs.top,
                   true, true,
                   true, circleR, 'top-default',
+                  fasteners.type,
                 )
               }
             </g>
