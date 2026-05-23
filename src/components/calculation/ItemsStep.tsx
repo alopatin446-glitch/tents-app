@@ -740,7 +740,7 @@ export default function ItemsStep({
               {/* Раскрой — метрика списания рулона */}
               <div className={styles.statLabel}>
                 Раскрой:{' '}
-                <span style={{ color: activeItemGeometry.isOverSize ? '#ff4d4f' : '#7BFF00' }}>
+                <span style={{ color: activeItemGeometry.isOverSize ? '#641e1f' : '#7BFF00' }}>
                   {formatArea(activeItemGeometry.cutArea)}
                 </span>
               </div>
