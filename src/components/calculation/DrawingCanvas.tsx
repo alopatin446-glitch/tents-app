@@ -868,6 +868,7 @@ export default function DrawingCanvas({
                   fasteners.type,
                 )
               }
+
               {/* right */}
               {sides.right === true && ibs.right !== null &&
                 renderSideDotsNew(
@@ -877,6 +878,7 @@ export default function DrawingCanvas({
                   fasteners.type,
                 )
               }
+
               {/* bottom */}
               {sides.bottom === true && ibs.bottom !== null &&
                 renderSideDotsNew(
@@ -886,6 +888,7 @@ export default function DrawingCanvas({
                   fasteners.type,
                 )
               }
+
               {/* left */}
               {sides.left === true && ibs.left !== null &&
                 renderSideDotsNew(
@@ -895,15 +898,14 @@ export default function DrawingCanvas({
                   fasteners.type,
                 )
               }
-              {/* top = 'default': физический Ø10, всегда владеет TL и TR
-                  Проверено: type=none + top='default' невозможно через UI,
-                  поэтому guard fasteners.type!=='none' (в fastenerPoints) достаточен. */}
+
+              {/* top = 'default': физический Ø10, всегда владеет TL и TR */}
               {sides.top === 'default' && ibs.top !== null &&
                 renderSideDotsNew(
                   midTop1, midTop2, ibs.top,
                   true, true,
                   true, circleR, 'top-default',
-                  fasteners.type,
+                  'eyelet_10',
                 )
               }
             </g>
