@@ -50,25 +50,25 @@ export default function FastenersStep({
     );
 
     const retailCost = pointsCount * unitRetail;
-    const costCost   = pointsCount * unitCost;
+    const costCost = pointsCount * unitCost;
 
     const updatedFastenerConfig: FastenerConfig = {
       ...newConfig,
       priceRetail: unitRetail,
-      priceCost:   unitCost,
+      priceCost: unitCost,
       pointsCount,
       retailCost: Number(retailCost.toFixed(2)),
-      costCost:   Number(costCost.toFixed(2)),
+      costCost: Number(costCost.toFixed(2)),
     };
 
     const updatedWindows = windows.map((w) =>
       w.id === activeWindowId
         ? {
-            ...w,
-            fasteners:           updatedFastenerConfig,
-            totalFastenersRetail: updatedFastenerConfig.retailCost,
-            totalFastenersCost:   updatedFastenerConfig.costCost,
-          }
+          ...w,
+          fasteners: updatedFastenerConfig,
+          totalFastenersRetail: updatedFastenerConfig.retailCost,
+          totalFastenersCost: updatedFastenerConfig.costCost,
+        }
         : w,
     );
 
@@ -135,7 +135,11 @@ export default function FastenersStep({
 
         {activeWindow ? (
           <div className={styles.drawingWrapper}>
-            <DrawingCanvas item={activeWindow} showFasteners />
+            <DrawingCanvas
+              item={activeWindow}
+              showFasteners
+              showExtras
+            />
           </div>
         ) : (
           <div className={styles.emptyState}>Выберите окно для настройки крепежа</div>

@@ -700,7 +700,11 @@ export default function ItemsStep({
         {activeItem && activeItemGeometry && (
           <>
             <div className={styles.drawingWrapper}>
-              <DrawingCanvas item={resolveDraftToWindowItem(activeItem)} showFasteners={false} />
+              <DrawingCanvas
+                item={resolveDraftToWindowItem(activeItem)}
+                showFasteners
+                showExtras
+              />
             </div>
 
             {/* ── Инфо-бар: две площади для прозрачности перед менеджером ── */}
