@@ -63,6 +63,7 @@ export default function CalculationClient({
   const [clientId, setClientId] = useState<string>(initialClientId);
   const [activeStep, setActiveStep] = useState<Step>('client');
   const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false); // 🔥 Синхронный Guard для защиты от двойных кликов
 
   // ЦЕНОВОЙ СУВЕРЕНИТЕТ: Универсальный стейт для всех цен из БД
   const [currentPrices, setCurrentPrices] = useState<Record<string, number>>({});
@@ -137,6 +138,13 @@ export default function CalculationClient({
   const handleSaveAll = useCallback(async () => {
     if (isReadOnly) return;
 
+    // 🔥 Guard: Блокируем гонку запросов
+    if (isSavingRef.current) {
+      logger.warn('[CalculationClient] Попытка двойного сохранения заблокирована (isSaving guard)');
+      return;
+    }
+
+    isSavingRef.current = true;
     setIsSaving(true);
 
     try {
@@ -252,6 +260,7 @@ export default function CalculationClient({
       console.error(e);
       notifyError('Ошибка сохранения');
     } finally {
+      isSavingRef.current = false; // 🔥 Снимаем блокировку
       setIsSaving(false);
     }
   }, [clientId, clientDataWithArea, windows, router, isReadOnly, currentPrices, handleClientDataChange,
