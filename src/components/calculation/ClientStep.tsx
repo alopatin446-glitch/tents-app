@@ -595,7 +595,6 @@ export default function ClientStep({
   const pendingAutosaveDataRef = useRef<ClientFormData | null>(null);
   const hasUnsavedChangesRef = useRef(false);
   const prevCalculatedRef = useRef<number | undefined>(undefined); // 🔥 Шпион для BUG-004
-  const isReadyToSyncRef = useRef(false); // 🔥 Таймер иммунитета
 
   const [openSections, setOpenSections] = useState<OpenSections>({
     data: false,
@@ -644,48 +643,61 @@ export default function ClientStep({
   useEffect(() => {
     setClientData(initialData);
     prevCalculatedRef.current = undefined; // Сбрасываем при открытии новой карточки
-
-    // 🔥 Защита от "скачков" при загрузке: даем ядру 1.5 секунды на стабилизацию цен
-    isReadyToSyncRef.current = false;
-    const timer = setTimeout(() => {
-      isReadyToSyncRef.current = true;
-    }, 1500);
-
-    return () => clearTimeout(timer);
   }, [initialData.id]);
 
   // 🔥 BUG-004 FIX: Автоматическая синхронизация розничной цены при изменении расчёта ядра
   // Если ядро пересчитало итоговую сумму (calculatedTotal), мы обновляем ручное поле totalPrice,
   // чтобы менеджер случайно не продал измененный заказ по старой (неактуальной) цене.
   useEffect(() => {
-    if (isReadOnly || calculatedTotal === undefined) return;
+    // Игнорируем 0 (бывает в первые миллисекунды загрузки ядра, пока прайсы не подтянулись).
+    // Это наш естественный иммунитет от скачков!
+    if (isReadOnly || calculatedTotal === undefined || calculatedTotal <= 0) return;
 
-    // Пока активен иммунитет загрузки, просто запоминаем скачки ядра, но НЕ трогаем ручную цену!
-    if (!isReadyToSyncRef.current) {
+    const storageKey = clientId ? `last_calc_total_${clientId}` : null;
+    const savedCalc = storageKey ? sessionStorage.getItem(storageKey) : null;
+    const savedCalcNum = savedCalc ? parseFloat(savedCalc) : undefined;
+
+    // 1. Инициализация (первое открытие карточки в этой сессии)
+    if (prevCalculatedRef.current === undefined && savedCalcNum === undefined) {
       prevCalculatedRef.current = calculatedTotal;
+      if (storageKey) sessionStorage.setItem(storageKey, calculatedTotal.toString());
+
+      // Подставляем расчет, только если цена пустая (не затираем сохраненную в БД скидку)
+      setClientData((prev) => {
+        if (!prev.totalPrice || toFinancialNumber(prev.totalPrice) === 0) {
+          const nextData = { ...prev, totalPrice: calculatedTotal };
+          scheduleAutosave(nextData);
+          return nextData;
+        }
+        return prev;
+      });
       return;
     }
 
-    // Срабатываем ТОЛЬКО если ядро реально изменило свою цифру (добавили/изменили окно)
-    if (
-      prevCalculatedRef.current !== undefined &&
-      prevCalculatedRef.current !== calculatedTotal
-    ) {
+    // 2. Если расчет изменился (сравниваем с сессией ИЛИ с локальным рефом)
+    const previousKnownTotal = savedCalcNum !== undefined ? savedCalcNum : prevCalculatedRef.current;
+
+    if (previousKnownTotal !== undefined && previousKnownTotal !== calculatedTotal) {
+      prevCalculatedRef.current = calculatedTotal;
+      if (storageKey) sessionStorage.setItem(storageKey, calculatedTotal.toString());
+
       setClientData((prev) => {
         const currentManualPrice = toFinancialNumber(prev.totalPrice);
-        // Если суммы и так равны, ничего не делаем
         if (currentManualPrice === calculatedTotal) return prev;
 
-        // Ядро пересчитало заказ -> обновляем ручную цену
+        // Ядро пересчитало заказ (добавили окно и т.д.) -> ОБЯЗАТЕЛЬНО обновляем ручную цену
         const nextData = { ...prev, totalPrice: calculatedTotal };
         scheduleAutosave(nextData);
         return nextData;
       });
+    } else {
+      // Если ничего не поменялось, просто держим рефы в актуальном состоянии
+      prevCalculatedRef.current = calculatedTotal;
+      if (storageKey && savedCalcNum !== calculatedTotal) {
+        sessionStorage.setItem(storageKey, calculatedTotal.toString());
+      }
     }
-
-    // Запоминаем текущую цифру ядра для следующих проверок
-    prevCalculatedRef.current = calculatedTotal;
-  }, [calculatedTotal, isReadOnly, scheduleAutosave]);
+  }, [calculatedTotal, isReadOnly, scheduleAutosave, clientId]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
