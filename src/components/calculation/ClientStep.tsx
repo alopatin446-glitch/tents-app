@@ -595,6 +595,7 @@ export default function ClientStep({
   const pendingAutosaveDataRef = useRef<ClientFormData | null>(null);
   const hasUnsavedChangesRef = useRef(false);
   const prevCalculatedRef = useRef<number | undefined>(undefined); // 🔥 Шпион для BUG-004
+  const isReadyToSyncRef = useRef(false); // 🔥 Таймер иммунитета
 
   const [openSections, setOpenSections] = useState<OpenSections>({
     data: false,
@@ -643,6 +644,14 @@ export default function ClientStep({
   useEffect(() => {
     setClientData(initialData);
     prevCalculatedRef.current = undefined; // Сбрасываем при открытии новой карточки
+
+    // 🔥 Защита от "скачков" при загрузке: даем ядру 1.5 секунды на стабилизацию цен
+    isReadyToSyncRef.current = false;
+    const timer = setTimeout(() => {
+      isReadyToSyncRef.current = true;
+    }, 1500);
+
+    return () => clearTimeout(timer);
   }, [initialData.id]);
 
   // 🔥 BUG-004 FIX: Автоматическая синхронизация розничной цены при изменении расчёта ядра
@@ -650,6 +659,12 @@ export default function ClientStep({
   // чтобы менеджер случайно не продал измененный заказ по старой (неактуальной) цене.
   useEffect(() => {
     if (isReadOnly || calculatedTotal === undefined) return;
+
+    // Пока активен иммунитет загрузки, просто запоминаем скачки ядра, но НЕ трогаем ручную цену!
+    if (!isReadyToSyncRef.current) {
+      prevCalculatedRef.current = calculatedTotal;
+      return;
+    }
 
     // Срабатываем ТОЛЬКО если ядро реально изменило свою цифру (добавили/изменили окно)
     if (
