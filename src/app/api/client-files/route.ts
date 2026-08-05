@@ -5,6 +5,9 @@ import { uploadFileToS3 } from '@/lib/storage/s3';
 
 export const runtime = 'nodejs';
 
+// 🔥 Глобальная константа лимита: 20 МБ
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/'];
 
 const ALLOWED_MIME_TYPES = [
@@ -100,6 +103,11 @@ export async function POST(request: NextRequest) {
 
     if (!(fileValue instanceof File)) {
       return jsonError('Файл не передан.', 400);
+    }
+
+    // 🔥 Guard: Лимит размера файла (BUG-007)
+    if (fileValue.size > MAX_FILE_SIZE_BYTES) {
+      return jsonError(`Размер файла превышает лимит в 20 МБ. Текущий размер: ${(fileValue.size / 1024 / 1024).toFixed(1)} МБ.`, 400);
     }
 
     const isAllowedFile =
