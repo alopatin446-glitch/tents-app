@@ -117,11 +117,11 @@ export async function POST(request: NextRequest) {
       return jsonError('Файл не передан.', 400);
     }
 
-    // 🔥 Guard: Лимит размера файла с понятным объяснением (BUG-007)
+    // 🔥 Guard: Лимит размера файла (BUG-007)
     if (fileValue.size > MAX_FILE_SIZE_BYTES) {
       const currentMb = (fileValue.size / 1024 / 1024).toFixed(1);
       return jsonError(
-        `Файл слишком большой (${currentMb} МБ).\nМаксимальный допустимый размер: 20 МБ. Это не ошибка программы — уменьшите вес файла.`,
+        `Файл слишком большой (${currentMb} МБ). Максимальный допустимый размер — 20 МБ. Это не ошибка программы, уменьшите размер файла.`,
         400
       );
     }
