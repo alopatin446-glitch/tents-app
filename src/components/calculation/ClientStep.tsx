@@ -22,6 +22,8 @@ import {
   formatMoney,
 } from '@/lib/logic/financialCalculations';
 
+import { notifyError } from '@/lib/notify';
+
 import { type PriceMap } from '@/lib/logic/pricingLogic';
 import {
   type WindowMaterialDiagnosticItem,
@@ -276,24 +278,24 @@ function getCategoryLabel(category: string | null): string {
 /** Цвет текста для статуса диагностической записи */
 function getDiagStatusColor(status: DiagnosticPriceStatus): string {
   switch (status) {
-    case 'same':                return 'rgba(255,255,255,0.4)';
-    case 'ok':                  return '#a3ff00';
-    case 'price_missing':       return '#ffd166';
+    case 'same': return 'rgba(255,255,255,0.4)';
+    case 'ok': return '#a3ff00';
+    case 'price_missing': return '#ffd166';
     case 'price_not_configured': return '#ffa500';
-    case 'slug_not_defined':    return 'rgba(255,255,255,0.5)';
-    default:                    return 'rgba(255,255,255,0.4)';
+    case 'slug_not_defined': return 'rgba(255,255,255,0.5)';
+    default: return 'rgba(255,255,255,0.4)';
   }
 }
 
 /** Человекочитаемый label для статуса */
 function getDiagStatusLabel(status: DiagnosticPriceStatus): string {
   switch (status) {
-    case 'same':                return 'без изменений';
-    case 'ok':                  return 'ok';
-    case 'price_missing':       return 'цена не найдена';
+    case 'same': return 'без изменений';
+    case 'ok': return 'ok';
+    case 'price_missing': return 'цена не найдена';
     case 'price_not_configured': return 'цена не настроена';
-    case 'slug_not_defined':    return 'slug не определён';
-    default:                    return status;
+    case 'slug_not_defined': return 'slug не определён';
+    default: return status;
   }
 }
 
@@ -311,8 +313,8 @@ function getDeltaColor(delta: number | null): string {
 }
 
 interface MaterialDiagnosticPanelProps {
-  items:    WindowMaterialDiagnosticItem[];
-  isOpen:   boolean;
+  items: WindowMaterialDiagnosticItem[];
+  isOpen: boolean;
   onToggle: () => void;
 }
 
@@ -322,14 +324,14 @@ function MaterialDiagnosticPanel({ items, isOpen, onToggle }: MaterialDiagnostic
   );
 
   const totalRetailDelta = items.reduce((s, it) => s + (it.retailDelta ?? 0), 0);
-  const totalCostDelta   = items.reduce((s, it) => s + (it.costDelta   ?? 0), 0);
-  const missingCount     = items.filter(
+  const totalCostDelta = items.reduce((s, it) => s + (it.costDelta ?? 0), 0);
+  const missingCount = items.filter(
     (it) => it.retailStatus === 'price_missing'
-         || it.retailStatus === 'price_not_configured'
-         || it.costStatus   === 'price_missing'
-         || it.costStatus   === 'price_not_configured'
-         || it.retailStatus === 'slug_not_defined'
-         || it.costStatus   === 'slug_not_defined',
+      || it.retailStatus === 'price_not_configured'
+      || it.costStatus === 'price_missing'
+      || it.costStatus === 'price_not_configured'
+      || it.retailStatus === 'slug_not_defined'
+      || it.costStatus === 'slug_not_defined',
   ).length;
 
   const headerLabel = hasDiff
@@ -500,7 +502,7 @@ function MaterialDiagnosticPanel({ items, isOpen, onToggle }: MaterialDiagnostic
 
               {/* Прибыль */}
               {(item.retailDelta !== null || item.costDelta !== null) &&
-               item.retailStatus !== 'same' || item.costStatus !== 'same' ? (
+                item.retailStatus !== 'same' || item.costStatus !== 'same' ? (
                 <div style={{ fontSize: '0.78rem' }}>
                   <span style={{ color: 'rgba(255,255,255,0.5)', marginRight: '8px' }}>
                     Δ прибыль:
@@ -796,6 +798,18 @@ export default function ClientStep({
         );
         e.target.value = '';
         return;
+      }
+
+      // 🔥 Клиентский Guard: перехват больших файлов (BUG-007)
+      const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 МБ
+
+      for (const file of files) {
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+          const currentMb = (file.size / 1024 / 1024).toFixed(1);
+          notifyError(`Файл слишком большой (${currentMb} МБ). Максимальный размер: 20 МБ. Уменьшите вес файла.`);
+          e.target.value = ''; // Сбрасываем input
+          return; // ⛔️ Жестко блокируем отправку
+        }
       }
 
       setUploadingCategory(category);
