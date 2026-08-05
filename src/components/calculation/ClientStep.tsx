@@ -594,6 +594,7 @@ export default function ClientStep({
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingAutosaveDataRef = useRef<ClientFormData | null>(null);
   const hasUnsavedChangesRef = useRef(false);
+  const prevCalculatedRef = useRef<number | undefined>(undefined); // 🔥 Шпион для BUG-004
 
   const [openSections, setOpenSections] = useState<OpenSections>({
     data: false,
@@ -641,6 +642,7 @@ export default function ClientStep({
 
   useEffect(() => {
     setClientData(initialData);
+    prevCalculatedRef.current = undefined; // Сбрасываем при открытии новой карточки
   }, [initialData.id]);
 
   // 🔥 BUG-004 FIX: Автоматическая синхронизация розничной цены при изменении расчёта ядра
@@ -649,20 +651,25 @@ export default function ClientStep({
   useEffect(() => {
     if (isReadOnly || calculatedTotal === undefined) return;
 
-    // Чтобы не затирать ручной ввод менеджера в процессе набора цифр,
-    // мы обновляем totalPrice ТОЛЬКО если оно отличается от calculatedTotal
-    // и при этом менеджер добавил/удалил окна (т.е. calculatedTotal реально изменился)
-    setClientData((prev) => {
-      const currentManualPrice = toFinancialNumber(prev.totalPrice);
-      // Если суммы и так равны, ничего не делаем
-      if (currentManualPrice === calculatedTotal) return prev;
+    // Срабатываем ТОЛЬКО если ядро реально изменило свою цифру (добавили/изменили окно)
+    if (
+      prevCalculatedRef.current !== undefined &&
+      prevCalculatedRef.current !== calculatedTotal
+    ) {
+      setClientData((prev) => {
+        const currentManualPrice = toFinancialNumber(prev.totalPrice);
+        // Если суммы и так равны, ничего не делаем
+        if (currentManualPrice === calculatedTotal) return prev;
 
-      // Обновляем состояние и запускаем автосохранение
-      const nextData = { ...prev, totalPrice: calculatedTotal };
-      scheduleAutosave(nextData);
-      return nextData;
-    });
-    // Эффект срабатывает ТОЛЬКО при изменении calculatedTotal (т.е. когда ядро пересчитало заказ)
+        // Ядро пересчитало заказ -> обновляем ручную цену
+        const nextData = { ...prev, totalPrice: calculatedTotal };
+        scheduleAutosave(nextData);
+        return nextData;
+      });
+    }
+
+    // Запоминаем текущую цифру ядра для следующих проверок
+    prevCalculatedRef.current = calculatedTotal;
   }, [calculatedTotal, isReadOnly, scheduleAutosave]);
 
   useEffect(() => {
