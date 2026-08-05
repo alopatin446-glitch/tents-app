@@ -643,6 +643,28 @@ export default function ClientStep({
     setClientData(initialData);
   }, [initialData.id]);
 
+  // 🔥 BUG-004 FIX: Автоматическая синхронизация розничной цены при изменении расчёта ядра
+  // Если ядро пересчитало итоговую сумму (calculatedTotal), мы обновляем ручное поле totalPrice,
+  // чтобы менеджер случайно не продал измененный заказ по старой (неактуальной) цене.
+  useEffect(() => {
+    if (isReadOnly || calculatedTotal === undefined) return;
+
+    // Чтобы не затирать ручной ввод менеджера в процессе набора цифр,
+    // мы обновляем totalPrice ТОЛЬКО если оно отличается от calculatedTotal
+    // и при этом менеджер добавил/удалил окна (т.е. calculatedTotal реально изменился)
+    setClientData((prev) => {
+      const currentManualPrice = toFinancialNumber(prev.totalPrice);
+      // Если суммы и так равны, ничего не делаем
+      if (currentManualPrice === calculatedTotal) return prev;
+
+      // Обновляем состояние и запускаем автосохранение
+      const nextData = { ...prev, totalPrice: calculatedTotal };
+      scheduleAutosave(nextData);
+      return nextData;
+    });
+    // Эффект срабатывает ТОЛЬКО при изменении calculatedTotal (т.е. когда ядро пересчитало заказ)
+  }, [calculatedTotal, isReadOnly, scheduleAutosave]);
+
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
       if (!hasUnsavedChangesRef.current) return;
@@ -891,6 +913,35 @@ export default function ClientStep({
   }, [isReadOnly, clientData, financials.balance, onSave]);
 
   const areaDisplay = toFinancialNumber(clientData.area);
+
+  // ── УМНЫЕ ПОДСКАЗКИ ДЛЯ РОЗНИЧНОЙ ЦЕНЫ (BUG-004) ────────────────────────
+  const manualTotal = toFinancialNumber(clientData.totalPrice);
+  const coreTotal = calculatedTotal || 0;
+  const diff = manualTotal - coreTotal;
+  const diffPercent = coreTotal > 0 ? Math.abs((diff / coreTotal) * 100).toFixed(1) : "0";
+
+  let priceHelper = null;
+  if (manualTotal > 0 && coreTotal > 0) {
+    if (diff === 0) {
+      priceHelper = (
+        <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px', display: 'block' }}>
+          ✓ Совпадает с расчётом алгоритма
+        </span>
+      );
+    } else if (diff < 0) {
+      priceHelper = (
+        <span style={{ fontSize: '11px', color: '#ffd166', marginTop: '4px', display: 'block' }}>
+          ⚠️ Скидка {formatMoney(Math.abs(diff))} ({diffPercent}%). Согласуйте с РОП!
+        </span>
+      );
+    } else if (diff > 0) {
+      priceHelper = (
+        <span style={{ fontSize: '11px', color: '#a3ff00', marginTop: '4px', display: 'block', fontWeight: 'bold' }}>
+          🎉 Продажа выше прайса на {formatMoney(diff)} (+{diffPercent}%)! Отличная работа!
+        </span>
+      );
+    }
+  }
 
   return (
     <div className={styles.container}>
@@ -1485,6 +1536,7 @@ export default function ClientStep({
                   className={styles.neonInput}
                   disabled={isReadOnly}
                 />
+                {priceHelper}
               </div>
 
               <div className={styles.inputGroup}>
