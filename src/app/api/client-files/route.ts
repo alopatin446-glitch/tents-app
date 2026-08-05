@@ -5,7 +5,7 @@ import { uploadFileToS3 } from '@/lib/storage/s3';
 
 export const runtime = 'nodejs';
 
-// 🔥 Глобальная константа лимита: 20 МБ
+// 🔥 Глобальная константа лимита: 20 МБ (BUG-007)
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 const ALLOWED_MIME_PREFIXES = ['image/', 'video/'];
@@ -18,12 +18,24 @@ const ALLOWED_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
 
+// Разрешённые расширения на случай, если браузер/ОС не передали MIME-тип
+const ALLOWED_EXTENSIONS = [
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'bmp', 'svg',
+  'mp4', 'mov', 'avi', 'mkv', 'webm',
+  'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'csv'
+];
+
 function jsonError(message: string, status: number) {
   return NextResponse.json({ ok: false, error: message }, { status });
 }
 
 function getString(value: FormDataEntryValue | null): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function getFileExtension(filename: string): string {
+  const parts = filename.split('.');
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : '';
 }
 
 async function assertClientAccess(clientId: string, organizationId: string) {
@@ -110,11 +122,14 @@ export async function POST(request: NextRequest) {
       return jsonError(`Размер файла превышает лимит в 20 МБ. Текущий размер: ${(fileValue.size / 1024 / 1024).toFixed(1)} МБ.`, 400);
     }
 
-    const isAllowedFile =
-      ALLOWED_MIME_PREFIXES.some((prefix) => fileValue.type.startsWith(prefix)) ||
+    // Двойная проверка: MIME-тип ИЛИ Расширение файла
+    const ext = getFileExtension(fileValue.name);
+    const isAllowedMime =
+      (fileValue.type && ALLOWED_MIME_PREFIXES.some((prefix) => fileValue.type.startsWith(prefix))) ||
       ALLOWED_MIME_TYPES.includes(fileValue.type);
+    const isAllowedExt = ALLOWED_EXTENSIONS.includes(ext);
 
-    if (!isAllowedFile) {
+    if (!isAllowedMime && !isAllowedExt) {
       return jsonError('Разрешены фото, видео, PDF, Word и Excel.', 400);
     }
 
