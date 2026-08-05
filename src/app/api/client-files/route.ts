@@ -117,9 +117,13 @@ export async function POST(request: NextRequest) {
       return jsonError('Файл не передан.', 400);
     }
 
-    // 🔥 Guard: Лимит размера файла (BUG-007)
+    // 🔥 Guard: Лимит размера файла с понятным объяснением (BUG-007)
     if (fileValue.size > MAX_FILE_SIZE_BYTES) {
-      return jsonError(`Размер файла превышает лимит в 20 МБ. Текущий размер: ${(fileValue.size / 1024 / 1024).toFixed(1)} МБ.`, 400);
+      const currentMb = (fileValue.size / 1024 / 1024).toFixed(1);
+      return jsonError(
+        `Файл слишком большой (${currentMb} МБ).\nМаксимальный допустимый размер: 20 МБ. Это не ошибка программы — уменьшите вес файла.`,
+        400
+      );
     }
 
     // Двойная проверка: MIME-тип ИЛИ Расширение файла
@@ -130,7 +134,7 @@ export async function POST(request: NextRequest) {
     const isAllowedExt = ALLOWED_EXTENSIONS.includes(ext);
 
     if (!isAllowedMime && !isAllowedExt) {
-      return jsonError('Разрешены фото, видео, PDF, Word и Excel.', 400);
+      return jsonError('Формат файла не поддерживается. Разрешены фото, видео, PDF, Word и Excel.', 400);
     }
 
     const client = await assertClientAccess(clientId, organizationId);
