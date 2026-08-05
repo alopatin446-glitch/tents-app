@@ -1,5 +1,6 @@
 import { WindowItem } from '@/types';
 import { calculateWindowGeometry } from './windowCalculations';
+import { calculateFastenerPoints } from './fastenerCalculations';
 
 export interface WindowFinance {
   costPrice: number;               // Чистое изделие: плёнка + кант
@@ -90,10 +91,24 @@ function calculateFastenerCosts(
     ? (priceMap[keys.costKey] ?? fasteners.priceCost)
     : fasteners.priceCost;
 
-  return {
-    fastenersRetail: pointsCount * unitRetail,
-    fastenersCost:   pointsCount * unitCost,
-  };
+  let fastenersRetail = pointsCount * unitRetail;
+  let fastenersCost   = pointsCount * unitCost;
+
+  // 🔥 BUG-005 FIX: Учёт стоимости дефолтных верхних люверсов (материал крепежа)
+  if (fasteners.sides?.top === 'default') {
+    const { defaultTopEyeletPointsCount } = calculateFastenerPoints(window);
+    
+    if (defaultTopEyeletPointsCount > 0) {
+      const eyeletKeys = resolveFastenerKeys('eyelet_10');
+      const eyeletUnitRetail = priceMap[eyeletKeys.retailKey] ?? 0;
+      const eyeletUnitCost   = priceMap[eyeletKeys.costKey] ?? 0;
+
+      fastenersRetail += defaultTopEyeletPointsCount * eyeletUnitRetail;
+      fastenersCost   += defaultTopEyeletPointsCount * eyeletUnitCost;
+    }
+  }
+
+  return { fastenersRetail, fastenersCost };
 }
 
 export function getFastenerUnitPrices(
@@ -186,15 +201,15 @@ function calculateExtrasWork(
 
   // ── 1. РАБОТА ПО КРЕПЕЖУ ────────────────────────────────────────────────
   // Сумма inner-длин сторон с активным крепежом × c_produc_fasteners_per_meter
-  // INNER: без канта. top='default' !== true → не входит.
+  // INNER: без канта. 
   const fastenersPerMeter = priceMap['c_produc_fasteners_per_meter'] ?? 80;
   let fastenersWork = 0;
 
   const ft = win.fasteners;
   if (ft && ft.type !== 'none') {
     const sides = ft.sides;
-    // top: FastenerSideState ('default' | boolean) — только true считается активным
-    if (sides.top    === true) fastenersWork += win.widthTop    / 100;
+    // 🔥 BUG-005 FIX: ЗП цеху за пробивку начисляется и для основного крепежа (true), и для дефолтных люверсов ('default')
+    if (sides.top === true || sides.top === 'default') fastenersWork += win.widthTop    / 100;
     if (sides.bottom === true) fastenersWork += win.widthBottom / 100;
     if (sides.left   === true) fastenersWork += win.heightLeft  / 100;
     if (sides.right  === true) fastenersWork += win.heightRight / 100;
@@ -208,10 +223,10 @@ function calculateExtrasWork(
   }
 
   // ── Safe guards — защита от undefined в legacy-записях ─────────────────
-  const zippers    = ae.zippers   ?? [];
-  const dividers   = ae.dividers  ?? [];
-  const welding    = ae.welding   ?? [];
-  const cutouts    = ae.cutouts   ?? [];
+  const zippers    = ae.zippers  ?? [];
+  const dividers   = ae.dividers ?? [];
+  const welding    = ae.welding  ?? [];
+  const cutouts    = ae.cutouts  ?? [];
   const strapsCount = ae.straps?.count ?? 0;
 
   // ── 2. МОЛНИЯ — работа и перерасход ────────────────────────────────────
@@ -263,7 +278,7 @@ function calculateExtrasWork(
   }
 
   // ── 7. ВЫРЕЗЫ И ЗАПЛАТКИ ────────────────────────────────────────────────
-  // Малый:   обе стороны ≤ 10 см → 200
+  // Малый:  обе стороны ≤ 10 см → 200
   // Большой: обе стороны > 30 см → 500
   // Средний: всё остальное        → 400
   const cutSmall  = priceMap['c_produc_cut_small_piece']  ?? 200;
