@@ -555,6 +555,23 @@ export async function getArchiveOrdersCount(): Promise<
   }
 }
 
+export async function getClientsCount(): Promise<
+  { success: true; count: number } | { success: false; error: string }
+> {
+  try {
+    const user = await requireAuth();
+    const count = await prisma.client.count({
+      where: {
+        organizationId: user.organizationId // Считаем всех клиентов своей организации
+      },
+    });
+    return { success: true, count };
+  } catch (error) {
+    logger.error('[getClientsCount] Ошибка', error);
+    return { success: false, error: 'Не удалось получить количество клиентов' };
+  }
+}
+
 export async function deleteClientAction(
   id: string
 ): Promise<{ success: true } | { success: false; error: string }> {

@@ -4,30 +4,38 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import styles from './dashboard.module.css';
-import { getArchiveOrdersCount } from '@/app/actions';
+import { getArchiveOrdersCount, getClientsCount } from '@/app/actions';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { userName, userOrg, logout, checkAuth, isLoading, role, permissions } = useAuth();
   const [archiveCount, setArchiveCount] = useState<number>(0);
+  const [clientsCount, setClientsCount] = useState<number>(0); // 🔥 Новый стейт
 
   useEffect(() => {
     if (!isLoading && !checkAuth()) {
       router.push('/login');
     }
 
-    async function loadArchiveCount() {
+    async function loadDashboardData() {
       if (isLoading) return;
       try {
-        const result = await getArchiveOrdersCount();
-        if (result && typeof result === 'object' && 'success' in result && result.success) {
-          setArchiveCount(Number((result as any).count) || 0);
+        // Загружаем архив
+        const archiveResult = await getArchiveOrdersCount();
+        if (archiveResult && typeof archiveResult === 'object' && 'success' in archiveResult && archiveResult.success) {
+          setArchiveCount(Number((archiveResult as any).count) || 0);
+        }
+
+        // 🔥 Загружаем всех клиентов
+        const clientsResult = await getClientsCount();
+        if (clientsResult && typeof clientsResult === 'object' && 'success' in clientsResult && clientsResult.success) {
+          setClientsCount(Number((clientsResult as any).count) || 0);
         }
       } catch (error) {
-        console.error('Ошибка загрузки счётчика:', error);
+        console.error('Ошибка загрузки счётчиков:', error);
       }
     }
-    loadArchiveCount();
+    loadDashboardData();
   }, [checkAuth, router, isLoading]);
 
   // Улучшенная функция проверки доступа
@@ -182,7 +190,7 @@ export default function DashboardPage() {
               }}
             >
               <p className={styles.statLabel} style={{ fontWeight: '700' }}>КЛИЕНТЫ</p>
-              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>{canAccess('clients:read') ? '124' : '🔒'}</p>
+              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>{canAccess('clients:read') ? clientsCount : '🔒'}</p>
             </div>
 
             {/* Календарь */}
