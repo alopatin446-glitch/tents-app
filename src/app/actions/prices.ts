@@ -61,6 +61,16 @@ export async function updatePrices(data: any[]) {
     const user = await requireRole(['ADMIN', 'MANAGER']);
     const orgId = user.organizationId;
 
+    // 🔥 BUG-020 FIX: Первый щит — проверяем данные перед отправкой в БД
+    for (const item of data) {
+      if (Number(item.value) < 0) {
+        return {
+          success: false,
+          error: `Ошибка: Цена не может быть меньше нуля!`
+        };
+      }
+    }
+
     await prisma.$transaction(
       data.map((item) =>
         prisma.price.update({
@@ -71,7 +81,8 @@ export async function updatePrices(data: any[]) {
             },
           },
           data: {
-            value: Number(item.value) || 0,
+            // 🔥 BUG-020 FIX: Второй щит — отсекаем любой минус на уровне БД
+            value: Math.max(0, Number(item.value) || 0),
           },
         })
       )
