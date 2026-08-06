@@ -645,27 +645,40 @@ export default function ClientStep({
     prevCalculatedRef.current = undefined; // Сбрасываем при открытии новой карточки
   }, [initialData.id]);
 
-  // 🔥 BUG-004 FIX: Автоматическая синхронизация розничной цены при изменении расчёта ядра
-  // Если ядро пересчитало итоговую сумму (calculatedTotal), мы обновляем ручное поле totalPrice,
-  // чтобы менеджер случайно не продал измененный заказ по старой (неактуальной) цене.
+  // 🔥 BUG-004 FIX: Шаг 1. Стабилизатор (дебаунс) расчёта ядра
+  // Ядро "моргает" промежуточными цифрами при загрузке. Мы отсекаем этот мусор.
+  const [stableTotal, setStableTotal] = useState<number | undefined>(undefined);
+
   useEffect(() => {
-    // Игнорируем 0 (бывает в первые миллисекунды загрузки ядра, пока прайсы не подтянулись).
-    // Это наш естественный иммунитет от скачков!
-    if (isReadOnly || calculatedTotal === undefined || calculatedTotal <= 0) return;
+    // Игнорируем пустые цифры
+    if (calculatedTotal === undefined || calculatedTotal <= 0) return;
+
+    // Ждем 600мс тишины. Если ядро еще считает, таймер будет постоянно сбрасываться.
+    const timer = setTimeout(() => {
+      setStableTotal(calculatedTotal);
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [calculatedTotal]);
+
+  // 🔥 BUG-004 FIX: Шаг 2. Умная авто-синхронизация (работает только с финальной цифрой)
+  useEffect(() => {
+    // Ждем, пока стабилизатор не выдаст нам 100% готовую цифру
+    if (isReadOnly || stableTotal === undefined || stableTotal <= 0) return;
 
     const storageKey = clientId ? `last_calc_total_${clientId}` : null;
     const savedCalc = storageKey ? sessionStorage.getItem(storageKey) : null;
     const savedCalcNum = savedCalc ? parseFloat(savedCalc) : undefined;
 
-    // 1. Инициализация (первое открытие карточки в этой сессии)
+    // 1. Инициализация при открытии (НЕ затираем ручную скидку!)
     if (prevCalculatedRef.current === undefined && savedCalcNum === undefined) {
-      prevCalculatedRef.current = calculatedTotal;
-      if (storageKey) sessionStorage.setItem(storageKey, calculatedTotal.toString());
+      prevCalculatedRef.current = stableTotal;
+      if (storageKey) sessionStorage.setItem(storageKey, stableTotal.toString());
 
-      // Подставляем расчет, только если цена пустая (не затираем сохраненную в БД скидку)
       setClientData((prev) => {
+        // Если ручная цена пустая или 0 — только тогда подставляем расчет
         if (!prev.totalPrice || toFinancialNumber(prev.totalPrice) === 0) {
-          const nextData = { ...prev, totalPrice: calculatedTotal };
+          const nextData = { ...prev, totalPrice: stableTotal };
           scheduleAutosave(nextData);
           return nextData;
         }
@@ -674,30 +687,30 @@ export default function ClientStep({
       return;
     }
 
-    // 2. Если расчет изменился (сравниваем с сессией ИЛИ с локальным рефом)
+    // 2. Если расчёт реально изменился после стабилизации (добавили/изменили окно)
     const previousKnownTotal = savedCalcNum !== undefined ? savedCalcNum : prevCalculatedRef.current;
 
-    if (previousKnownTotal !== undefined && previousKnownTotal !== calculatedTotal) {
-      prevCalculatedRef.current = calculatedTotal;
-      if (storageKey) sessionStorage.setItem(storageKey, calculatedTotal.toString());
+    if (previousKnownTotal !== undefined && previousKnownTotal !== stableTotal) {
+      prevCalculatedRef.current = stableTotal;
+      if (storageKey) sessionStorage.setItem(storageKey, stableTotal.toString());
 
       setClientData((prev) => {
         const currentManualPrice = toFinancialNumber(prev.totalPrice);
-        if (currentManualPrice === calculatedTotal) return prev;
+        if (currentManualPrice === stableTotal) return prev;
 
-        // Ядро пересчитало заказ (добавили окно и т.д.) -> ОБЯЗАТЕЛЬНО обновляем ручную цену
-        const nextData = { ...prev, totalPrice: calculatedTotal };
+        // Только здесь мы имеем право перезаписать ручную цену
+        const nextData = { ...prev, totalPrice: stableTotal };
         scheduleAutosave(nextData);
         return nextData;
       });
     } else {
-      // Если ничего не поменялось, просто держим рефы в актуальном состоянии
-      prevCalculatedRef.current = calculatedTotal;
-      if (storageKey && savedCalcNum !== calculatedTotal) {
-        sessionStorage.setItem(storageKey, calculatedTotal.toString());
+      // Если ядро выдало ту же сумму, что была в памяти — просто обновляем рефы
+      prevCalculatedRef.current = stableTotal;
+      if (storageKey && savedCalcNum !== stableTotal) {
+        sessionStorage.setItem(storageKey, stableTotal.toString());
       }
     }
-  }, [calculatedTotal, isReadOnly, scheduleAutosave, clientId]);
+  }, [stableTotal, isReadOnly, scheduleAutosave, clientId]);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
