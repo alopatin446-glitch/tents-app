@@ -343,7 +343,7 @@ export default function CalculationClient({
             onSave={handleSaveAll}
             onDraftChange={handleClientDataChange}
             onClose={() => router.back()}
-            isReadOnly={isReadOnly}
+            isReadOnly={isReadOnly || isSaving}
             materialDiagnostics={materialDiagnostics}
           />
         )}
@@ -354,7 +354,7 @@ export default function CalculationClient({
             onDraftChange={handleWindowsChange}
             onSave={handleSaveAll}
             clientId={clientId}
-            isReadOnly={isReadOnly}
+            isReadOnly={isReadOnly || isSaving}
             activeWindowId={activeWindowId}
             onActiveWindowChange={setActiveWindowId}
           />
@@ -368,7 +368,7 @@ export default function CalculationClient({
             onWindowsChange={handleWindowsChange}
             onSave={handleSaveAll}
             priceMap={currentPrices}
-            isReadOnly={isReadOnly}
+            isReadOnly={isReadOnly || isSaving}
           />
         )}
 
@@ -379,7 +379,7 @@ export default function CalculationClient({
             onActiveWindowChange={setActiveWindowId}
             onExtrasChange={handleExtrasChange}
             onSave={handleSaveAll}
-            isReadOnly={isReadOnly}
+            isReadOnly={isReadOnly || isSaving}
           />
         )}
 
@@ -391,7 +391,7 @@ export default function CalculationClient({
             currentUserId={currentUserId}
             onChange={handleMountingChange}
             onSave={handleSaveAll}
-            isReadOnly={isReadOnly}
+            isReadOnly={isReadOnly || isSaving}
             teamMembers={teamMembers}
           />
         )}
