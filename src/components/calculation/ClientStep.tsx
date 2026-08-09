@@ -601,7 +601,7 @@ export default function ClientStep({
   const prevCalculatedRef = useRef<number | undefined>(undefined); // 🔥 Шпион для BUG-004
 
   // 🔥 СТЕЙТЫ ДЛЯ ДИНАМИЧЕСКИХ СТАДИЙ
-  const [stages, setStages] = useState<{id: string, name: string}[]>([]);
+  const [stages, setStages] = useState<{ id: string, name: string }[]>([]);
   const [isAddStageModalOpen, setIsAddStageModalOpen] = useState(false);
   const [newStageName, setNewStageName] = useState('');
   const [newStageColor, setNewStageColor] = useState('#7BFF00');
@@ -656,7 +656,7 @@ export default function ClientStep({
           balance:
             toFinancialNumber(pendingData.totalPrice) -
             toFinancialNumber(pendingData.advance),
-        });
+        } as any);
       }, 1200);
     },
     [isReadOnly, onSave]
@@ -1005,7 +1005,7 @@ export default function ClientStep({
       ...clientData,
       status: clientData.status ?? '',
       balance: financials.balance,
-    });
+    } as any);
   }, [isReadOnly, clientData, financials.balance, onSave]);
 
   const areaDisplay = toFinancialNumber(clientData.area);
@@ -1874,7 +1874,7 @@ export default function ClientStep({
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
             <h3 className={styles.modalTitle}>Новая стадия</h3>
-            
+
             <input
               type="text"
               placeholder="Название стадии..."
