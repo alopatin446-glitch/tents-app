@@ -20,10 +20,10 @@ async function main(): Promise<void> {
   // ── 0. Создаем или находим базовую организацию ────────────────────────
   const org = await prisma.organization.upsert({
     where: { id: DEFAULT_ORG_ID },
-    update: { name: 'Tents App (Тайланда)' },
+    update: { name: 'Tents App (Тайландабее)' },
     create: {
       id: DEFAULT_ORG_ID,
-      name: 'Tents App (Тайланда)',
+      name: 'Tents App (Тайландабее)',
     },
   });
   console.log('Организация готова.');
