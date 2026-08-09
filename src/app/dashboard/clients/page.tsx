@@ -7,6 +7,7 @@ import type { Client } from '@/types';
 import { requireAuth } from '@/lib/auth/requireAuth';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import { getPipelineStages } from '@/app/actions/pipeline';
+import { type ClientStatus } from '@/lib/logic/statusDictionary';
 
 export default async function ClientsPage() {
   // 1. ТАМОЖНЯ: Проверка авторизации
@@ -49,7 +50,8 @@ export default async function ClientsPage() {
     advance: c.advance,
     balance: c.balance,
     paymentType: c.paymentType || '',
-    status: normalizeStatus(c.status),
+    // 🔥 ВОТ ЗДЕСЬ ДОБАВЛЯЕМ "as ClientStatus":
+    status: normalizeStatus(c.status) as ClientStatus,
     createdAt: c.createdAt.toISOString(),
     measurementDate: c.measurementDate?.toISOString() ?? null,
     installDate: c.installDate?.toISOString() ?? null,

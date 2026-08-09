@@ -652,11 +652,11 @@ export default function ClientStep({
 
         void onSave({
           ...pendingData,
-          status: pendingData.status ?? '',
+          status: (pendingData.status ?? '') as any, // 🔥 Обманываем TypeScript
           balance:
             toFinancialNumber(pendingData.totalPrice) -
             toFinancialNumber(pendingData.advance),
-        } as any);
+        });
       }, 1200);
     },
     [isReadOnly, onSave]
@@ -1003,12 +1003,12 @@ export default function ClientStep({
 
     onSave({
       ...clientData,
-      status: clientData.status ?? '',
+      status: (clientData.status ?? '') as any, // 🔥 И здесь обманываем TypeScript
       balance: financials.balance,
-    } as any);
+    });
   }, [isReadOnly, clientData, financials.balance, onSave]);
 
-  const areaDisplay = toFinancialNumber(clientData.area);
+  const areaDisplay = toFinancialNumber(clientData.area); // 🔥 ВОТ ЭТУ СТРОЧКУ НАДО ВЕРНУТЬ
 
   // ── УМНЫЕ ПОДСКАЗКИ ДЛЯ РОЗНИЧНОЙ ЦЕНЫ (BUG-004) ────────────────────────
   const manualTotal = toFinancialNumber(clientData.totalPrice);
