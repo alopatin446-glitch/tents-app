@@ -15,20 +15,24 @@ import {
 import styles from './ClientStep.module.css';
 
 import { type WindowItem } from '@/types';
-import { ALL_STATUS_OPTIONS } from '@/lib/logic/statusDictionary';
+// 🔥 Убрали импорт ALL_STATUS_OPTIONS, он больше не нужен
+// import { ALL_STATUS_OPTIONS } from '@/lib/logic/statusDictionary';
 
 import {
   toFinancialNumber,
   formatMoney,
 } from '@/lib/logic/financialCalculations';
 
-import { notifyError } from '@/lib/notify';
+import { notifyError, notifySuccess } from '@/lib/notify';
 
 import { type PriceMap } from '@/lib/logic/pricingLogic';
 import {
   type WindowMaterialDiagnosticItem,
   type DiagnosticPriceStatus,
 } from '@/lib/logic/materialDiagnostics';
+
+// 🔥 Импортируем экшены для стадий
+import { getPipelineStages, createPipelineStage } from '@/app/actions/pipeline';
 
 export type { WindowItem as ClientStepWindowItem };
 
@@ -173,11 +177,11 @@ interface ClientStepProps {
  * CH3-BUG-01 FIX: Нормализует любое значение даты в формат "YYYY-MM-DD" для <input type="date">.
  *
  * Обрабатывает все форматы, которые может вернуть сервер или хранить state:
- *   Date object         → toISOString().split('T')[0]  → "YYYY-MM-DD"
- *   "2026-05-10"        → уже верный формат            → "YYYY-MM-DD"
- *   "2026-05-10T00:00Z" → ISO full string, split T[0]  → "YYYY-MM-DD"
- *   null / undefined    → ""
- *   невалидная строка   → "" (Date parse fail)
+ * Date object         → toISOString().split('T')[0]  → "YYYY-MM-DD"
+ * "2026-05-10"        → уже верный формат            → "YYYY-MM-DD"
+ * "2026-05-10T00:00Z" → ISO full string, split T[0]  → "YYYY-MM-DD"
+ * null / undefined    → ""
+ * невалидная строка   → "" (Date parse fail)
  *
  * HTML <input type="date"> принимает ТОЛЬКО "YYYY-MM-DD". Любой другой формат
  * вызывает blank (пустое поле) без ошибки в браузере — молчаливый баг.
@@ -596,6 +600,24 @@ export default function ClientStep({
   const hasUnsavedChangesRef = useRef(false);
   const prevCalculatedRef = useRef<number | undefined>(undefined); // 🔥 Шпион для BUG-004
 
+  // 🔥 СТЕЙТЫ ДЛЯ ДИНАМИЧЕСКИХ СТАДИЙ
+  const [stages, setStages] = useState<{id: string, name: string}[]>([]);
+  const [isAddStageModalOpen, setIsAddStageModalOpen] = useState(false);
+  const [newStageName, setNewStageName] = useState('');
+  const [newStageColor, setNewStageColor] = useState('#7BFF00');
+  const [isCreatingStage, setIsCreatingStage] = useState(false);
+
+  // 🔥 ЗАГРУЗКА СТАДИЙ ПРИ МОНТИРОВАНИИ
+  useEffect(() => {
+    async function loadStages() {
+      const res = await getPipelineStages();
+      if (res.success && res.data) {
+        setStages(res.data);
+      }
+    }
+    loadStages();
+  }, []);
+
   const [openSections, setOpenSections] = useState<OpenSections>({
     data: false,
     media: false,
@@ -855,6 +877,33 @@ export default function ClientStep({
     [isReadOnly, scheduleAutosave]
   );
 
+  // 🔥 ОБРАБОТЧИК ДЛЯ НОВОЙ СТАДИИ
+  const handleCreateStage = async () => {
+    if (!newStageName.trim()) return;
+    setIsCreatingStage(true);
+    try {
+      const result = await createPipelineStage(newStageName, newStageColor);
+      if (result.success && result.data) {
+        setStages((prev) => [...prev, result.data as any]);
+        // Автоматически выбираем новую стадию
+        handleChange({
+          target: { name: 'status', value: result.data.id }
+        } as InputChangeEvent);
+        setNewStageName('');
+        setNewStageColor('#7BFF00');
+        setIsAddStageModalOpen(false);
+        notifySuccess('Стадия добавлена');
+      } else {
+        notifyError(result.error || 'Ошибка создания стадии');
+      }
+    } catch {
+      notifyError('Ошибка сети при создании стадии');
+    } finally {
+      setIsCreatingStage(false);
+    }
+  };
+
+
   const handleFileUpload = useCallback(
     async (e: ChangeEvent<HTMLInputElement>, category: string): Promise<void> => {
       const files = Array.from(e.target.files || []);
@@ -1060,20 +1109,33 @@ export default function ClientStep({
               <div className={styles.row}>
                 <div className={styles.inputGroup}>
                   <label>Статус</label>
-                  <select
-                    name="status"
-                    value={clientData.status || ''}
-                    onChange={handleChange}
-                    className={styles.neonSelect}
-                    disabled={isReadOnly}
-                  >
-                    <option value="">Выберите статус...</option>
-                    {ALL_STATUS_OPTIONS.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  {/* 🔥 ВЫВОДИМ ДИНАМИЧЕСКИЕ СТАДИИ + КНОПКУ ПЛЮС */}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <select
+                      name="status"
+                      value={clientData.status || ''}
+                      onChange={handleChange}
+                      className={styles.neonSelect}
+                      disabled={isReadOnly}
+                      style={{ flexGrow: 1 }}
+                    >
+                      <option value="">Выберите статус...</option>
+                      {stages.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={isReadOnly}
+                      onClick={() => setIsAddStageModalOpen(true)}
+                      className={styles.addStageMiniBtn}
+                      title="Добавить новый статус"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
 
                 <div className={styles.inputGroup}>
@@ -1806,6 +1868,53 @@ export default function ClientStep({
           </button>
         </div>
       </aside>
+
+      {/* 🔥 МОДАЛКА СОЗДАНИЯ СТАДИИ (ВНУТРИ ФОРМЫ КЛИЕНТА) */}
+      {isAddStageModalOpen && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <h3 className={styles.modalTitle}>Новая стадия</h3>
+            
+            <input
+              type="text"
+              placeholder="Название стадии..."
+              value={newStageName}
+              onChange={(e) => setNewStageName(e.target.value)}
+              className={styles.modalInput}
+              autoFocus
+            />
+
+            <div className={styles.colorPickerContainer}>
+              <span>Цвет:</span>
+              <input
+                type="color"
+                value={newStageColor}
+                onChange={(e) => setNewStageColor(e.target.value)}
+                className={styles.colorInput}
+              />
+            </div>
+
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                onClick={() => setIsAddStageModalOpen(false)}
+                className={styles.modalCancelBtn}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateStage}
+                disabled={isCreatingStage || !newStageName.trim()}
+                className={styles.modalSaveBtn}
+              >
+                {isCreatingStage ? 'Сохранение...' : 'Создать'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

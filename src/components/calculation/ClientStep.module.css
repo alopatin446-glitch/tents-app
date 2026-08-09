@@ -326,3 +326,167 @@
   padding-left: 20px;
   box-sizing: border-box;
 }
+
+/* =========================================================
+   5. ДОБАВЛЕНИЕ СТАДИИ ИЗ КАРТОЧКИ (ПЛЮСИК И МОДАЛКА)
+   ========================================================= */
+
+.addStageMiniBtn {
+  background: rgba(123, 255, 0, 0.1);
+  border: 1px solid rgba(123, 255, 0, 0.3);
+  color: #7BFF00;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 300;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.addStageMiniBtn:hover:not(:disabled) {
+  background: #7BFF00;
+  color: #000;
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(123, 255, 0, 0.4);
+}
+
+.addStageMiniBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* МОДАЛЬНОЕ ОКНО (Точная копия стилей из KanbanBoard) */
+.modalOverlay {
+  position: fixed;
+  top: 0; 
+  left: 0; 
+  right: 0; 
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000; /* Поверх всех модалок */
+  backdrop-filter: blur(4px);
+}
+
+.modalContent {
+  background: #111;
+  border: 1px solid #7BFF00;
+  border-radius: 16px;
+  padding: 24px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(123, 255, 0, 0.15);
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modalTitle {
+  color: #fff;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.modalInput {
+  background: #222 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  outline: none;
+  font-size: 0.9rem;
+  transition: 0.3s;
+}
+
+.modalInput:focus {
+  border-color: #7BFF00 !important;
+  box-shadow: 0 0 10px rgba(123, 255, 0, 0.2);
+}
+
+.colorPickerContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.colorInput {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 40px;
+  height: 30px;
+  padding: 0;
+}
+
+.colorInput::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.colorInput::-webkit-color-swatch {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.modalCancelBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  padding: 8px 16px;
+  font-weight: 700;
+  border-radius: 8px;
+  transition: 0.3s;
+}
+
+.modalCancelBtn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.modalSaveBtn {
+  background: #7BFF00;
+  color: #000;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.modalSaveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modalSaveBtn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(123, 255, 0, 0.3);
+}

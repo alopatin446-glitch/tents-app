@@ -8,16 +8,18 @@ datasource db {
 }
 
 model Organization {
-  id          String          @id @default(cuid())
-  name        String
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  events      CalendarEvent[]
-  clients     Client[]
-  clientFiles ClientFile[]
-  prices      Price[]
-  teams       TeamMember[]
-  users       User[]
+  id             String          @id @default(cuid())
+  name           String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  events         CalendarEvent[]
+  clients        Client[]
+  clientFiles    ClientFile[]
+  prices         Price[]
+  teams          TeamMember[]
+  users          User[]
+  // 🔥 ДОБАВЛЯЕМ ЭТУ СТРОКУ (Связь с канбан-досками):
+  pipelineStages PipelineStage[]
 }
 
 model User {
@@ -85,15 +87,15 @@ model TeamMember {
 }
 
 model Client {
-  id               String       @id @default(cuid())
+  id               String    @id @default(cuid())
   fio              String
   phone            String
   address          String?
   source           String?
-  status           String       @default("negotiation")
-  totalPrice       Float        @default(0)
-  advance          Float        @default(0)
-  balance          Float        @default(0)
+  status           String    @default("negotiation")
+  totalPrice       Float     @default(0)
+  advance          Float     @default(0)
+  balance          Float     @default(0)
   paymentType      String?
   measurementDate  DateTime?
   installDate      DateTime?
@@ -101,20 +103,20 @@ model Client {
   mountingConfig   Json?
   managerComment   String?
   engineerComment  String?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   organizationId   String
-  costPrice        Float?       @default(0)
-  mountingCost     Float?       @default(0)
-  overspending     Float?       @default(0)
-  preliminaryPrice Float?       @default(0)
-  productionCost   Float?       @default(0)
+  costPrice        Float?    @default(0)
+  mountingCost     Float?    @default(0)
+  overspending     Float?    @default(0)
+  preliminaryPrice Float?    @default(0)
+  productionCost   Float?    @default(0)
   /**
    * Итоговые расходы заказа: windowsExpenses + extrasCost + mountingCost.
    * Фиксируется при сохранении открытых заказов.
    * NULL для старых записей — пересчитывается в useCalculationState на лету.
    */
-  totalExpenses    Float?       @default(0)
+  totalExpenses    Float?    @default(0)
   createdById      String?
   createdByName    String?
   createdByRole    String?
@@ -135,15 +137,15 @@ model Client {
    * NULL для старых записей и открытых заказов (они считаются по currentPrices).
    * Для закрытых (done/cancelled) — защищает расчёт от изменения справочника цен.
    */
-  savedPrices      Json?
+  savedPrices Json?
 
   /**
    * Снапшот геометрии изделий на момент фиксации заказа.
    * Формат: GeometrySnapshotV1 — версионированный объект.
    * NULL для старых записей и активных заказов.
    * Для frozen заказов (completed/rejected/isPriceLocked):
-   *   — защищает финансовый пересчёт от изменения ROLL_WIDTHS / SOLDER_ALLOWANCE.
-   *   — создаётся одновременно с savedPrices, иммутабелен после freeze.
+   * — защищает финансовый пересчёт от изменения ROLL_WIDTHS / SOLDER_ALLOWANCE.
+   * — создаётся одновременно с savedPrices, иммутабелен после freeze.
    * Закрывает BUG-8A-02: geometry not snapshot-isolated.
    */
   geometrySnapshot Json?
@@ -154,20 +156,20 @@ model Client {
    * При isPriceLocked=true runtime использует savedPrices, а не currentPrices.
    * Устанавливается менеджером после подписания договора / запуска производства.
    */
-  isPriceLocked    Boolean   @default(false)
+  isPriceLocked   Boolean   @default(false)
   /**
    * Дата и время фиксации цены.
    * NULL для незафиксированных заказов.
    */
-  priceLockedAt    DateTime?
+  priceLockedAt   DateTime?
   /**
    * Причина фиксации цены (опционально).
    * Например: "Договор №123 подписан", "Производство запущено".
    */
-  priceLockReason  String?
+  priceLockReason String?
 
-  organization     Organization @relation(fields: [organizationId], references: [id])
-  files            ClientFile[]
+  organization Organization @relation(fields: [organizationId], references: [id])
+  files        ClientFile[]
 }
 
 model CalendarEvent {
@@ -234,4 +236,29 @@ enum UserRole {
 enum UserStatus {
   ACTIVE
   BLOCKED
+}
+
+// 🔥 НОВАЯ ТАБЛИЦА ДЛЯ ДИНАМИЧЕСКИХ КОЛОНОК КАНБАНА
+model PipelineStage {
+  // ID будет строкой. Для новых колонок это будет cuid(), 
+  // а для старых мы принудительно зададим 'new', 'in_progress', чтобы не сломать старых клиентов.
+  id String @id @default(cuid())
+
+  // Привязка к компании (у каждой компании свои колонки)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Настройки колонки
+  name  String // Название ("Новые", "В работе" и т.д.)
+  color String @default("#7BFF00") // Цвет колонки
+  order Int    @default(0) // Порядковый номер (для сортировки 1, 2, 3...)
+
+  // Флаги логики
+  isSystem  Boolean @default(false) // Нельзя удалить (базовые стадии)
+  isArchive Boolean @default(false) // 🔥 РЕШЕНИЕ BUG-075: Если true - карточки скрываются с главной доски
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, name]) // Защита от создания двух колонок с одинаковым именем в одной компании
 }

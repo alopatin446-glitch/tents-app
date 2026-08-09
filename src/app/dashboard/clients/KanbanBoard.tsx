@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Канбан-доска активных клиентов.
+ * Канбан-доска активных клиентов (Динамическая версия).
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -14,10 +14,11 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { notifyError, notifySuccess } from '@/lib/notify';
+import { notifyError } from '@/lib/notify';
 
 // Серверные экшены
 import { updateClientAction, deleteClientAction } from './actions';
+import { createPipelineStage } from '@/app/actions/pipeline'; // 🔥 ДОБАВЛЕН ИМПОРТ
 
 // Стили и дочерние компоненты
 import styles from './KanbanBoard.module.css';
@@ -30,32 +31,38 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { type Client, type Stage } from '@/types';
 import { useClients } from './ClientContext';
 
-// Ядро
-import {
-  ACTIVE_STATUSES,
-  ACTIVE_STATUS_ID_SET,
-  type ClientStatus,
-} from '@/lib/logic/statusDictionary';
+// 🔥 ВОЗВРАЩАЕМ ИМПОРТ: Нужен для обмана TypeScript при переходе со старого формата на новый
+import { type ClientStatus } from '@/lib/logic/statusDictionary';
 
 // Типизация пропсов для Канбана
-interface KanbanBoardProps {
-  initialClients?: Client[]; // Если нужно для синхронизации
-  priceMap: Record<string, number>; // ОБЯЗАТЕЛЬНО: наш ценовой справочник
+interface PipelineStage {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
+  isSystem: boolean;
+  isArchive: boolean;
 }
 
-const KANBAN_STAGES: Stage[] = ACTIVE_STATUSES.map((s) => ({
-  id: s.id,
-  title: s.label,
-}));
+interface KanbanBoardProps {
+  initialClients?: Client[];
+  priceMap: Record<string, number>;
+  initialStages: PipelineStage[];
+}
 
 function normalizeSearchValue(value: string): string {
   return value.trim().toLowerCase();
 }
 
-// Добавляем priceMap в деструктуризацию пропсов
-export default function KanbanBoard({ priceMap }: KanbanBoardProps) {
+export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProps) {
   const { clients, updateClient, deleteClient } = useClients();
   const router = useRouter();
+
+  // 🔥 ИСПРАВЛЕНИЕ HYDRATION MISMATCH: Добавляем стейт монтирования
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -63,11 +70,29 @@ export default function KanbanBoard({ priceMap }: KanbanBoardProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
+  // 🔥 СТЕЙТЫ ДЛЯ НОВОЙ СТАДИИ
+  const [isAddStageOpen, setIsAddStageOpen] = useState(false);
+  const [newStageName, setNewStageName] = useState('');
+  const [newStageColor, setNewStageColor] = useState('#7BFF00');
+  const [isCreatingStage, setIsCreatingStage] = useState(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
     })
   );
+
+  // Формируем колонки для отображения (только НЕ архивные)
+  const boardStages: Stage[] = useMemo(() => {
+    return initialStages
+      .filter((s) => !s.isArchive)
+      .map((s) => ({
+        id: s.id as ClientStatus, // 🔥 ИСПРАВЛЕНИЕ ОШИБОК 4, 5, 6: Мягкое приведение типа
+        title: s.name,
+      }));
+  }, [initialStages]);
+
+  const activeStageIds = useMemo(() => new Set(boardStages.map(s => s.id)), [boardStages]);
 
   const filteredClients = useMemo(() => {
     const normalizedQuery = normalizeSearchValue(searchQuery);
@@ -131,12 +156,36 @@ export default function KanbanBoard({ priceMap }: KanbanBoardProps) {
     }
   };
 
+  // 🔥 ФУНКЦИЯ СОЗДАНИЯ СТАДИИ
+  const handleCreateStage = async () => {
+    if (!newStageName.trim()) return;
+    setIsCreatingStage(true);
+    try {
+      const result = await createPipelineStage(newStageName, newStageColor);
+      if (result.success) {
+        setNewStageName('');
+        setNewStageColor('#7BFF00');
+        setIsAddStageOpen(false);
+        router.refresh(); // Сервер обновит данные, и колонка моментально появится
+      } else {
+        notifyError(result.error || 'Ошибка создания стадии');
+      }
+    } catch {
+      notifyError('Ошибка сети при создании стадии');
+    } finally {
+      setIsCreatingStage(false);
+    }
+  };
+
+  // Динамическая проверка статуса при Drag & Drop
   const resolveDropStatus = (overId: string, allClients: Client[]): ClientStatus | null => {
-    if (ACTIVE_STATUS_ID_SET.has(overId as ClientStatus)) return overId as ClientStatus;
+    if (activeStageIds.has(overId as ClientStatus)) return overId as ClientStatus;
+
     const overClient = allClients.find((client) => String(client.id) === String(overId));
     if (!overClient) return null;
-    const status = overClient.status as ClientStatus;
-    return ACTIVE_STATUS_ID_SET.has(status) ? status : null;
+
+    const status = String(overClient.status) as ClientStatus;
+    return activeStageIds.has(status) ? status : null;
   };
 
   const handleDragEnd = async (event: DragEndEvent): Promise<void> => {
@@ -162,6 +211,11 @@ export default function KanbanBoard({ priceMap }: KanbanBoardProps) {
     }
     router.refresh();
   };
+
+  // 🔥 ИСПРАВЛЕНИЕ HYDRATION MISMATCH: Не рендерим DndContext на сервере
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
@@ -199,21 +253,71 @@ export default function KanbanBoard({ priceMap }: KanbanBoardProps) {
         </aside>
 
         <div className={styles.board}>
-          {KANBAN_STAGES.map((stage) => (
+          {boardStages.map((stage) => (
             <StageColumn
               key={stage.id}
               id={stage.id}
               stage={stage}
-              clients={filteredClients.filter((client) => client.status === stage.id)}
+              clients={filteredClients.filter((client) => String(client.status) === String(stage.id))}
               selectedIds={selectedIds}
               onClientSelect={toggleSelect}
               onClientEdit={(client) => setEditingClient(client)}
               onClientOpenFull={(client) => router.push(`/dashboard/new-calculation?id=${String(client.id)}`)}
             />
           ))}
+
+          {/* 🔥 КНОПКА ДОБАВЛЕНИЯ КОЛОНКИ */}
+          <div className={styles.addStageContainer}>
+            <button onClick={() => setIsAddStageOpen(true)} className={styles.addStageBtn}>
+              + ДОБАВИТЬ СТАДИЮ
+            </button>
+          </div>
         </div>
 
-        {/* ── МОДАЛКИ: ТЕПЕРЬ С PRICEMAP (БИЛД ПРОЙДЕТ) ────────────────── */}
+        {/* 🔥 МОДАЛКА СОЗДАНИЯ КОЛОНКИ */}
+        {isAddStageOpen && (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modalContent}>
+              <h3 className={styles.modalTitle}>Новая стадия</h3>
+              
+              <input
+                type="text"
+                placeholder="Название стадии..."
+                value={newStageName}
+                onChange={(e) => setNewStageName(e.target.value)}
+                className={styles.modalInput}
+                autoFocus
+              />
+
+              <div className={styles.colorPickerContainer}>
+                <span>Цвет:</span>
+                <input
+                  type="color"
+                  value={newStageColor}
+                  onChange={(e) => setNewStageColor(e.target.value)}
+                  className={styles.colorInput}
+                />
+              </div>
+
+              <div className={styles.modalActions}>
+                <button
+                  onClick={() => setIsAddStageOpen(false)}
+                  className={styles.modalCancelBtn}
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleCreateStage}
+                  disabled={isCreatingStage || !newStageName.trim()}
+                  className={styles.modalSaveBtn}
+                >
+                  {isCreatingStage ? 'Сохранение...' : 'Создать'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {editingClient && (
           <EditModal
             client={editingClient}
@@ -223,9 +327,9 @@ export default function KanbanBoard({ priceMap }: KanbanBoardProps) {
         )}
 
         {isAddingNew && (
-          <CreateClientModal 
+          <CreateClientModal
             priceMap={priceMap}
-            onClose={() => setIsAddingNew(false)} 
+            onClose={() => setIsAddingNew(false)}
           />
         )}
 

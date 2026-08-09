@@ -203,9 +203,23 @@ export const STATUS_ALIAS_MAP = new Map<string, ClientStatus>(
  *
  * @param raw - сырое значение статуса из формы или БД
  */
-export function normalizeStatus(raw: unknown): ClientStatus {
+/**
+ * Нормализует статус. 
+ * Если это старый легаси-текст — переводит в ID.
+ * Если это новый динамический ID из базы данных — пропускает как есть.
+ */
+export function normalizeStatus(raw: unknown): string {
   const str = String(raw ?? '').trim();
-  return STATUS_ALIAS_MAP.get(str) ?? 'special_case';
+  if (!str) return 'special_case'; // Защита от пустых значений
+
+  // Если это старый текстовый статус из словаря - переводим его
+  if (STATUS_ALIAS_MAP.has(str)) {
+    return STATUS_ALIAS_MAP.get(str)!;
+  }
+
+  // 🔥 НОВОЕ: Если мы не знаем этот статус, значит это ID новой динамической колонки из БД.
+  // Доверяем базе и пропускаем его, а не сбрасываем в special_case!
+  return str;
 }
 
 /**

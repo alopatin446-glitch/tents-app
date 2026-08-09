@@ -6,33 +6,42 @@ import { normalizeStatus } from '@/lib/logic/statusDictionary';
 import type { Client } from '@/types';
 import { requireAuth } from '@/lib/auth/requireAuth';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
+import { getPipelineStages } from '@/app/actions/pipeline';
 
 export default async function ClientsPage() {
   // 1. ТАМОЖНЯ: Проверка авторизации
   const user = await requireAuth();
 
-  // 2. ГРОССБУХ: Параллельный запрос данных организации
-  const [rawClients, pricingData] = await Promise.all([
+  // 2. ГРОССБУХ: Параллельный запрос данных организации (включая динамические колонки)
+  const [stagesResult, rawClients, pricingData] = await Promise.all([
+    getPipelineStages(),
+    // 🔥 РЕШЕНИЕ BUG-075: Не грузим архивные заказы на Канбан-доску
     prisma.client.findMany({
-      where: { organizationId: user.organizationId },
+      where: {
+        organizationId: user.organizationId,
+        status: {
+          notIn: ['completed', 'rejected'],
+        },
+      },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.price.findMany({
-      where: { organizationId: user.organizationId }
-    })
+      where: { organizationId: user.organizationId },
+    }),
   ]);
 
-  // 3. ПОГРАНИЧНИК-ЛОГИКА: Формирование справочника цен (Value Sovereignity)
-  // Явно типизируем аккумулятор как Record<string, number>
+  const stages = stagesResult.success && stagesResult.data ? stagesResult.data : [];
+
+  // 3. ПОГРАНИЧНИК-ЛОГИКА: Формирование справочника цен (Value Sovereignty)
   const priceMap: Record<string, number> = pricingData.reduce((acc, item) => {
-    acc[item.slug] = item.value; // В схеме поле называется 'value'
+    acc[item.slug] = item.value;
     return acc;
   }, {} as Record<string, number>);
 
-  // 4. ЕДИНЫЙ МОЗГ: Маппинг данных с защитой от null (Пункт 2 Манифеста)
+  // 4. ЕДИНЫЙ МОЗГ: Маппинг данных с защитой от null
   const clients: Client[] = rawClients.map((c) => ({
     id: c.id,
-    fio: c.fio || 'Без имени', // Защита от TS 2322 (null -> string)
+    fio: c.fio || 'Без имени',
     phone: c.phone || '',
     address: c.address || '',
     source: c.source || '',
@@ -51,9 +60,9 @@ export default async function ClientsPage() {
 
   return (
     <ClientProvider initialClients={clients}>
-      {/* Передаем выровненный priceMap в Канбан */}
       <ErrorBoundary label="канбана">
-        <KanbanBoard priceMap={priceMap} />
+        {/* Передаем и прайсы, и динамические колонки в Канбан */}
+        <KanbanBoard priceMap={priceMap} initialStages={stages} />
       </ErrorBoundary>
     </ClientProvider>
   );
