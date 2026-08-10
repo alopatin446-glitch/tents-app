@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 // createClientAction живёт в @/app/actions, а не в ./actions
 import { createClientAction } from '@/app/actions';
@@ -10,36 +11,42 @@ import styles from './KanbanBoard.module.css';
 import { notifyError, notifySuccess } from '@/lib/notify';
 
 // Добавляем priceMap в пропсы модалки
-export default function CreateClientModal({ 
-  onClose, 
-  priceMap 
-}: { 
-  onClose: () => void; 
+export default function CreateClientModal({
+  onClose,
+  priceMap
+}: {
+  onClose: () => void;
   priceMap: Record<string, number>; // Добавили обязательный пропс
 }) {
   const router = useRouter();
   const { addClient } = useClients();
 
+  // 🔥 НОВОЕ: Добавляем стейт для защиты от двойного клика (BUG-001/BUG-006 protection)
+  const [isSaving, setIsSaving] = useState(false);
+
   // Сигнатура совпадает с ClientStep.onSave: (data: ClientFormData) => void | Promise<void>
   const handleFinalSave = async (formData: ClientFormData): Promise<void> => {
+    if (isSaving) return; // 🔥 Блокируем повторный вызов
+    setIsSaving(true);
+
     try {
       const result = await createClientAction({
-        fio:             formData.fio,
-        phone:           formData.phone,
-        address:         formData.address,
-        source:          formData.source,
-        status:          formData.status ?? 'negotiation',
-        paymentType:     formData.paymentType,
-        managerComment:  formData.managerComment,
+        fio: formData.fio,
+        phone: formData.phone,
+        address: formData.address,
+        source: formData.source,
+        status: formData.status ?? 'negotiation',
+        paymentType: formData.paymentType,
+        managerComment: formData.managerComment,
         engineerComment: formData.engineerComment,
-        totalPrice:      formData.totalPrice,
-        advance:         formData.advance,
-        costPrice:       formData.costPrice,
-        overspending:    formData.overspending,
-        productionCost:  formData.productionCost,
-        mountingCost:    formData.mountingCost,
+        totalPrice: formData.totalPrice,
+        advance: formData.advance,
+        costPrice: formData.costPrice,
+        overspending: formData.overspending,
+        productionCost: formData.productionCost,
+        mountingCost: formData.mountingCost,
         measurementDate: formData.measurementDate,
-        installDate:     formData.installDate,
+        installDate: formData.installDate,
       });
 
       if (result.success) {
@@ -52,17 +59,14 @@ export default function CreateClientModal({
           totalPrice: Number(formData.totalPrice || 0),
           advance: Number(formData.advance || 0),
           balance: Number(formData.totalPrice || 0) - Number(formData.advance || 0),
-          status: (formData.status as
-            | 'negotiation' | 'waiting_measure' | 'promised_pay'
-            | 'waiting_production' | 'waiting_install' | 'special_case'
-            | 'completed' | 'rejected') || 'negotiation',
+          status: (formData.status || 'negotiation') as any, // 🔥 Обманываем TypeScript
           createdAt: new Date().toISOString(),
           paymentType: formData.paymentType ? String(formData.paymentType) : null,
           managerComment: formData.managerComment ? String(formData.managerComment) : null,
           engineerComment: formData.engineerComment ? String(formData.engineerComment) : null,
         });
-        
-        notifySuccess('Клиент успешно создан'); // Добавил для порядка
+
+        notifySuccess('Клиент успешно создан');
         onClose();
         router.refresh();
       } else {
@@ -70,6 +74,8 @@ export default function CreateClientModal({
       }
     } catch {
       notifyError('Ошибка при сохранении карточки');
+    } finally {
+      setIsSaving(false); // 🔥 Освобождаем блокировку при любом исходе (успех/ошибка)
     }
   };
 
@@ -77,21 +83,32 @@ export default function CreateClientModal({
     <div className={styles.modalOverlay}>
       <div
         className={styles.editModal}
-        style={{ width: '1000px', maxWidth: '95vw', height: '90vh', overflowY: 'auto', padding: '0', background: '#0a0a0a' }}
+        style={{ width: '1000px', maxWidth: '95vw', height: '90vh', overflowY: 'auto', padding: '0', background: '#0a0a0a', position: 'relative' }}
       >
         <div style={{ padding: '20px', borderBottom: '1px solid rgba(0,243,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ color: '#00f3ff', margin: 0, fontSize: '1.2rem' }}>НОВЫЙ ЗАКАЗ / КЛИЕНТ</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.5rem' }}>×</button>
         </div>
-        
+
         {/* ПЕРЕДАЕМ priceMap — ЭТО УБИРАЕТ ОШИБКУ ТИПОВ */}
         <ClientStep
           initialData={{ status: 'negotiation' }}
           onSave={handleFinalSave}
           onClose={onClose}
-          priceMap={priceMap} 
+          priceMap={priceMap}
           calculatedTotalExpenses={0}
         />
+
+        {/* 🔥 НОВОЕ: Визуальный индикатор загрузки, если кто-то нажал кнопку */}
+        {isSaving && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)', zIndex: 10, display: 'flex',
+            justifyContent: 'center', alignItems: 'center', color: '#00f3ff'
+          }}>
+            Сохранение...
+          </div>
+        )}
       </div>
     </div>
   );
