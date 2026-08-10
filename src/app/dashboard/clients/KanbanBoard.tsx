@@ -9,16 +9,24 @@ import { useRouter } from 'next/navigation';
 import {
   DndContext,
   type DragEndEvent,
+  type DragStartEvent,
   PointerSensor,
   closestCorners,
   useSensor,
   useSensors,
+  DragOverlay, // 🔥 НОВОЕ: Оверлей для визуализации перетаскивания
 } from '@dnd-kit/core';
+import { 
+  SortableContext, 
+  horizontalListSortingStrategy,
+  arrayMove
+} from '@dnd-kit/sortable'; // 🔥 НОВОЕ: Контекст сортировки
+
 import { notifyError } from '@/lib/notify';
 
 // Серверные экшены
 import { updateClientAction, deleteClientAction } from './actions';
-import { createPipelineStage } from '@/app/actions/pipeline'; // 🔥 ДОБАВЛЕН ИМПОРТ
+import { createPipelineStage, updatePipelineStagesOrder } from '@/app/actions/pipeline'; // 🔥 НОВОЕ: Экшен сохранения порядка
 
 // Стили и дочерние компоненты
 import styles from './KanbanBoard.module.css';
@@ -28,7 +36,7 @@ import CreateClientModal from './CreateClientModal';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 // Типы
-import { type Client, type Stage } from '@/types';
+import { type Client } from '@/types';
 import { useClients } from './ClientContext';
 
 // 🔥 ВОЗВРАЩАЕМ ИМПОРТ: Нужен для обмана TypeScript при переходе со старого формата на новый
@@ -58,7 +66,7 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
   const { clients, updateClient, deleteClient } = useClients();
   const router = useRouter();
 
-  // 🔥 ИСПРАВЛЕНИЕ HYDRATION MISMATCH: Добавляем стейт монтирования
+  // Стейт монтирования
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
@@ -70,11 +78,24 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  // 🔥 СТЕЙТЫ ДЛЯ НОВОЙ СТАДИИ
+  // Стейты для новой стадии
   const [isAddStageOpen, setIsAddStageOpen] = useState(false);
   const [newStageName, setNewStageName] = useState('');
   const [newStageColor, setNewStageColor] = useState('#7BFF00');
   const [isCreatingStage, setIsCreatingStage] = useState(false);
+
+  // 🔥 НОВОЕ: Локальный стейт для колонок, чтобы можно было мгновенно их перемещать
+  const [localStages, setLocalStages] = useState(
+    initialStages.filter((s) => !s.isArchive).sort((a, b) => a.order - b.order)
+  );
+
+  // Обновляем локальный стейт, если сервер прислал новые колонки (например, создали новую)
+  useEffect(() => {
+    setLocalStages(initialStages.filter((s) => !s.isArchive).sort((a, b) => a.order - b.order));
+  }, [initialStages]);
+
+  // Для DragOverlay (что именно мы тащим прямо сейчас)
+  const [activeColumn, setActiveColumn] = useState<PipelineStage | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -82,19 +103,7 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
     })
   );
 
-  // Формируем колонки для отображения (только НЕ архивные)
-  const boardStages = useMemo(() => {
-    return initialStages
-      .filter((s) => !s.isArchive)
-      .map((s) => ({
-        id: s.id, // Я убрал тут as ClientStatus, чтобы было чище
-        title: s.name,
-        color: s.color,       // 🔥 ДОБАВИТЬ ЭТО
-        isSystem: s.isSystem, // 🔥 И ДОБАВИТЬ ЭТО
-      }));
-  }, [initialStages]);
-
-  const activeStageIds = useMemo(() => new Set(boardStages.map(s => s.id)), [boardStages]);
+  const activeStageIds = useMemo(() => new Set(localStages.map(s => s.id)), [localStages]);
 
   const filteredClients = useMemo(() => {
     const normalizedQuery = normalizeSearchValue(searchQuery);
@@ -158,7 +167,6 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
     }
   };
 
-  // 🔥 ФУНКЦИЯ СОЗДАНИЯ СТАДИИ
   const handleCreateStage = async () => {
     if (!newStageName.trim()) return;
     setIsCreatingStage(true);
@@ -168,7 +176,7 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
         setNewStageName('');
         setNewStageColor('#7BFF00');
         setIsAddStageOpen(false);
-        router.refresh(); // Сервер обновит данные, и колонка моментально появится
+        router.refresh(); 
       } else {
         notifyError(result.error || 'Ошибка создания стадии');
       }
@@ -179,48 +187,94 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
     }
   };
 
-  // Динамическая проверка статуса при Drag & Drop
-  const resolveDropStatus = (overId: string, allClients: Client[]): ClientStatus | null => {
-    if (activeStageIds.has(overId as ClientStatus)) return overId as ClientStatus;
+  // 🔥 НОВОЕ: Обработчик НАЧАЛА перетаскивания
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const activeData = active.data.current;
 
-    const overClient = allClients.find((client) => String(client.id) === String(overId));
-    if (!overClient) return null;
-
-    const status = String(overClient.status) as ClientStatus;
-    return activeStageIds.has(status) ? status : null;
+    // Проверяем, что именно мы потащили (колонку)
+    if (activeData?.type === 'Column') {
+      setActiveColumn(activeData.stage);
+    }
   };
 
+  // 🔥 НОВОЕ: Обработчик ОКОНЧАНИЯ перетаскивания (теперь умеет обрабатывать и карточки, и колонки)
   const handleDragEnd = async (event: DragEndEvent): Promise<void> => {
+    setActiveColumn(null); // Сбрасываем оверлей
     const { active, over } = event;
     if (!over) return;
 
-    const activeClientId = String(active.id);
-    const draggedClient = clients.find((client) => String(client.id) === activeClientId);
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    // СЦЕНАРИЙ 1: ПЕРЕТАСКИВАНИЕ КОЛОНКИ
+    const isActiveColumn = active.data.current?.type === 'Column';
+    if (isActiveColumn) {
+      if (activeId !== overId) {
+        const oldIndex = localStages.findIndex((s) => s.id === activeId);
+        const newIndex = localStages.findIndex((s) => s.id === overId);
+        
+        // Оптимистично меняем порядок локально (мгновенно)
+        const newStages = arrayMove(localStages, oldIndex, newIndex);
+        setLocalStages(newStages);
+
+        // Отправляем новый порядок на сервер
+        const orderedIds = newStages.map(s => s.id);
+        const res = await updatePipelineStagesOrder(orderedIds);
+        if (!res.success) {
+          notifyError('Не удалось сохранить новый порядок колонок');
+          router.refresh(); // Откатываем UI, если сервер выдал ошибку
+        }
+      }
+      return;
+    }
+
+    // СЦЕНАРИЙ 2: ПЕРЕТАСКИВАНИЕ КАРТОЧКИ КЛИЕНТА
+    const draggedClient = clients.find((client) => String(client.id) === activeId);
     if (!draggedClient) return;
 
     const previousStatus = draggedClient.status;
-    const nextStatus = resolveDropStatus(String(over.id), clients);
+    
+    // Если кинули поверх колонки
+    let nextStatus = overId as ClientStatus | null;
+    
+    // Если кинули поверх другой карточки — берем статус той карточки
+    if (!activeStageIds.has(overId as string)) {
+       const overClient = clients.find((client) => String(client.id) === overId);
+       if (overClient) {
+         nextStatus = String(overClient.status) as ClientStatus;
+       } else {
+         nextStatus = null;
+       }
+    }
 
-    if (!nextStatus || previousStatus === nextStatus) return;
+    if (!nextStatus || !activeStageIds.has(nextStatus as string) || previousStatus === nextStatus) return;
 
-    updateClient(activeClientId, { status: nextStatus });
-    const result = await updateClientAction(activeClientId, { status: nextStatus });
+    updateClient(activeId, { status: nextStatus });
+    const result = await updateClientAction(activeId, { status: nextStatus });
 
     if (!result.success) {
-      updateClient(activeClientId, { status: previousStatus });
+      updateClient(activeId, { status: previousStatus });
       notifyError('Ошибка сохранения статуса');
       return;
     }
     router.refresh();
   };
 
-  // 🔥 ИСПРАВЛЕНИЕ HYDRATION MISMATCH: Не рендерим DndContext на сервере
   if (!isMounted) {
     return null;
   }
 
+  // Массив ID для SortableContext
+  const columnsId = localStages.map((s) => s.id);
+
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+    <DndContext 
+      sensors={sensors} 
+      collisionDetection={closestCorners} 
+      onDragStart={handleDragStart} 
+      onDragEnd={handleDragEnd}
+    >
       <div className={styles.mainWrapper}>
         <aside className={styles.sidebar}>
           <button onClick={() => router.push('/dashboard')} className={styles.filterBtn} style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', marginBottom: '10px' }}>
@@ -236,10 +290,7 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
 
           <div style={{ height: '1px', background: 'rgba(123, 255, 0, 0.1)', margin: '10px 0' }} />
 
-          <div className={styles.quickFilters}>
-            <button className={styles.filterBtn}>🔥 ГОРЯЩИЕ</button>
-            <button className={styles.filterBtn}>💸 ДОЛЖНИКИ</button>
-          </div>
+          {/* 🔥 Удалены неработающие кнопки фильтров */}
 
           {selectedIds.length > 0 && (
             <div className={styles.actionPanel}>
@@ -255,20 +306,22 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
         </aside>
 
         <div className={styles.board}>
-          {boardStages.map((stage) => (
-            <StageColumn
-              key={stage.id}
-              id={stage.id as string} // Приведение типа, если ругается
-              stage={stage as any} // 🔥 Передаем stage целиком, обманываем TS
-              clients={filteredClients.filter((client) => String(client.status) === String(stage.id))}
-              selectedIds={selectedIds}
-              onClientSelect={toggleSelect}
-              onClientEdit={(client) => setEditingClient(client)}
-              onClientOpenFull={(client) => router.push(`/dashboard/new-calculation?id=${String(client.id)}`)}
-            />
-          ))}
+          {/* 🔥 НОВОЕ: Оборачиваем колонки в SortableContext */}
+          <SortableContext items={columnsId} strategy={horizontalListSortingStrategy}>
+            {localStages.map((stage) => (
+              <StageColumn
+                key={stage.id}
+                id={stage.id as string}
+                stage={{ id: stage.id as any, title: stage.name, color: stage.color, isSystem: stage.isSystem }}
+                clients={filteredClients.filter((client) => String(client.status) === String(stage.id))}
+                selectedIds={selectedIds}
+                onClientSelect={toggleSelect}
+                onClientEdit={(client) => setEditingClient(client)}
+                onClientOpenFull={(client) => router.push(`/dashboard/new-calculation?id=${String(client.id)}`)}
+              />
+            ))}
+          </SortableContext>
 
-          {/* 🔥 КНОПКА ДОБАВЛЕНИЯ КОЛОНКИ */}
           <div className={styles.addStageContainer}>
             <button onClick={() => setIsAddStageOpen(true)} className={styles.addStageBtn}>
               + ДОБАВИТЬ СТАДИЮ
@@ -276,12 +329,25 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
           </div>
         </div>
 
-        {/* 🔥 МОДАЛКА СОЗДАНИЯ КОЛОНКИ */}
+        {/* 🔥 НОВОЕ: Оверлей (призрак колонки, который мы тащим мышкой) */}
+        <DragOverlay>
+          {activeColumn && (
+            <StageColumn
+              id={activeColumn.id}
+              stage={{ id: activeColumn.id as any, title: activeColumn.name, color: activeColumn.color, isSystem: activeColumn.isSystem }}
+              clients={filteredClients.filter((client) => String(client.status) === String(activeColumn.id))}
+              selectedIds={selectedIds}
+              onClientSelect={() => {}}
+              onClientEdit={() => {}}
+              onClientOpenFull={() => {}}
+            />
+          )}
+        </DragOverlay>
+
         {isAddStageOpen && (
           <div className={styles.modalOverlay}>
             <div className={styles.modalContent}>
               <h3 className={styles.modalTitle}>Новая стадия</h3>
-
               <input
                 type="text"
                 placeholder="Название стадии..."
@@ -290,7 +356,6 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
                 className={styles.modalInput}
                 autoFocus
               />
-
               <div className={styles.colorPickerContainer}>
                 <span>Цвет:</span>
                 <input
@@ -300,19 +365,11 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
                   className={styles.colorInput}
                 />
               </div>
-
               <div className={styles.modalActions}>
-                <button
-                  onClick={() => setIsAddStageOpen(false)}
-                  className={styles.modalCancelBtn}
-                >
+                <button onClick={() => setIsAddStageOpen(false)} className={styles.modalCancelBtn}>
                   Отмена
                 </button>
-                <button
-                  onClick={handleCreateStage}
-                  disabled={isCreatingStage || !newStageName.trim()}
-                  className={styles.modalSaveBtn}
-                >
+                <button onClick={handleCreateStage} disabled={isCreatingStage || !newStageName.trim()} className={styles.modalSaveBtn}>
                   {isCreatingStage ? 'Сохранение...' : 'Создать'}
                 </button>
               </div>

@@ -186,3 +186,28 @@ export async function deletePipelineStage(id: string) {
     return { success: false, error: 'Не удалось удалить стадию' };
   }
 }
+
+/**
+ * 🔥 НОВОЕ: Обновляет порядок сортировки колонок (Drag & Drop).
+ */
+export async function updatePipelineStagesOrder(orderedIds: string[]) {
+  try {
+    const user = await requireAuth();
+    const orgId = user.organizationId;
+
+    // Используем транзакцию, чтобы обновить порядок всех колонок разом
+    await prisma.$transaction(
+      orderedIds.map((id, index) =>
+        prisma.pipelineStage.updateMany({
+          where: { id, organizationId: orgId },
+          data: { order: index },
+        })
+      )
+    );
+
+    return { success: true };
+  } catch (error) {
+    logger.error('[updatePipelineStagesOrder] Ошибка обновления порядка', error);
+    return { success: false, error: 'Не удалось сохранить порядок колонок' };
+  }
+}

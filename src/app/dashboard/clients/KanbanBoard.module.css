@@ -63,16 +63,16 @@
   filter: brightness(1.1);
 }
 
-/* КНОПКИ ФИЛЬТРОВ */
+/* КНОПКА ВОЗВРАТА / ОТМЕНЫ */
 .filterBtn {
   padding: 12px 20px;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(123, 255, 0, 0.15);
-  color: rgba(255, 255, 255, 0.7);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
   border-radius: 50px !important;
   cursor: pointer;
   transition: 0.3s;
@@ -80,17 +80,8 @@
 }
 
 .filterBtn:hover {
-  background: #7BFF00 !important;
-  border-color: #7BFF00 !important;
-  color: #111827 !important;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(123, 255, 0, 0.3);
-}
-
-.quickFilters {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* ПАНЕЛЬ УДАЛЕНИЯ */
