@@ -34,19 +34,64 @@ import styles from "./MountingStep.module.css";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Дефолтная конфигурация
+// Утилиты работы с датами (Должны быть объявлены ДО нормализатора)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Генерирует дефолтный MountingConfig.
- * Использует статический TEAM_MEMBERS для выбора первого memberId по умолчанию.
- * Эта функция остаётся неизменной для обратной совместимости.
- */
+function toISODateOnly(raw: string | Date | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw instanceof Date) {
+    if (Number.isNaN(raw.getTime())) return null;
+    return raw.toISOString().slice(0, 10);
+  }
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+}
+
+function addDaysISO(dateStr: string, days: number): string {
+  const date = new Date(`${dateStr}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function expandDates(startDate: string, durationDays: number): string[] {
+  const safeDuration = Math.max(1, Math.round(Number(durationDays) || 1));
+  return Array.from({ length: safeDuration }, (_, index) =>
+    addDaysISO(startDate, index),
+  );
+}
+
+function formatRuDate(dateStr: string): string {
+  const parsed = new Date(`${dateStr}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return dateStr;
+  return parsed.toLocaleDateString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function toSafeNumber(raw: string, fallback = 0): number {
+  const normalized = raw.replace(",", ".").trim();
+  if (normalized === "") return fallback;
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Дефолтная конфигурация и Нормализатор
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function defaultMountingConfig(): MountingConfig {
   const defaultCategory: TeamCategory = "mid";
   const defaultMemberId =
-    TEAM_MEMBERS.find((member) => member.category === defaultCategory)?.id ??
-    "";
+    TEAM_MEMBERS.find((member) => member.category === defaultCategory)?.id ?? "";
 
   return {
     enabled: false,
@@ -58,6 +103,7 @@ export function defaultMountingConfig(): MountingConfig {
     team: { category: defaultCategory, memberId: defaultMemberId },
     status: "pending",
     mountingDate: null,
+    mountingDates: [], // 🔥 НОВОЕ: по умолчанию пустой массив дат
     startTime: "09:00",
     endTime: "18:00",
     durationDays: 1,
@@ -76,21 +122,7 @@ interface MountingStepProps {
   onChange: (config: MountingConfig) => void;
   onSave: (config: MountingConfig) => Promise<void>;
   isReadOnly?: boolean;
-  /**
-   * Список активных монтажников, предзагруженный родительским серверным компонентом.
-   * Если не передан — компонент самостоятельно запросит /api/team-members.
-   * Если передан пустой массив — отображается пустой список (не fallback).
-   * Backward compatible: props необязателен.
-   */
   teamMembers?: TeamMemberConfig[];
-}
-
-function toSafeNumber(raw: string, fallback = 0): number {
-  const normalized = raw.replace(",", ".").trim();
-  if (normalized === "") return fallback;
-
-  const value = Number(normalized);
-  return Number.isFinite(value) ? value : fallback;
 }
 
 function normalizeMountingConfig(
@@ -100,6 +132,15 @@ function normalizeMountingConfig(
   const incoming = value ?? {};
   const incomingTeam = incoming.team ?? defaults.team;
   const incomingHeightWork = incoming.heightWork ?? defaults.heightWork;
+
+  // 🔥 АДАПТЕР (МИГРАЦИЯ НА ЛЕТУ)
+  let normalizedDates = Array.isArray(incoming.mountingDates) ? incoming.mountingDates : [];
+
+  if (normalizedDates.length === 0 && incoming.mountingDate) {
+    const start = incoming.mountingDate;
+    const days = incoming.durationDays && incoming.durationDays > 0 ? incoming.durationDays : 1;
+    normalizedDates = expandDates(start, days);
+  }
 
   return {
     ...defaults,
@@ -119,6 +160,8 @@ function normalizeMountingConfig(
       ...incomingTeam,
     },
     mountingDate: incoming.mountingDate ?? null,
+    mountingDates: normalizedDates, // 🔥 НОВОЕ
+    durationDays: normalizedDates.length > 0 ? normalizedDates.length : (incoming.durationDays ?? 1),
     manualPrice: incoming.manualPrice ?? null,
     mountingSnapshot: incoming.mountingSnapshot ?? null,
     priceAuditLog: Array.isArray(incoming.priceAuditLog)
@@ -126,6 +169,10 @@ function normalizeMountingConfig(
       : defaults.priceAuditLog,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Прочие вспомогательные функции
+// ─────────────────────────────────────────────────────────────────────────────
 
 function isManualPriceRequired(beam: MountingBeam): boolean {
   return beam.type === "custom_wood" || beam.type === "custom_metal";
@@ -166,78 +213,32 @@ const EMPTY_BLOCK_CHECK: CalendarBlockCheck = {
   details: [],
 };
 
-function toISODateOnly(raw: string | Date | null | undefined): string | null {
-  if (!raw) return null;
-
-  if (raw instanceof Date) {
-    if (Number.isNaN(raw.getTime())) return null;
-    return raw.toISOString().slice(0, 10);
-  }
-
-  if (typeof raw !== "string") return null;
-
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) return null;
-
-  return parsed.toISOString().slice(0, 10);
-}
-
-function addDaysISO(dateStr: string, days: number): string {
-  const date = new Date(`${dateStr}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function expandDates(startDate: string, durationDays: number): string[] {
-  const safeDuration = Math.max(1, Math.round(Number(durationDays) || 1));
-
-  return Array.from({ length: safeDuration }, (_, index) =>
-    addDaysISO(startDate, index),
-  );
-}
-
-function formatRuDate(dateStr: string): string {
-  const parsed = new Date(`${dateStr}T00:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime())) return dateStr;
-
-  return parsed.toLocaleDateString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
+// 🔥 ОБНОВЛЕНО: Проверяет и выходные (dayOff), и личные события (personal)
 function buildDayBlockCheck(
   events: CalendarApiEvent[],
-  mountingDate: string | null,
+  mountingDates: string[],
   memberId: string,
-  durationDays: number,
 ): CalendarBlockCheck {
-  const normalizedMountingDate = toISODateOnly(mountingDate);
-  if (!normalizedMountingDate) return EMPTY_BLOCK_CHECK;
+  if (!mountingDates || mountingDates.length === 0) return EMPTY_BLOCK_CHECK;
 
-  const mountingDates = new Set(
-    expandDates(normalizedMountingDate, durationDays),
-  );
+  const cleanMountingDates = new Set(mountingDates.filter(Boolean));
+  if (cleanMountingDates.size === 0) return EMPTY_BLOCK_CHECK;
+
   const matchedDetails: string[] = [];
 
   for (const event of events) {
-    if (event.type !== "dayOff") continue;
+    // 🔥 Теперь учитываем И выходные, И личные события
+    if (event.type !== "dayOff" && event.type !== "personal") continue;
 
     const eventStart = toISODateOnly(event.date ?? event.mountingDate ?? null);
     if (!eventStart) continue;
 
     const eventDates = expandDates(eventStart, event.durationDays ?? 1);
+
     const hasDateIntersection = eventDates.some((date) =>
-      mountingDates.has(date),
+      cleanMountingDates.has(date),
     );
+
     if (!hasDateIntersection) continue;
 
     const isGlobalBlock = Boolean(event.isGlobal);
@@ -248,7 +249,8 @@ function buildDayBlockCheck(
     if (!isGlobalBlock && !isMemberBlock) continue;
 
     const scopeText = isGlobalBlock ? "все монтажники" : "выбранный монтажник";
-    const title = event.title?.trim() || "Выходной";
+    const defaultTitle = event.type === 'dayOff' ? "Выходной" : "Личное событие / заблокировано";
+    const title = event.title?.trim() || defaultTitle;
     const datesText = eventDates.map(formatRuDate).join(", ");
 
     matchedDetails.push(`${title}: ${datesText} (${scopeText})`);
@@ -258,7 +260,7 @@ function buildDayBlockCheck(
 
   return {
     isBlocked: true,
-    message: "Выбранная дата попадает на выходной или заблокированный день.",
+    message: "Одна или несколько дат попадают на выходной или личное событие монтажника.",
     details: matchedDetails,
   };
 }
@@ -280,6 +282,10 @@ async function fetchCalendarEventsForBlockCheck(
   return Array.isArray(data) ? data : [];
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Главный Компонент
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function MountingStep({
   value,
   totalAreaM2,
@@ -299,7 +305,7 @@ export default function MountingStep({
     useState<CalendarBlockCheck>(EMPTY_BLOCK_CHECK);
   const [isCheckingDayBlock, setIsCheckingDayBlock] = useState(false);
   const [mountingPriceMap, setMountingPriceMap] = useState<Record<string, number>>({});
-  // ── Диалоги подтверждения ────────────────────────────────────────────────
+
   const [confirmUpdatePricesOpen, setConfirmUpdatePricesOpen] = useState(false);
   const [confirmBlockedSaveOpen, setConfirmBlockedSaveOpen] = useState(false);
   const [blockedSaveMessage, setBlockedSaveMessage] = useState('');
@@ -313,11 +319,9 @@ export default function MountingStep({
         if (!result.success || !Array.isArray(result.data)) return;
 
         const nextMap: Record<string, number> = {};
-
         for (const price of result.data as PriceRowForMounting[]) {
           nextMap[price.slug] = Number(price.value);
         }
-
         setMountingPriceMap(nextMap);
       })
       .catch((error) => {
@@ -329,11 +333,9 @@ export default function MountingStep({
     };
   }, []);
 
-  // ── Загрузка монтажников из БД (если не переданы пропом) ─────────────────
   const [fetchedMembers, setFetchedMembers] = useState<TeamMemberConfig[] | null>(null);
 
   useEffect(() => {
-    // Если родитель передал список — не делаем лишний запрос
     if (teamMembersFromProp !== undefined) return;
 
     let cancelled = false;
@@ -353,7 +355,6 @@ export default function MountingStep({
           "[MountingStep] Не удалось загрузить бригаду из API, используется статика",
           error,
         );
-        // fetchedMembers остаётся null → effectiveMembers упадёт на TEAM_MEMBERS
       });
 
     return () => {
@@ -361,28 +362,12 @@ export default function MountingStep({
     };
   }, [teamMembersFromProp]);
 
-  /**
-   * Итоговый список монтажников:
-   *   1. Если проп передан (включая пустой массив) — используем его.
-   *   2. Если проп не передан, но API вернул данные — используем данные из API.
-   *   3. Иначе — статический TEAM_MEMBERS (fallback).
-   *
-   * Пустой массив от пропа или API означает «нет активных» — НЕ fallback.
-   */
   const effectiveMembers: TeamMemberConfig[] = useMemo(() => {
-    // 1. Если проп передан — это приоритет (серверные данные)
     if (teamMembersFromProp !== undefined) return teamMembersFromProp;
-
-    // 2. Если API вернул данные (даже пустой массив []) — используем их
     if (fetchedMembers !== null) return fetchedMembers;
-
-    // 3. Пока идет загрузка (fetchedMembers === null) — возвращаем ПУСТОЙ список,
-    // чтобы не было мерцания старых данных. 
-    // Статика TEAM_MEMBERS тут больше не нужна, если мы перешли на БД.
     return [];
   }, [teamMembersFromProp, fetchedMembers]);
 
-  // SSOT: все цифры расчёта берём только из calculateMounting().
   const calc = useMemo(
     () => calculateMounting(config, totalAreaM2, mountingPriceMap),
     [config, totalAreaM2, mountingPriceMap],
@@ -409,7 +394,7 @@ export default function MountingStep({
   }, [totalAreaM2, config.enabled]);
 
   useEffect(() => {
-    if (!config.enabled || !config.mountingDate) {
+    if (!config.enabled || !config.mountingDates || config.mountingDates.length === 0) {
       setDayBlockCheck(EMPTY_BLOCK_CHECK);
       setIsCheckingDayBlock(false);
       return;
@@ -421,13 +406,11 @@ export default function MountingStep({
     fetchCalendarEventsForBlockCheck(controller.signal)
       .then((events) => {
         if (controller.signal.aborted) return;
-
         setDayBlockCheck(
           buildDayBlockCheck(
             events,
-            config.mountingDate,
+            config.mountingDates || [],
             config.team.memberId,
-            config.durationDays,
           ),
         );
       })
@@ -445,9 +428,8 @@ export default function MountingStep({
     return () => controller.abort();
   }, [
     config.enabled,
-    config.mountingDate,
+    config.mountingDates,
     config.team.memberId,
-    config.durationDays,
   ]);
 
   const emitChange = useCallback(
@@ -481,18 +463,15 @@ export default function MountingStep({
 
   const handleToggleEnabled = () => {
     if (isReadOnly) return;
-
     if (!config.enabled) {
       emitChange({ ...config, enabled: true });
       return;
     }
-
     mutate({ enabled: false });
   };
 
   const handleDateChange = (dateStr: string) => {
     if (isReadOnly) return;
-
     const nextDate = dateStr || null;
     const nextSnapshot = nextDate
       ? (config.mountingSnapshot ??
@@ -505,17 +484,10 @@ export default function MountingStep({
     });
   };
 
-  /**
-   * Смена категории бригады.
-   * Ищет первого монтажника выбранной категории в effectiveMembers.
-   * Если в списке нет никого этой категории — memberId сбрасывается в "".
-   */
   const handleTeamCategoryChange = (category: TeamCategory) => {
     if (isReadOnly) return;
-
     const firstMemberId =
       effectiveMembers.find((member) => member.category === category)?.id ?? "";
-
     mutate({
       team: { category, memberId: firstMemberId },
     });
@@ -533,7 +505,6 @@ export default function MountingStep({
 
     if (trimmed === "") {
       if (previousManualPrice === null) return;
-
       mutate({
         manualPrice: null,
         priceAuditLog: [
@@ -590,7 +561,6 @@ export default function MountingStep({
         ),
       ],
     };
-
     emitChange(nextConfig);
   };
 
@@ -599,14 +569,13 @@ export default function MountingStep({
 
     let actualDayBlockCheck = dayBlockCheck;
 
-    if (config.mountingDate) {
+    if (config.mountingDates && config.mountingDates.length > 0) {
       try {
         const events = await fetchCalendarEventsForBlockCheck();
         actualDayBlockCheck = buildDayBlockCheck(
           events,
-          config.mountingDate,
+          config.mountingDates,
           config.team.memberId,
-          config.durationDays,
         );
         setDayBlockCheck(actualDayBlockCheck);
       } catch (error) {
@@ -638,10 +607,6 @@ export default function MountingStep({
     }
   };
 
-  /**
-   * Список монтажников для дропдауна — фильтруется по выбранной категории.
-   * Использует effectiveMembers (DB или статика).
-   */
   const teamMembersForCategory = useMemo(
     () =>
       effectiveMembers.filter(
@@ -1111,22 +1076,92 @@ export default function MountingStep({
           </select>
         </div>
 
-        <div className={styles.formRow}>
-          <label className={styles.label}>Дата монтажа</label>
-          <input
-            type="date"
-            className={styles.input}
-            value={config.mountingDate ?? ""}
-            onChange={(event) => handleDateChange(event.target.value)}
-            disabled={isReadOnly}
-          />
-          {config.mountingSnapshot && (
-            <span className={styles.snapshotBadge}>
-              📸 Прайс зафиксирован{" "}
-              {new Date(config.mountingSnapshot.capturedAt).toLocaleDateString(
-                "ru-RU",
-              )}
+        {/* 🔥 НОВОЕ: Динамический список дат монтажа */}
+        <div className={styles.listSection} style={{ marginTop: '15px' }}>
+          <div className={styles.listSectionHeader}>
+            <span className={styles.listSectionTitle}>
+              Даты монтажа ({config.mountingDates?.length || 0} дн.)
             </span>
+            <button
+              type="button"
+              className={styles.addBtn}
+              onClick={() => {
+                const newDates = [...(config.mountingDates || [])];
+                // Если есть предыдущая дата, добавляем следующий день, иначе сегодня
+                let nextDateStr = toISODateOnly(new Date()) || "";
+                if (newDates.length > 0) {
+                  const lastDate = newDates[newDates.length - 1];
+                  if (lastDate) {
+                    nextDateStr = addDaysISO(lastDate, 1);
+                  }
+                }
+                newDates.push(nextDateStr);
+
+                // Фиксируем прайс при добавлении первой даты
+                const nextSnapshot = (newDates.length > 0 && !config.mountingSnapshot)
+                  ? captureCurrentPriceSnapshot(config.team.category, mountingPriceMap)
+                  : config.mountingSnapshot;
+
+                mutate({
+                  mountingDates: newDates,
+                  mountingDate: newDates[0] || null, // Обновляем старое поле для совместимости
+                  durationDays: newDates.length, // Длина всегда равна массиву
+                  mountingSnapshot: nextSnapshot
+                });
+              }}
+              disabled={isReadOnly}
+            >
+              + Добавить день
+            </button>
+          </div>
+
+          {(config.mountingDates || []).map((dateStr, index) => (
+            <div key={index} className={styles.listItem}>
+              <div className={styles.listItemField}>
+                <span className={styles.listItemLabel}>День {index + 1}</span>
+                <input
+                  type="date"
+                  className={styles.input}
+                  value={dateStr}
+                  onChange={(event) => {
+                    const newDates = [...(config.mountingDates || [])];
+                    newDates[index] = event.target.value;
+                    mutate({
+                      mountingDates: newDates,
+                      mountingDate: newDates[0] || null
+                    });
+                  }}
+                  disabled={isReadOnly}
+                />
+              </div>
+              <button
+                type="button"
+                className={styles.removeBtn}
+                onClick={() => {
+                  const newDates = (config.mountingDates || []).filter((_, i) => i !== index);
+                  mutate({
+                    mountingDates: newDates,
+                    mountingDate: newDates.length > 0 ? newDates[0] : null,
+                    durationDays: newDates.length || 1 // Страховка от нуля
+                  });
+                }}
+                disabled={isReadOnly}
+                aria-label="Удалить день"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+
+          {config.mountingSnapshot && (
+            <div style={{ marginTop: '10px' }}>
+              <span className={styles.snapshotBadge}>
+                📸 Прайс зафиксирован{" "}
+                {new Date(config.mountingSnapshot.capturedAt).toLocaleDateString(
+                  "ru-RU",
+                )}
+              </span>
+            </div>
           )}
         </div>
 
@@ -1142,7 +1177,7 @@ export default function MountingStep({
               className={styles.priceErrorTitle}
               style={{ color: "#CBD5E1" }}
             >
-              Проверяем дату по календарю монтажей...
+              Проверяем даты по календарю монтажей...
             </div>
           </div>
         )}
@@ -1159,7 +1194,7 @@ export default function MountingStep({
               className={styles.priceErrorTitle}
               style={{ color: "#FFD600" }}
             >
-              ⚠ Дата попадает на выходной
+              ⚠ Даты попадают на выходной
             </div>
             <div style={{ color: "#FDE68A", fontSize: 13, lineHeight: 1.5 }}>
               {dayBlockCheck.message}
@@ -1175,20 +1210,6 @@ export default function MountingStep({
               Сохранение не заблокировано: при нажатии «Сохранить монтаж»
               появится подтверждение.
             </div>
-
-            {!isReadOnly && (
-              <div className={styles.actionsRow}>
-                <button
-                  type="button"
-                  className={styles.saveBtn}
-                  disabled={!canSave}
-                  onClick={handleSave}
-                >
-                  {isSaving ? "Сохранение..." : "Сохранить монтаж"}
-                </button>
-              </div>
-            )}
-
           </div>
         )}
 
@@ -1211,26 +1232,6 @@ export default function MountingStep({
               className={styles.input}
               value={config.endTime}
               onChange={(event) => mutate({ endTime: event.target.value })}
-              disabled={isReadOnly}
-            />
-          </div>
-
-          <div className={styles.listItemFieldSmall}>
-            <span className={styles.listItemLabel}>Дней</span>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              className={styles.input}
-              value={config.durationDays}
-              onChange={(event) =>
-                mutate({
-                  durationDays: Math.max(
-                    1,
-                    Math.round(toSafeNumber(event.target.value, 1)),
-                  ),
-                })
-              }
               disabled={isReadOnly}
             />
           </div>
@@ -1383,30 +1384,30 @@ export default function MountingStep({
           </div>
         )}
 
-      <ConfirmDialog
-        open={confirmUpdatePricesOpen}
-        title="Сбросить ручную цену?"
-        description="Ручная цена будет удалена и заменена текущими тарифами прайса."
-        confirmLabel="Обновить"
-        cancelLabel="Отмена"
-        variant="default"
-        onConfirm={handleUpdatePricesConfirmed}
-        onCancel={() => setConfirmUpdatePricesOpen(false)}
-      />
+        <ConfirmDialog
+          open={confirmUpdatePricesOpen}
+          title="Сбросить ручную цену?"
+          description="Ручная цена будет удалена и заменена текущими тарифами прайса."
+          confirmLabel="Обновить"
+          cancelLabel="Отмена"
+          variant="default"
+          onConfirm={handleUpdatePricesConfirmed}
+          onCancel={() => setConfirmUpdatePricesOpen(false)}
+        />
 
-      <ConfirmDialog
-        open={confirmBlockedSaveOpen}
-        title="Дата монтажа занята"
-        description={`${blockedSaveMessage}\n\nСохранить монтаж всё равно?`}
-        confirmLabel="Сохранить"
-        cancelLabel="Отмена"
-        variant="danger"
-        onConfirm={async () => {
-          setConfirmBlockedSaveOpen(false);
-          await executeSave();
-        }}
-        onCancel={() => setConfirmBlockedSaveOpen(false)}
-      />
+        <ConfirmDialog
+          open={confirmBlockedSaveOpen}
+          title="Дата монтажа занята"
+          description={`${blockedSaveMessage}\n\nСохранить монтаж всё равно?`}
+          confirmLabel="Сохранить"
+          cancelLabel="Отмена"
+          variant="danger"
+          onConfirm={async () => {
+            setConfirmBlockedSaveOpen(false);
+            await executeSave();
+          }}
+          onCancel={() => setConfirmBlockedSaveOpen(false)}
+        />
       </div>
     </div>
   );

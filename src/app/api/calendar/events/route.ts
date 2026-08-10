@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth/getCurrentUser';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,6 +93,44 @@ export async function POST(req: Request) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { id, date, memberId } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Не указан ID события' }, { status: 400 });
+    }
+
+    const event = await prisma.calendarEvent.findFirst({
+      where: { id: String(id), organizationId: user.organizationId },
+    });
+
+    if (!event) {
+      return NextResponse.json({ error: 'Событие не найдено' }, { status: 404 });
+    }
+
+    const updated = await prisma.calendarEvent.update({
+      where: { id: String(id) },
+      data: {
+        ...(date ? { date: new Date(`${date}T00:00:00.000Z`) } : {}),
+        ...(memberId !== undefined ? { memberId: memberId || null } : {}),
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    logger.error('[api/calendar/events/PUT] Ошибка обновления события', error);
+    return NextResponse.json({ error: 'Ошибка обновления события' }, { status: 500 });
+  }
+}
+
 export async function DELETE(req: Request) {
   try {
     const body = await req.json();
@@ -130,3 +169,4 @@ export async function DELETE(req: Request) {
     );
   }
 }
+

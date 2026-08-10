@@ -1,22 +1,5 @@
 'use client';
 
-/**
- * CalendarClient — интерактивный глобальный календарь монтажей и календарных событий.
- *
- * Поддерживает:
- * - монтажи из заказов;
- * - личные события;
- * - выходные / блокировки дней;
- * - создание событий через UI;
- * - удаление личных событий и выходных;
- * - разные визуальные типы карточек;
- * - drag-and-drop только для монтажей;
- * - мягкое предупреждение при переносе монтажа на выходной или блокировку;
- * - серую подсветку заблокированных дней;
- * - безопасную работу с частично разными структурами данных из page.tsx/API.
- * - загрузку активных монтажников из БД через /api/team-members (с fallback на статику).
- */
-
 import {
   useState,
   useCallback,
@@ -47,36 +30,26 @@ import {
 import type { MountingStatus } from '@/types/mounting';
 import styles from './calendar.module.css';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Типы
-// ─────────────────────────────────────────────────────────────────────────────
-
 type CalendarEventType = 'installation' | 'personal' | 'dayOff';
-
 type NewCalendarEventType = 'personal' | 'dayOff';
 
 interface CalendarEventView {
   id?: string;
   type?: CalendarEventType | string;
-
   clientId?: string;
   clientName?: string;
   address?: string | null;
-
   title?: string | null;
   description?: string | null;
-
   date?: string | Date | null;
   mountingDate: string;
   durationDays: number;
   startTime: string;
   endTime: string;
-
   memberId?: string | null;
   memberName?: string;
   memberColor?: string;
   isGlobal?: boolean;
-
   status?: MountingStatus;
   retailFinal?: number;
   isConflict?: boolean;
@@ -85,11 +58,6 @@ interface CalendarEventView {
 interface CalendarClientProps {
   initialEvents?: CalendarEventView[];
   events?: CalendarEventView[];
-  /**
-   * Список активных монтажников, предзагруженный родительским серверным компонентом.
-   * Если не передан — компонент самостоятельно запросит /api/team-members.
-   * Backward compatible: пропс необязателен.
-   */
   teamMembers?: TeamMemberConfig[];
 }
 
@@ -102,6 +70,7 @@ interface ToastMessage {
 interface DragPayload {
   clientId: string;
   event: CalendarEventView;
+  draggedDate?: string;
 }
 
 interface DropTargetData {
@@ -127,10 +96,6 @@ interface EventFormState {
   memberId: string;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Вспомогательные функции
-// ─────────────────────────────────────────────────────────────────────────────
-
 function buildMonthGrid(year: number, month: number): Date[][] {
   const firstDay = new Date(year, month, 1);
   const startOffset = (firstDay.getDay() + 6) % 7;
@@ -150,7 +115,6 @@ function toDateStr(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-
   return `${year}-${month}-${day}`;
 }
 
@@ -170,10 +134,6 @@ function isInstallation(event: CalendarEventView): boolean {
   return getEventType(event) === 'installation';
 }
 
-/**
- * Возвращает безопасный memberId из события.
- * Принимает members как параметр для поддержки динамического списка.
- */
 function evSafeMember(memberId: string | null | undefined, members: TeamMemberConfig[]): string {
   return memberId || members[0]?.id || '';
 }
@@ -204,10 +164,6 @@ function getStatusColor(status?: MountingStatus): string {
   }
 }
 
-/**
- * Стиль карточки события.
- * Принимает members для поиска цвета монтажника.
- */
 function getEventCardStyle(event: CalendarEventView, members: TeamMemberConfig[]): CSSProperties {
   const type = getEventType(event);
   const member = members.find((m) => m.id === event.memberId);
@@ -231,10 +187,6 @@ function getEventCardStyle(event: CalendarEventView, members: TeamMemberConfig[]
   return { borderLeftColor: member?.color ?? '#7BFF00' };
 }
 
-/**
- * Создаёт дефолтное состояние формы для нового события.
- * Принимает members для выбора первого монтажника по умолчанию.
- */
 function createDefaultFormState(
   type: NewCalendarEventType,
   date: string,
@@ -309,10 +261,6 @@ const LABEL_STYLE: CSSProperties = {
   letterSpacing: '0.04em',
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Карточка события
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface EventCardProps {
   event: CalendarEventView;
   isDragging?: boolean;
@@ -345,18 +293,14 @@ function EventCard({ event, isDragging = false, members }: EventCardProps) {
             title={getTypeLabel(event)}
           />
         )}
-
         <span className={styles.eventClientName}>{title}</span>
-
         {event.isConflict && type === 'installation' && (
           <span className={styles.conflictIcon} title="Конфликт расписания">⚠</span>
         )}
       </div>
-
       <div className={styles.eventTime}>
         {event.startTime || '09:00'} – {event.endTime || '18:00'}
       </div>
-
       <div
         className={styles.eventMember}
         style={{ color: type === 'installation' ? member?.color ?? '#7BFF00' : type === 'dayOff' ? '#FF4D4D' : '#FFD600' }}
@@ -367,11 +311,9 @@ function EventCard({ event, isDragging = false, members }: EventCardProps) {
             ? 'Все бригады'
             : member?.name ?? 'Без монтажника'}
       </div>
-
       {event.durationDays > 1 && (
         <div className={styles.eventDuration}>📅 {event.durationDays} дн.</div>
       )}
-
       {type === 'installation' ? (
         <div className={styles.eventPrice}>{formatMountingMoney(event.retailFinal || 0)}</div>
       ) : event.description ? (
@@ -380,10 +322,6 @@ function EventCard({ event, isDragging = false, members }: EventCardProps) {
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Ячейка дня
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface DayCell {
   date: Date;
@@ -421,7 +359,7 @@ function DroppableDayCell({
     data: {
       date: dateStr,
       memberId: targetMemberId,
-    } satisfies DropTargetData,
+    } as DropTargetData,
   });
 
   return (
@@ -452,8 +390,9 @@ function DroppableDayCell({
       <div className={styles.dayEvents}>
         {events.map((ev) => (
           <DraggableEventCard
-            key={getEventKey(ev)}
+            key={ev.id || getEventKey(ev)}
             event={ev}
+            dateStr={dateStr}
             onEventClick={onEventClick}
             members={members}
           />
@@ -463,24 +402,22 @@ function DroppableDayCell({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Draggable-обёртка
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface DraggableEventCardProps {
   event: CalendarEventView;
+  dateStr: string;
   onEventClick: (event: CalendarEventView) => void;
   members: TeamMemberConfig[];
 }
 
-function DraggableEventCard({ event, onEventClick, members }: DraggableEventCardProps) {
-  const draggable = isInstallation(event) && Boolean(event.clientId);
+function DraggableEventCard({ event, dateStr, onEventClick, members }: DraggableEventCardProps) {
+  // 🔥 Убрали блокировку !event.isGlobal, теперь таскается всё
+  const draggable = Boolean(event.id);
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: event.clientId || getEventKey(event),
+    id: event.id || getEventKey(event),
     disabled: !draggable,
     data: draggable
-      ? ({ event, clientId: event.clientId || '' } satisfies DragPayload)
+      ? ({ event, clientId: event.clientId || '', draggedDate: dateStr } as DragPayload)
       : undefined,
   });
 
@@ -496,10 +433,6 @@ function DraggableEventCard({ event, onEventClick, members }: DraggableEventCard
     </div>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Модальное окно создания события
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface CreateEventModalProps {
   form: EventFormState | null;
@@ -654,10 +587,6 @@ function CreateEventModal({ form, onChange, onClose, onSubmit, isSaving, members
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Модальное окно деталей
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface EventDetailModalProps {
   event: CalendarEventView | null;
   onClose: () => void;
@@ -708,7 +637,6 @@ function EventDetailModal({ event, onClose, onDelete, isDeleting, members }: Eve
             <span className={styles.modalLabel}>Дата:</span>
             <span className={styles.modalValue}>
               {event.mountingDate}
-              {event.durationDays > 1 ? ` – ${event.durationDays} дн.` : ''}
             </span>
           </div>
 
@@ -783,27 +711,29 @@ function EventDetailModal({ event, onClose, onDelete, isDeleting, members }: Eve
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Подтверждение переноса
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface ConfirmDropModalProps {
   pending: PendingDropState | null;
   blockingEvent?: CalendarEventView | null;
+  conflictingInstallation?: CalendarEventView | null;
   onConfirm: () => void;
   onCancel: () => void;
   members: TeamMemberConfig[];
 }
 
-function ConfirmDropModal({ pending, blockingEvent, onConfirm, onCancel, members }: ConfirmDropModalProps) {
+function ConfirmDropModal({ pending, blockingEvent, conflictingInstallation, onConfirm, onCancel, members }: ConfirmDropModalProps) {
   if (!pending) return null;
+
+  const isInst = isInstallation(pending.event);
+  const eventTitle = getEventTitle(pending.event);
 
   return (
     <div className={styles.modalOverlay} onClick={onCancel}>
       <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-        <h3 className={styles.modalTitle}>⚡ Перенос монтажа</h3>
+        <h3 className={styles.modalTitle}>
+          {isInst ? '⚡ Перенос монтажа' : '⚡ Перенос события'}
+        </h3>
         <p className={styles.modalText}>
-          Перенести монтаж <strong>{getEventTitle(pending.event)}</strong>
+          Перенести {isInst ? 'монтаж' : 'событие'} <strong>{eventTitle}</strong>
           {' '}на <strong>{pending.newDate}</strong>?
         </p>
         {pending.newMemberId && pending.newMemberId !== pending.event.memberId ? (
@@ -811,17 +741,23 @@ function ConfirmDropModal({ pending, blockingEvent, onConfirm, onCancel, members
             Новый монтажник: <strong>{members.find((m) => m.id === pending.newMemberId)?.name ?? pending.newMemberId}</strong>
           </p>
         ) : null}
+
         {blockingEvent ? (
           <div className={styles.modalConflictBanner} style={{ borderColor: '#FFD600', color: '#FFD600' }}>
             ⚠ На эту дату стоит блокировка: {getEventTitle(blockingEvent)}. Можно продолжить вручную, если это осознанное исключение.
           </div>
-        ) : (
+        ) : conflictingInstallation ? (
+          <div className={styles.modalConflictBanner} style={{ borderColor: '#FFD600', color: '#FFD600' }}>
+            ⚠ В этот день у монтажника запланирован монтаж: {getEventTitle(conflictingInstallation)}. Вы уверены, что хотите поставить событие на этот день?
+          </div>
+        ) : isInst ? (
           <p className={styles.modalSubtext}>Цена будет пересчитана автоматически.</p>
-        )}
+        ) : null}
+
         <div className={styles.modalActions}>
           <button className={styles.modalBtnCancel} onClick={onCancel}>Отмена</button>
           <button className={styles.modalBtnConfirm} onClick={onConfirm}>
-            {blockingEvent ? 'Перенести всё равно' : 'Перенести'}
+            {blockingEvent || conflictingInstallation ? 'Перенести всё равно' : 'Перенести'}
           </button>
         </div>
       </div>
@@ -847,10 +783,6 @@ function ToastContainer({ toasts }: { toasts: ToastMessage[] }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Чип монтажника как зона переноса
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface DroppableMemberChipProps {
   member: TeamMemberConfig;
   selected: boolean;
@@ -871,7 +803,7 @@ function DroppableMemberChip({
     data: {
       date: '',
       memberId: member.id,
-    } satisfies DropTargetData,
+    } as DropTargetData,
   });
 
   return (
@@ -890,10 +822,6 @@ function DroppableMemberChip({
     </button>
   );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Главный компонент
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function CalendarClient({
   initialEvents,
@@ -921,7 +849,6 @@ export default function CalendarClient({
   const [isSavingEvent, setIsSavingEvent] = useState(false);
   const [isDeletingEvent, setIsDeletingEvent] = useState(false);
 
-  // ── Загрузка монтажников из БД (если не переданы пропом) ─────────────────
   const [fetchedMembers, setFetchedMembers] = useState<TeamMemberConfig[] | null>(null);
 
   useEffect(() => {
@@ -941,7 +868,6 @@ export default function CalendarClient({
       .catch((error) => {
         if (cancelled) return;
         logger.error('[CalendarClient] Не удалось загрузить бригаду из API', error);
-        // fetchedMembers остаётся null → effectiveMembers упадёт на TEAM_MEMBERS
       });
 
     return () => {
@@ -949,12 +875,6 @@ export default function CalendarClient({
     };
   }, [teamMembersFromProp]);
 
-  /**
-   * Итоговый список монтажников:
-   *   1. Если проп передан (включая пустой массив) — используем его.
-   *   2. Если проп не передан, но API вернул данные — используем из API.
-   *   3. Иначе — статический TEAM_MEMBERS (fallback).
-   */
   const effectiveMembers = useMemo<TeamMemberConfig[]>(() => {
     if (teamMembersFromProp !== undefined) return teamMembersFromProp;
     if (fetchedMembers !== null) return fetchedMembers;
@@ -1020,20 +940,54 @@ export default function CalendarClient({
 
   const findBlockingDayOff = useCallback((dateStr: string, memberId?: string | null) => {
     return events.find((event) => {
-      if (getEventType(event) !== 'dayOff') return false;
+      const type = getEventType(event);
+      if (type !== 'dayOff' && type !== 'personal') return false;
+
       const dates = getEventDates(event.mountingDate, event.durationDays || 1);
       if (!dates.includes(dateStr)) return false;
+
       if (event.isGlobal) return true;
       return Boolean(memberId) && event.memberId === memberId;
     });
   }, [events]);
+
+  const findConflictingInstallation = useCallback((dateStr: string, memberId?: string | null) => {
+    return events.find((event) => {
+      if (!isInstallation(event)) return false;
+      const dates = getEventDates(event.mountingDate, event.durationDays || 1);
+      if (!dates.includes(dateStr)) return false;
+      return Boolean(memberId) && event.memberId === memberId;
+    });
+  }, [events]);
+
+  const executeInstantEventDrop = useCallback(async (ev: CalendarEventView, newDate: string, newMemberId: string | null) => {
+    const nextEvents = events.map((e) =>
+      e.id === ev.id
+        ? { ...e, mountingDate: newDate, memberId: newMemberId }
+        : e
+    );
+    setEvents(nextEvents);
+
+    try {
+      const res = await fetch('/api/calendar/events', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ev.id, date: newDate, memberId: newMemberId })
+      });
+      if (!res.ok) throw new Error('API update failed');
+      addToast('success', 'Событие успешно перенесено');
+    } catch (error) {
+      setEvents(normalizedInitialEvents);
+      addToast('error', 'Ошибка переноса события — изменения отменены');
+      logger.error('[CalendarClient] Ошибка переноса события', error);
+    }
+  }, [events, normalizedInitialEvents, addToast]);
 
   const openCreateEvent = (
     type: NewCalendarEventType,
     selectedDate?: string,
   ) => {
     const currentMonthDate = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`;
-
     const defaultDate =
       selectedDate ||
       (viewYear === today.getFullYear() && viewMonth === today.getMonth()
@@ -1095,12 +1049,8 @@ export default function CalendarClient({
 
       setEventForm(null);
       addToast('success', payload.type === 'dayOff' ? 'Выходной добавлен' : 'Личное событие добавлено');
-      logger.info('[CalendarClient] Событие календаря создано', payload);
     } catch (error) {
       addToast('error', 'Не удалось создать событие календаря');
-      logger.error('[CalendarClient] Ошибка создания события календаря', {
-        error: error instanceof Error ? error.message : String(error),
-      });
     } finally {
       setIsSavingEvent(false);
     }
@@ -1119,17 +1069,14 @@ export default function CalendarClient({
       });
 
       if (!res.ok) {
-        const errorText = await res.text().catch(() => "");
-        throw new Error(`HTTP : `);
+        throw new Error(`HTTP Error`);
       }
 
       setEvents((prev) => prev.filter((item) => item.id !== event.id));
       setSelectedEvent(null);
       addToast('success', 'Событие удалено');
-      logger.info('[CalendarClient] Событие календаря удалено', { id: event.id });
     } catch (error) {
       addToast('error', 'Не удалось удалить событие');
-      logger.error('[CalendarClient] Ошибка удаления события календаря', error);
     } finally {
       setIsDeletingEvent(false);
     }
@@ -1160,7 +1107,7 @@ export default function CalendarClient({
 
   const handleDragStart = (dragEvent: DragStartEvent) => {
     const payload = dragEvent.active.data.current as DragPayload | undefined;
-    if (payload?.event && isInstallation(payload.event)) setActiveEvent(payload.event);
+    if (payload?.event) setActiveEvent(payload.event);
   };
 
   const handleDragEnd = (dragEvent: DragEndEvent) => {
@@ -1172,10 +1119,14 @@ export default function CalendarClient({
     const payload = active.data.current as DragPayload;
     const target = over.data.current as DropTargetData | undefined;
     const ev = payload.event;
-    const newDate = target?.date || (String(over.id).startsWith('member-') ? ev.mountingDate : String(over.id));
-    const newMemberId = target?.memberId || evSafeMember(ev.memberId, effectiveMembers);
 
-    if (!isInstallation(ev)) return;
+    let newDate = target?.date || (String(over.id).startsWith('member-') ? ev.mountingDate : String(over.id));
+
+    // 🔥 Если событие "для всех" (isGlobal), не привязываем его к конкретному монтажнику при переносе
+    const newMemberId = ev.isGlobal
+      ? null
+      : (target?.memberId || evSafeMember(ev.memberId, effectiveMembers));
+
     if (newDate === 'empty') return;
 
     const oldMemberId = evSafeMember(ev.memberId, effectiveMembers);
@@ -1184,6 +1135,20 @@ export default function CalendarClient({
 
     if (isSameDate && isSameMember) return;
 
+    // 🔥 ПЕРЕНОС ЛИЧНОГО СОБЫТИЯ / ВЫХОДНОГО
+    if (!isInstallation(ev)) {
+      const conflictingInstallation = findConflictingInstallation(newDate, newMemberId);
+      if (conflictingInstallation) {
+        addToast('warning', `В этот день у монтажника запланирован монтаж: ${getEventTitle(conflictingInstallation)}`);
+        setPendingDrop({ event: ev, newDate, newMemberId });
+      } else {
+        // На свободный день переносим МГНОВЕННО БЕЗ МОДАЛКИ!
+        executeInstantEventDrop(ev, newDate, newMemberId);
+      }
+      return;
+    }
+
+    // 🔥 ПЕРЕНОС МОНТАЖА
     const blockingEvent = findBlockingDayOff(newDate, newMemberId);
     if (blockingEvent) {
       addToast('warning', `На ${newDate} стоит блокировка: ${getEventTitle(blockingEvent)}`);
@@ -1196,14 +1161,29 @@ export default function CalendarClient({
     if (!pendingDrop) return;
     const { event: ev, newDate, newMemberId } = pendingDrop;
 
+    // 🔥 ЗАКРЫВАЕМ МОДАЛКУ МГНОВЕННО, чтобы она не мигала во время сетевого запроса
+    setPendingDrop(null);
+
     const blockingEvent = findBlockingDayOff(newDate, newMemberId);
 
     try {
       const nextEvents = events.map((e) =>
-        (e.clientId || '') === (ev.clientId || '') ? { ...e, mountingDate: newDate, memberId: newMemberId } : e,
+        e.id === ev.id
+          ? { ...e, mountingDate: newDate, memberId: newMemberId }
+          : e
       );
-
       setEvents(nextEvents);
+
+      if (!isInstallation(ev)) {
+        const res = await fetch('/api/calendar/events', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ev.id, date: newDate, memberId: newMemberId })
+        });
+        if (!res.ok) throw new Error('API update failed');
+        addToast('success', 'Событие успешно перенесено');
+        return;
+      }
 
       const updatedEntries = nextEvents
         .filter((e) => isInstallation(e) && e.clientId)
@@ -1211,7 +1191,7 @@ export default function CalendarClient({
           clientId: e.clientId || '',
           memberId: e.memberId || '',
           mountingDate: e.mountingDate,
-          durationDays: e.durationDays || 1,
+          durationDays: 1,
         }));
 
       const conflictMap = detectScheduleConflicts(updatedEntries);
@@ -1225,12 +1205,16 @@ export default function CalendarClient({
       const res = await fetch('/api/mounting/reschedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId: ev.clientId || '', newDate, memberId: newMemberId }),
+        body: JSON.stringify({
+          clientId: ev.clientId || '',
+          oldDate: ev.mountingDate,
+          newDate,
+          memberId: newMemberId
+        }),
       });
 
       if (!res.ok) {
-        const errorText = await res.text().catch(() => "");
-        throw new Error(`HTTP : `);
+        throw new Error(`HTTP Error`);
       }
 
       if (blockingEvent) {
@@ -1238,16 +1222,15 @@ export default function CalendarClient({
       } else if (conflictMap.get(ev.clientId || '')) {
         addToast('warning', `Конфликт! У монтажника уже назначен монтаж на ${newDate}`);
       } else {
-        addToast('success', `Монтаж ${getEventTitle(ev)} перенесён на ${newDate}${newMemberId !== evSafeMember(ev.memberId, effectiveMembers) ? ' и другого монтажника' : ''}`);
+        addToast('success', `День монтажа перенесён на ${newDate}`);
       }
-
-      logger.info('[CalendarClient] Монтаж перенесён', { clientId: ev.clientId, newDate, memberId: newMemberId });
     } catch (error) {
       setEvents(normalizedInitialEvents);
-      addToast('error', 'Ошибка переноса монтажа — изменения отменены');
-      logger.error('[CalendarClient] Ошибка переноса монтажа', error);
-    } finally {
-      setPendingDrop(null);
+      const errorMsg = isInstallation(ev)
+        ? 'Ошибка переноса монтажа — изменения отменены'
+        : 'Ошибка переноса события — изменения отменены';
+      addToast('error', errorMsg);
+      logger.error('[CalendarClient] Ошибка переноса', error);
     }
   }, [pendingDrop, events, normalizedInitialEvents, addToast, findBlockingDayOff, effectiveMembers]);
 
@@ -1347,7 +1330,7 @@ export default function CalendarClient({
         </div>
 
         <div className={styles.calendarGrid}>
-          {monthGrid.flat().map((date, idx) => {
+          {monthGrid.flat().map((date) => {
             const dateStr = toDateStr(date);
             const dayEvents = eventsByDate.get(dateStr) ?? [];
             const isToday = dateStr === toDateStr(today);
@@ -1419,6 +1402,7 @@ export default function CalendarClient({
       <ConfirmDropModal
         pending={pendingDrop}
         blockingEvent={pendingDrop ? findBlockingDayOff(pendingDrop.newDate, pendingDrop.newMemberId) : null}
+        conflictingInstallation={pendingDrop && !isInstallation(pendingDrop.event) ? findConflictingInstallation(pendingDrop.newDate, pendingDrop.newMemberId) : null}
         onConfirm={confirmDrop}
         onCancel={() => setPendingDrop(null)}
         members={effectiveMembers}

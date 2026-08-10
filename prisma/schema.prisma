@@ -170,6 +170,9 @@ model Client {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   files        ClientFile[]
+
+  // 🔥 ДОБАВЛЯЕМ СВЯЗЬ С КАЛЕНДАРЁМ ДЛЯ МНОГОДНЕВНЫХ (РАЗОРВАННЫХ) МОНТАЖЕЙ
+  calendarEvents CalendarEvent[]
 }
 
 model CalendarEvent {
@@ -187,6 +190,12 @@ model CalendarEvent {
   updatedAt      DateTime     @updatedAt
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
+
+  // 🔥 ДОБАВЛЯЕМ ПРИВЯЗКУ К КОНКРЕТНОМУ КЛИЕНТУ (ЗАКАЗУ)
+  clientId       String?
+  client         Client?      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId]) // Индекс для быстрого поиска монтажей по клиенту
 }
 
 model Price {

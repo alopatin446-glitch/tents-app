@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const clientId = typeof body?.clientId === 'string' ? body.clientId.trim() : '';
     const newDate = typeof body?.newDate === 'string' ? body.newDate.trim() : '';
+    const oldDate = typeof body?.oldDate === 'string' ? body.oldDate.trim() : '';
     const memberId = typeof body?.memberId === 'string' ? body.memberId.trim() : undefined;
 
     if (!clientId) {
@@ -92,9 +93,33 @@ export async function POST(request: NextRequest) {
       priceMap[price.slug] = Number(price.value);
     }
 
+    // Умная замена в массиве дат
+    let nextDates = Array.isArray(currentConfig.mountingDates) ? [...currentConfig.mountingDates] : [];
+
+    if (nextDates.length === 0 && currentConfig.mountingDate) {
+      nextDates = [currentConfig.mountingDate];
+    }
+
+    if (oldDate) {
+      const indexToReplace = nextDates.indexOf(oldDate);
+      if (indexToReplace !== -1) {
+        nextDates[indexToReplace] = newDate;
+      } else {
+        nextDates.push(newDate);
+      }
+    } else {
+      if (nextDates.length > 0) nextDates[0] = newDate;
+      else nextDates.push(newDate);
+    }
+
+    // 🔥 ИСПРАВЛЕНИЕ: Удаляем возможные дубликаты (чтобы не было [12, 12, 21]) и сортируем
+    nextDates = Array.from(new Set(nextDates)).sort();
+
     const updatedConfig: MountingConfig = {
       ...currentConfig,
-      mountingDate: newDate,
+      mountingDate: nextDates.length > 0 ? nextDates[0] : null,
+      mountingDates: nextDates,
+      durationDays: nextDates.length > 0 ? nextDates.length : 1,
       team: nextTeam,
       mountingSnapshot:
         currentConfig.mountingSnapshot ?? captureCurrentPriceSnapshot(nextTeam.category, priceMap),
@@ -107,12 +132,13 @@ export async function POST(request: NextRequest) {
       },
       data: {
         mountingConfig: updatedConfig as any,
-        installDate: new Date(`${newDate}T00:00:00.000Z`),
+        installDate: nextDates.length > 0 ? new Date(`${nextDates[0]}T00:00:00.000Z`) : null,
       },
     });
 
     logger.info('[reschedule] Дата монтажа обновлена', {
       clientId,
+      oldDate,
       newDate,
       memberId: nextTeam.memberId,
     });
