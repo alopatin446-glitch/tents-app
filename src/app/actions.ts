@@ -562,7 +562,8 @@ export async function getClientsCount(): Promise<
     const user = await requireAuth();
     const count = await prisma.client.count({
       where: {
-        organizationId: user.organizationId // Считаем всех клиентов своей организации
+        organizationId: user.organizationId,
+        status: { notIn: ['completed', 'rejected'] }, // 🔥 Считаем только АКТИВНЫХ клиентов в работе
       },
     });
     return { success: true, count };

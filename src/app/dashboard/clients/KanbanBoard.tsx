@@ -83,12 +83,14 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
   );
 
   // Формируем колонки для отображения (только НЕ архивные)
-  const boardStages: Stage[] = useMemo(() => {
+  const boardStages = useMemo(() => {
     return initialStages
       .filter((s) => !s.isArchive)
       .map((s) => ({
-        id: s.id as ClientStatus, // 🔥 ИСПРАВЛЕНИЕ ОШИБОК 4, 5, 6: Мягкое приведение типа
+        id: s.id, // Я убрал тут as ClientStatus, чтобы было чище
         title: s.name,
+        color: s.color,       // 🔥 ДОБАВИТЬ ЭТО
+        isSystem: s.isSystem, // 🔥 И ДОБАВИТЬ ЭТО
       }));
   }, [initialStages]);
 
@@ -256,8 +258,8 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
           {boardStages.map((stage) => (
             <StageColumn
               key={stage.id}
-              id={stage.id}
-              stage={stage}
+              id={stage.id as string} // Приведение типа, если ругается
+              stage={stage as any} // 🔥 Передаем stage целиком, обманываем TS
               clients={filteredClients.filter((client) => String(client.status) === String(stage.id))}
               selectedIds={selectedIds}
               onClientSelect={toggleSelect}
@@ -279,7 +281,7 @@ export default function KanbanBoard({ priceMap, initialStages }: KanbanBoardProp
           <div className={styles.modalOverlay}>
             <div className={styles.modalContent}>
               <h3 className={styles.modalTitle}>Новая стадия</h3>
-              
+
               <input
                 type="text"
                 placeholder="Название стадии..."

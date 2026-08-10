@@ -347,3 +347,60 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(123, 255, 0, 0.3);
 }
+
+/* =========================================================
+   6. МЕНЮ НАСТРОЕК КОЛОНКИ (⋮)
+   ========================================================= */
+
+.stageMenuBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0 5px;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.stageMenuBtn:hover {
+  color: #fff;
+}
+
+.stageDropdown {
+  position: absolute;
+  top: 30px;
+  right: 0;
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 5px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-width: 150px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+}
+
+.stageDropdownItem {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.stageDropdownItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.stageDropdownItemDanger:hover {
+  background: rgba(255, 68, 68, 0.1);
+  color: #ff4444;
+}
