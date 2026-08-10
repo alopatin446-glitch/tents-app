@@ -124,7 +124,7 @@ export default function DashboardPage() {
 
       <div className={styles.column} style={{ marginTop: '90px' }}>
         <h2 className={styles.neonTitle} style={{ marginBottom: '2rem', textAlign: 'center' }}>
-          С ВОЗВРАЩЕНИЕМ, {String(userName || 'ПОЛЬЗОВАТЕЛЬ').toUpperCase()} ИЗ &quot;{String(userOrg || 'ОРГАНИЗАЦИЯ').toUpperCase()}&quot;.
+          С ИЗЗВРАЩЕНИЕМ, {String(userName || 'ПОЛЬЗОВАТЕЛЬ').toUpperCase()} ИЗ &quot;{String(userOrg || 'ОРГАНИЗАЦИЯ').toUpperCase()}&quot;.
         </h2>
 
         <div className={styles.dashboardGrid} style={{ minHeight: '500px', gap: '20px' }}>
