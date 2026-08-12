@@ -1,219 +1,172 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
+import Link from 'next/link';
+import { requireAuth } from '@/lib/auth/requireAuth';
+import { prisma } from '@/lib/prisma';
+import { normalizeStatus } from '@/lib/logic/statusDictionary';
 import styles from './dashboard.module.css';
-import { getArchiveOrdersCount, getClientsCount } from '@/app/actions';
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const { userName, userOrg, logout, checkAuth, isLoading, role, permissions } = useAuth();
-  const [archiveCount, setArchiveCount] = useState<number>(0);
-  const [clientsCount, setClientsCount] = useState<number>(0); // 🔥 Новый стейт
+const MONTH_PLAN = 2_450_000; // план месяца, ₽ — позже вынести в настройки организации
 
-  useEffect(() => {
-    if (!isLoading && !checkAuth()) {
-      router.push('/login');
-    }
+const STATUS_META: Record<string, { label: string; cls: string }> = {
+  negotiation: { label: 'Заявка', cls: 'stNegotiation' },
+  measurement: { label: 'Замер', cls: 'stMeasurement' },
+  production: { label: 'Производство', cls: 'stProduction' },
+  ready: { label: 'Монтаж', cls: 'stReady' },
+  completed: { label: 'Успешно', cls: 'stCompleted' },
+  rejected: { label: 'Отказ', cls: 'stRejected' },
+};
 
-    async function loadDashboardData() {
-      if (isLoading) return;
-      try {
-        // Загружаем архив
-        const archiveResult = await getArchiveOrdersCount();
-        if (archiveResult && typeof archiveResult === 'object' && 'success' in archiveResult && archiveResult.success) {
-          setArchiveCount(Number((archiveResult as any).count) || 0);
-        }
+const fmtMoney = (n: number) => `${n.toLocaleString('ru-RU')} ₽`;
 
-        // 🔥 Загружаем всех клиентов
-        const clientsResult = await getClientsCount();
-        if (clientsResult && typeof clientsResult === 'object' && 'success' in clientsResult && clientsResult.success) {
-          setClientsCount(Number((clientsResult as any).count) || 0);
-        }
-      } catch (error) {
-        console.error('Ошибка загрузки счётчиков:', error);
-      }
-    }
-    loadDashboardData();
-  }, [checkAuth, router, isLoading]);
+export default async function DashboardPage() {
+  const user = await requireAuth();
+  const orgId = user.organizationId;
 
-  // Улучшенная функция проверки доступа
-  const canAccess = (perm: string): boolean => {
-    const userRole = String(role || '').toUpperCase();
+  const now = new Date();
+  const d = (y: number, m: number, day: number) => new Date(y, m, day);
+  const startOfToday = d(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfToday = d(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const startOfMonth = d(now.getFullYear(), now.getMonth(), 1);
 
-    // ВРЕМЕННЫЙ BETA-FALLBACK:
-    // пока permissions не загружаются стабильно во фронт,
-    // ADMIN и MANAGER получают доступ к рабочим разделам дашборда.
-    if (userRole === 'ADMIN' || userRole === 'MANAGER') return true;
+  const [
+    measurementsToday, mountsToday, newRequestsToday, debtorsCount, overdueCount, recentOrders, monthAgg, clientsMonth,
+  ] = await Promise.all([
+    prisma.client.count({ where: { organizationId: orgId, measurementDate: { gte: startOfToday, lt: endOfToday } } }),
+    prisma.client.count({ where: { organizationId: orgId, installDate: { gte: startOfToday, lt: endOfToday } } }),
+    prisma.client.count({ where: { organizationId: orgId, createdAt: { gte: startOfToday, lt: endOfToday } } }),
+    prisma.client.count({ where: { organizationId: orgId, status: 'completed', balance: { gt: 0 } } }),
+    prisma.client.count({ where: { organizationId: orgId, installDate: { lt: startOfToday }, status: { notIn: ['completed', 'rejected'] } } }),
+    prisma.client.findMany({ where: { organizationId: orgId }, orderBy: { createdAt: 'desc' }, take: 5 }),
+    prisma.client.aggregate({ where: { organizationId: orgId, createdAt: { gte: startOfMonth } }, _sum: { totalPrice: true }, _count: true }),
+    prisma.client.count({ where: { organizationId: orgId, createdAt: { gte: startOfMonth } } }),
+  ]);
 
-    if (permissions && Array.isArray(permissions) && permissions.length > 0) {
-      const searchKey = perm.split(':')[0].toLowerCase();
-      const hasDirectPerm = permissions.some(p => {
-        const lp = String(p).toLowerCase();
-        return lp === perm.toLowerCase() || lp === searchKey || lp.includes(searchKey);
-      });
-      if (hasDirectPerm) return true;
-    }
+  const factMoney = monthAgg._sum.totalPrice ?? 0;
+  const restMoney = Math.max(MONTH_PLAN - factMoney, 0);
+  const planPercent = Math.min(Math.round((factMoney / MONTH_PLAN) * 100), 100);
+  const avgCheck = monthAgg._count ? Math.round(factMoney / monthAgg._count) : 0;
 
-    if (userRole === 'USER' || userRole === 'ENGINEER') {
-      const standardPaths = ['calculations:write', 'clients:read', 'archive:read', 'calendar:read'];
-      return standardPaths.includes(perm);
-    }
-
-    return false;
-  };
-
-  if (isLoading) {
-    return (
-      <div style={{
-        background: '#000', height: '100vh', color: '#7BFF00',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'monospace'
-      }}>
-        СИНХРОНИЗАЦИЯ...
-      </div>
-    );
-  }
+  const todayRows = [
+    { label: 'Замеры', count: measurementsToday, tone: 'tBlue', letter: 'З' },
+    { label: 'Монтажи', count: mountsToday, tone: 'tGreen', letter: 'М' },
+    { label: 'Новые заявки', count: newRequestsToday, tone: 'tAmber', letter: 'Н' },
+    { label: 'Должники', count: debtorsCount, tone: 'tOrange', letter: 'Д' },
+    { label: 'Просроченные', count: overdueCount, tone: 'tRed', letter: 'П' },
+  ];
 
   return (
-    <main className={styles.container}>
-      <header className={styles.dashboardHeader}>
-        <div className={styles.headerTitle}>EASY MO CORE | ПАНЕЛЬ УПРАВЛЕНИЯ</div>
-        <div className={styles.headerActions}>
-          {String(role).toUpperCase() === 'ADMIN' && (
-            <div
-              className={styles.settingsIcon}
-              onClick={() => router.push('/dashboard/settings/team')}
-              style={{ cursor: 'pointer' }}
-            >
-              ⚙️
-            </div>
-          )}
-
-          {/* Внутри секции headerActions */}
-          <div className={styles.headerActions}>
-            {/* Доступ к прайсу только Админу */}
-            {String(role).toUpperCase() === 'ADMIN' || String(role).toUpperCase() === 'MANAGER' ? (
-              <button
-                onClick={() => router.push('/dashboard/prices')}
-                className={styles.heroButton}
-                style={{ marginRight: '15px', border: '1px solid #7BFF00', background: 'transparent' }}
-              >
-                ПРАЙС-ЛИСТ
-              </button>
-            ) : null}
-
-            {/* ... остальной код (шестеренка, аватар, выйти) */}
-          </div>
-
-          <div
-            className={styles.userAvatar}
-            onClick={() => router.push('/dashboard/settings/profile')}
-            style={{ cursor: 'pointer' }}
-          >
-            <div style={{ color: '#7BFF00', fontSize: '10px', textAlign: 'center', marginTop: '10px' }}>
-              {String(userName || 'U').charAt(0).toUpperCase()}
-            </div>
-          </div>
-          <button onClick={logout} className={styles.heroButton}>
-            ВЫЙТИ
+    <main className={styles.page}>
+      {/* ── Top bar ── */}
+      <header className={styles.topBar}>
+        <h1 className={styles.pageTitle}>ПАНЕЛЬ УПРАВЛЕНИЯ</h1>
+        <div className={styles.searchWrap}>
+          <input
+            className={styles.searchInput}
+            placeholder="Поиск по клиентам, заказам, телефонам..."
+          />
+          <span className={styles.searchKbd}>⌘K</span>
+        </div>
+        <div className={styles.topActions}>
+          <Link href="/dashboard/new-calculation" className={styles.newOrderBtn}>+ НОВЫЙ ЗАКАЗ</Link>
+          <Link href="/dashboard/new-calculation" className={styles.iconBtn}>+</Link>
+          <button className={styles.iconBtn} type="button" title="Уведомления">
+            🔔{overdueCount > 0 && <span className={styles.bellBadge}>{overdueCount}</span>}
           </button>
         </div>
       </header>
 
-      <div className={styles.column} style={{ marginTop: '90px' }}>
-        <h2 className={styles.neonTitle} style={{ marginBottom: '2rem', textAlign: 'center' }}>
-          С ИЗЗВРАЩЕНИЕМ, {String(userName || 'ПОЛЬЗОВАТЕЛЬ').toUpperCase()} ИЗ &quot;{String(userOrg || 'ОРГАНИЗАЦИЯ').toUpperCase()}&quot;.
-        </h2>
+      <div className={styles.content}>
+        {/* ── Быстрые действия ── */}
+        <section>
+          <h2 className={styles.sectionTitle}>БЫСТРЫЕ ДЕЙСТВИЯ</h2>
+          <div className={styles.quickGrid}>
+            <Link href="/dashboard/new-calculation" className={styles.quickCard}>
+              <span className={`${styles.quickIcon} ${styles.qiGreen}`}>🗂</span>
+              <span><b>Новый заказ</b><small>Создать заказ</small></span>
+            </Link>
+            <Link href="/dashboard/new-calculation" className={styles.quickCard}>
+              <span className={`${styles.quickIcon} ${styles.qiGreen}`}>👤</span>
+              <span><b>Новый клиент</b><small>Добавить клиента</small></span>
+            </Link>
+            <Link href="/dashboard/new-calculation" className={styles.quickCard}>
+              <span className={`${styles.quickIcon} ${styles.qiGreen}`}>🧮</span>
+              <span><b>Новый расчёт</b><small>Рассчитать стоимость</small></span>
+            </Link>
+            <Link href="/dashboard/calendar" className={styles.quickCard}>
+              <span className={`${styles.quickIcon} ${styles.qiCyan}`}>📅</span>
+              <span><b>Новый монтаж</b><small>Запланировать монтаж</small></span>
+            </Link>
+          </div>
+        </section>
 
-        <div className={styles.dashboardGrid} style={{ minHeight: '500px', gap: '20px' }}>
-          {/* Кнопка Расчетов */}
-          <div
-            className={styles.mainActionCard}
-            onClick={() => canAccess('calculations:write') ? router.push('/dashboard/new-calculation') : null}
-            style={{
-              cursor: canAccess('calculations:write') ? 'pointer' : 'not-allowed',
-              opacity: canAccess('calculations:write') ? 1 : 0.4,
-              padding: '2rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center'
-            }}
-          >
-            <div className={styles.neonIcon} style={{ transform: 'scale(1.2)', marginBottom: '2rem' }}>
-              <svg viewBox="0 0 24 24" width="70" height="70" fill="none" stroke="#7BFF00" strokeWidth="1.5">
-                <path d="M12 2C12 2 7 8 7 14C7 18 10 20 12 20C14 20 17 18 17 14C17 8 12 2 12 2Z" />
-                <circle cx="12" cy="11" r="2" />
-                <path d="M7 14L3 17V20L7 18" />
-                <path d="M17 14L21 17V20L17 18" />
-                <path d="M10 20L12 22L14 20" />
-              </svg>
+        {/* ── Сводка ── */}
+        <section className={styles.statsRow}>
+          <div className={styles.panel}>
+            <h3 className={styles.panelTitle}>СЕГОДНЯ</h3>
+            <ul className={styles.todayList}>
+              {todayRows.map((r) => (
+                <li key={r.label}>
+                  <span className={`${styles.todayBadge} ${styles[r.tone]}`}>{r.letter}</span>
+                  <span className={styles.todayLabel}>{r.label}</span>
+                  <span className={styles.todayCount}>{r.count}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className={styles.panel}>
+            <h3 className={styles.panelTitle}>ФИНАНСЫ МЕСЯЦА</h3>
+            <div className={styles.financeRow}><span>План:</span><b>{fmtMoney(MONTH_PLAN)}</b></div>
+            <div className={styles.financeRow}><span>Факт:</span><b>{fmtMoney(factMoney)}</b></div>
+            <div className={styles.financeRow}>
+              <span>Осталось:</span>
+              <b className={styles.remainBadge}>{fmtMoney(restMoney)}</b>
             </div>
-            <div className={styles.rocketButton}>
-              {canAccess('calculations:write') ? 'СОЗДАТЬ НОВЫЙ РАСЧЕТ' : 'ДОСТУП ЗАКРЫТ'}
+            <div className={styles.financeRow}>
+              <span>Выполнение плана</span><b>{planPercent}%</b>
+            </div>
+            <div className={styles.progressTrack}>
+              <div className={styles.progressBar} style={{ width: `${planPercent}%` }} />
             </div>
           </div>
 
-          <div className={styles.statsWrapper} style={{ gap: '20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: '1fr 1fr' }}>
-            {/* Готовые заказы (Архив) */}
-            <div
-              className={styles.mainActionCard}
-              onClick={() => canAccess('archive:read') ? router.push('/dashboard/archive') : null}
-              style={{
-                padding: '1.5rem',
-                cursor: canAccess('archive:read') ? 'pointer' : 'not-allowed',
-                opacity: canAccess('archive:read') ? 1 : 0.5,
-                textAlign: 'center'
-              }}
-            >
-              <p className={styles.statLabel} style={{ fontWeight: '700' }}>ГОТОВЫЕ ЗАКАЗЫ</p>
-              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>{canAccess('archive:read') ? archiveCount : '🔒'}</p>
-            </div>
-
-            <div className={styles.mainActionCard} style={{ padding: '1.5rem', textAlign: 'center' }}>
-              <p className={styles.statLabel} style={{ fontWeight: '700' }}>СРЕДНИЙ ЧЕК</p>
-              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>87,500 ₽</p>
-            </div>
-
-            <div className={styles.mainActionCard} style={{ padding: '1.5rem', textAlign: 'center' }}>
-              <p className={styles.statLabel} style={{ fontWeight: '700' }}>СУММА ЗА МЕСЯЦ</p>
-              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>2,450,000 ₽</p>
-            </div>
-
-            {/* Клиенты */}
-            <div
-              className={styles.mainActionCard}
-              onClick={() => canAccess('clients:read') ? router.push('/dashboard/clients') : null}
-              style={{
-                padding: '1.5rem',
-                cursor: canAccess('clients:read') ? 'pointer' : 'not-allowed',
-                opacity: canAccess('clients:read') ? 1 : 0.5,
-                textAlign: 'center'
-              }}
-            >
-              <p className={styles.statLabel} style={{ fontWeight: '700' }}>КЛИЕНТЫ</p>
-              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>{canAccess('clients:read') ? clientsCount : '🔒'}</p>
-            </div>
-
-            {/* Календарь */}
-            <div
-              className={styles.mainActionCard}
-              onClick={() => canAccess('calendar:read') ? router.push('/dashboard/calendar') : null}
-              style={{
-                padding: '1.5rem',
-                cursor: canAccess('calendar:read') ? 'pointer' : 'not-allowed',
-                opacity: canAccess('calendar:read') ? 1 : 0.5,
-                textAlign: 'center'
-              }}
-            >
-              <p className={styles.statLabel} style={{ fontWeight: '700' }}>КАЛЕНДАРЬ МОНТАЖЕЙ</p>
-              <p className={styles.statValue} style={{ fontSize: '1.4rem' }}>{canAccess('calendar:read') ? '📅 ОТКРЫТЬ' : '🔒'}</p>
-            </div>
-
-            <div className={styles.mainActionCard} style={{ padding: '1.5rem', textAlign: 'center' }}>
-              <p className={styles.statLabel} style={{ fontWeight: '700' }}>ПРОГРЕСС ЦЕЛИ</p>
-              <div style={{ color: '#7BFF00', fontWeight: 'bold' }}>75%</div>
-            </div>
+          <div className={styles.panel}>
+            <h3 className={styles.panelTitle}>СРЕДНИЙ ЧЕК</h3>
+            <div className={styles.bigNumber}>{fmtMoney(avgCheck)}</div>
+            <h3 className={styles.panelTitle}>КЛИЕНТОВ В МЕСЯЦ</h3>
+            <div className={styles.bigNumber}>{clientsMonth}</div>
           </div>
-        </div>
+        </section>
+
+        {/* ── Последние заказы ── */}
+        <section className={styles.panel}>
+          <h3 className={styles.panelTitle}>ПОСЛЕДНИЕ ЗАКАЗЫ</h3>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Клиент</th><th>Адрес</th><th>Статус</th>
+                <th>Сумма</th><th>Дата</th><th>Менеджер</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentOrders.map((o) => {
+                const meta = STATUS_META[normalizeStatus(o.status)] ?? STATUS_META.negotiation;
+                return (
+                  <tr key={o.id}>
+                    <td>{o.fio || '—'}</td>
+                    <td className={styles.muted}>{o.address || '—'}</td>
+                    <td><span className={`${styles.statusBadge} ${styles[meta.cls]}`}>{meta.label}</span></td>
+                    <td>{fmtMoney(o.totalPrice ?? 0)}</td>
+                    <td className={styles.muted}>{o.createdAt.toLocaleDateString('ru-RU')}</td>
+                    <td className={styles.muted}>{o.createdByName || user.name}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className={styles.viewAllWrap}>
+            <Link href="/dashboard/clients" className={styles.viewAll}>Смотреть все заказы →</Link>
+          </div>
+        </section>
       </div>
     </main>
   );

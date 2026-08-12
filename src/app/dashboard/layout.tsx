@@ -1,20 +1,14 @@
-import { ClientProvider } from "@/providers/ClientProvider";
-import ToastContainer from "@/components/ui/ToastContainer";
+import { requireAuth } from '@/lib/auth/requireAuth';
+import DashboardSidebar from '@/components/layout/DashboardSidebar';
+import styles from './dashboard.module.css';
 
-/** * Layout для /dashboard/
- * Теперь он правильно оборачивает все страницы в ClientProvider
- */
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const user = await requireAuth();
+
   return (
-    <ClientProvider>
-      <div className="dashboard-wrapper">
-        {children}
-      </div>
-      <ToastContainer />
-    </ClientProvider>
+    <div className={styles.shell}>
+      <DashboardSidebar userName={user.name} userRole={user.role} />
+      <div className={styles.shellMain}>{children}</div>
+    </div>
   );
 }

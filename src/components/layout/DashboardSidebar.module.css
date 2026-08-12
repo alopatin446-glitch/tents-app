@@ -1,0 +1,78 @@
+.sidebar {
+  width: 250px;
+  flex: 0 0 250px;
+  height: 100vh;
+  background: #0b1220;
+  border-right: 1px solid rgba(123, 255, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 14px;
+  gap: 18px;
+}
+
+.logo {
+  font-weight: 900;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  color: var(--text-white);
+  line-height: 1.1;
+  padding: 4px 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.logo span { color: var(--neon-green); text-shadow: var(--neon-shadow); }
+
+.nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+
+.navItem {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.85rem; font-weight: 600;
+  text-decoration: none;
+  transition: 0.2s ease;
+}
+.navItem:hover { background: rgba(123, 255, 0, 0.06); color: rgba(123, 255, 0, 0.85); }
+
+.navItemActive {
+  background: rgba(123, 255, 0, 0.12);
+  color: var(--neon-green);
+  box-shadow: inset 3px 0 0 var(--neon-green);
+}
+
+.navItemSoon { opacity: 0.4; cursor: not-allowed; }
+.navIcon { width: 18px; text-align: center; filter: grayscale(0.4); }
+
+.bottom { display: flex; flex-direction: column; gap: 10px; }
+
+.supportCard {
+  display: flex; gap: 10px; align-items: center;
+  padding: 10px 12px; border-radius: 12px;
+  border: 1px solid rgba(123, 255, 0, 0.15);
+  background: rgba(123, 255, 0, 0.05);
+  color: var(--text-white); text-decoration: none;
+  font-size: 0.78rem;
+}
+.supportCard small { display: block; color: rgba(255,255,255,0.5); }
+.supportIcon { color: var(--neon-green); }
+
+.userCard {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.userAvatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: rgba(123, 255, 0, 0.15);
+  border: 1px solid rgba(123, 255, 0, 0.4);
+  color: var(--neon-green);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800;
+}
+.userMeta { flex: 1; font-size: 0.8rem; }
+.userMeta small { display: block; color: rgba(255,255,255,0.5); }
+.logoutBtn {
+  background: none; border: 1px solid rgba(255, 77, 77, 0.4);
+  color: var(--neon-red); border-radius: 8px;
+  width: 30px; height: 30px; cursor: pointer;
+}
