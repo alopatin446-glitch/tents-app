@@ -23,28 +23,28 @@ const CM2_TO_M2 = 10_000;
 export const SOLDER_ALLOWANCE = 6;
 
 /** Допуск «натяжки» при подборе рулона (см). */
-export const SMART_TOLERANCE = 4;
+export const SMART_TOLERANCE = 5;
 
 /**
  * Порог автоопределения трапеции по разнице высот (см).
  * Если |heightLeft − heightRight| > порога → верхний край считается наклонным.
  */
-const TRAPEZOID_HEIGHT_DELTA = 0.5;
+const TRAPEZOID_HEIGHT_DELTA = 5;
 
 /**
  * Порог автоопределения трапеции по разнице ширин (см).
  * Если |widthTop − widthBottom| > порога → форма трапеция.
  */
-const TRAPEZOID_WIDTH_DELTA = 0.5;
+const TRAPEZOID_WIDTH_DELTA = 5;
 
 /**
  * Единый справочник ширин рулонов (в см).
  * ТАМОЖНЯ: параметры здесь — закон.
  */
 export const ROLL_WIDTHS: Record<string, number[]> = {
-  PVC_700:  [140, 180, 200, 220, 240],
-  TPU:      [140],
-  TINTED:   [140, 180, 200],
+  PVC_700: [140, 180, 200, 220, 240, 260],
+  TPU: [140],
+  TINTED: [140, 180, 200],
   MOSQUITO: [200],
 };
 
@@ -57,11 +57,11 @@ export const ROLL_WIDTHS: Record<string, number[]> = {
  * Возвращает вариант с минимальной площадью списания.
  */
 export function optimizeRollLayout(width: number, height: number, material: string) {
-  const prodW = width  + SOLDER_ALLOWANCE;
+  const prodW = width + SOLDER_ALLOWANCE;
   const prodH = height + SOLDER_ALLOWANCE;
 
   const availableRolls = ROLL_WIDTHS[material] ?? ROLL_WIDTHS['PVC_700'];
-  const rolls          = [...availableRolls].sort((a, b) => a - b);
+  const rolls = [...availableRolls].sort((a, b) => a - b);
   const maxAvailableRoll = rolls[rolls.length - 1];
 
   const findFit = (w: number, h: number) => {
@@ -70,13 +70,13 @@ export function optimizeRollLayout(width: number, height: number, material: stri
     return { roll: maxAvailableRoll, area: w * h, isOverSize: true };
   };
 
-  const normal  = findFit(prodW, prodH);
+  const normal = findFit(prodW, prodH);
   const rotated = findFit(prodH, prodW);
 
   if (normal && rotated) {
     return normal.area <= rotated.area
-      ? { ...normal,  isRotated: false }
-      : { ...rotated, isRotated: true  };
+      ? { ...normal, isRotated: false }
+      : { ...rotated, isRotated: true };
   }
 
   return normal ? { ...normal, isRotated: false } : null;
@@ -88,9 +88,9 @@ export function optimizeRollLayout(width: number, height: number, material: stri
 
 function hasCompleteTrapezoidMeasurements(window: WindowItem): boolean {
   return (
-    Number(window.diagonalLeft)  > 0 &&
+    Number(window.diagonalLeft) > 0 &&
     Number(window.diagonalRight) > 0 &&
-    Number(window.crossbar)      > 0
+    Number(window.crossbar) > 0
   );
 }
 
@@ -269,15 +269,15 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
 
   // ── Тип формы ──────────────────────────────────────────────────────────────
   const isHeightTrapezoid = Math.abs(heightLeft - heightRight) > TRAPEZOID_HEIGHT_DELTA;
-  const isWidthTrapezoid  = Math.abs(widthTop   - widthBottom) > TRAPEZOID_WIDTH_DELTA;
+  const isWidthTrapezoid = Math.abs(widthTop - widthBottom) > TRAPEZOID_WIDTH_DELTA;
   const geometryType: 'rectangle' | 'trapezoid' =
     isHeightTrapezoid || isWidthTrapezoid ? 'trapezoid' : 'rectangle';
 
   // ── Физические длины сторон (см) ───────────────────────────────────────────
-  const sideLeft   = heightLeft;
-  const sideRight  = heightRight;
+  const sideLeft = heightLeft;
+  const sideRight = heightRight;
   const sideBottom = widthBottom;
-  const sideTop    = computeSideTop(widthTop, heightLeft, heightRight, isHeightTrapezoid);
+  const sideTop = computeSideTop(widthTop, heightLeft, heightRight, isHeightTrapezoid);
 
   // ── Производственная площадь (не округляем до финального return) ────────────
   let areaCm2: number;
@@ -289,7 +289,7 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
     const h = Number(window.crossbar);
     if (!Number.isFinite(h) || h <= 0) {
       areaCm2 = calculateBoxAreaCm2(widthTop, widthBottom, heightLeft, heightRight);
-      isExact  = false;
+      isExact = false;
       logger.warn(LOG_MESSAGES.TRAPEZOID_IMPOSSIBLE, {
         windowId: window.id,
         windowName: window.name,
@@ -307,43 +307,46 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
   }
 
   // ── Розничная площадь (не округляем до финального return) ──────────────────
-  const maxW         = Math.max(widthTop, widthBottom);
-  const maxH         = Math.max(heightLeft, heightRight);
-  const retailAreaCm2 = maxW * maxH;
+  const maxW = Math.max(widthTop, widthBottom);
+  const maxH = Math.max(heightLeft, heightRight);
+  const retailAreaCm2 = (maxW + kantLeft + kantRight) * (maxH + kantTop + kantBottom);
 
   // ── Раскрой ────────────────────────────────────────────────────────────────
   const layout = optimizeRollLayout(maxW, maxH, window.material || 'PVC_700');
 
-  const finalRollWidth  = layout ? layout.roll        : (maxW + SOLDER_ALLOWANCE);
-  const finalCutAreaCm2 = layout ? layout.area        : (finalRollWidth * (maxH + SOLDER_ALLOWANCE));
-  const finalIsRotated  = layout ? layout.isRotated   : false;
+  const finalRollWidth = layout ? layout.roll : (maxW + SOLDER_ALLOWANCE);
+  const finalCutAreaCm2 = layout ? layout.area : (finalRollWidth * (maxH + SOLDER_ALLOWANCE));
+  const finalIsRotated = layout ? layout.isRotated : false;
 
-  const wasteAreaCm2 = Math.max(0, finalCutAreaCm2 - areaCm2);
+  const blankAreaCm2 = (maxW + SOLDER_ALLOWANCE) * (maxH + SOLDER_ALLOWANCE);
+  const wasteAreaCm2 = geometryType === 'trapezoid'
+    ? Math.max(0, finalCutAreaCm2 - areaCm2)
+    : Math.max(0, finalCutAreaCm2 - blankAreaCm2);
 
   // ── Периметр ───────────────────────────────────────────────────────────────
   const perimeter = sideTop + sideRight + sideBottom + sideLeft;
 
   // ── Площадь с кантом ───────────────────────────────────────────────────────
-  const kantedSideTop     = sideTop    + kantLeft + kantRight;
-  const kantedHeightRight = sideRight  + kantTop  + kantBottom;
+  const kantedSideTop = sideTop + kantLeft + kantRight;
+  const kantedHeightRight = sideRight + kantTop + kantBottom;
   const kantedWidthBottom = sideBottom + kantLeft + kantRight;
-  const kantedHeightLeft  = sideLeft   + kantTop  + kantBottom;
+  const kantedHeightLeft = sideLeft + kantTop + kantBottom;
 
   let areaWithKantCm2: number;
   if (canCalculateTrapezoid && isExact) {
-    const hKanted    = Number(window.crossbar) + kantTop + kantBottom;
-    const wTopKanted = widthTop    + kantLeft + kantRight;
-    const wBotKanted = widthBottom + kantLeft + kantRight;
-    areaWithKantCm2  = ((wTopKanted + wBotKanted) / 2) * hKanted;
+    const hKanted = Number(window.crossbar) + SOLDER_ALLOWANCE;
+    const wTopKanted = widthTop + SOLDER_ALLOWANCE;
+    const wBotKanted = widthBottom + SOLDER_ALLOWANCE;
+    areaWithKantCm2 = ((wTopKanted + wBotKanted) / 2) * hKanted;
   } else {
-    areaWithKantCm2 = (maxW + kantLeft + kantRight) * (maxH + kantTop + kantBottom);
+    areaWithKantCm2 = (maxW + SOLDER_ALLOWANCE) * (maxH + SOLDER_ALLOWANCE);
   }
 
   // ── Площадь канта по сторонам (2 слоя: лицо + тыл) ───────────────────────
-  const topKantAreaCm2    = kantedSideTop     * kantTop    * 2;
-  const rightKantAreaCm2  = kantedHeightRight * kantRight  * 2;
+  const topKantAreaCm2 = kantedSideTop * kantTop * 2;
+  const rightKantAreaCm2 = kantedHeightRight * kantRight * 2;
   const bottomKantAreaCm2 = kantedWidthBottom * kantBottom * 2;
-  const leftKantAreaCm2   = kantedHeightLeft  * kantLeft   * 2;
+  const leftKantAreaCm2 = kantedHeightLeft * kantLeft * 2;
 
   const kantAreaInProductCm2 =
     topKantAreaCm2 + rightKantAreaCm2 + bottomKantAreaCm2 + leftKantAreaCm2;
@@ -351,10 +354,10 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
   // Технологический перерасход: +30 см на каждую ленту канта (допуск машины)
   const KANT_MACHINE_WASTE_CM = 30;
   const kantWasteAreaCm2 =
-    (kantTop    > 0 ? KANT_MACHINE_WASTE_CM * kantTop    * 2 : 0) +
-    (kantRight  > 0 ? KANT_MACHINE_WASTE_CM * kantRight  * 2 : 0) +
+    (kantTop > 0 ? KANT_MACHINE_WASTE_CM * kantTop * 2 : 0) +
+    (kantRight > 0 ? KANT_MACHINE_WASTE_CM * kantRight * 2 : 0) +
     (kantBottom > 0 ? KANT_MACHINE_WASTE_CM * kantBottom * 2 : 0) +
-    (kantLeft   > 0 ? KANT_MACHINE_WASTE_CM * kantLeft   * 2 : 0);
+    (kantLeft > 0 ? KANT_MACHINE_WASTE_CM * kantLeft * 2 : 0);
 
   const kantTotalAreaCm2 = kantAreaInProductCm2 + kantWasteAreaCm2;
 
@@ -370,25 +373,25 @@ export function calculateWindowGeometry(window: WindowItem): WindowGeometry {
     sideRight,
 
     // Финансово значимые площади — 4 знака
-    retailArea:    round4(retailAreaCm2 / CM2_TO_M2),
-    productionArea: round4(areaCm2      / CM2_TO_M2),
+    retailArea: round4(retailAreaCm2 / CM2_TO_M2),
+    productionArea: round4(areaCm2 / CM2_TO_M2),
 
     // Отображаемые площади — 2 знака
-    areaWithKant:      roundM2(areaWithKantCm2     / CM2_TO_M2),
-    cutArea:           roundM2(finalCutAreaCm2      / CM2_TO_M2),
-    wasteArea:         roundM2(wasteAreaCm2         / CM2_TO_M2),
+    areaWithKant: roundM2(areaWithKantCm2 / CM2_TO_M2),
+    cutArea: roundM2(finalCutAreaCm2 / CM2_TO_M2),
+    wasteArea: roundM2(wasteAreaCm2 / CM2_TO_M2),
     kantAreaInProduct: roundM2(kantAreaInProductCm2 / CM2_TO_M2),
-    kantWasteArea:     roundM2(kantWasteAreaCm2     / CM2_TO_M2),
-    kantTotalArea:     roundM2(kantTotalAreaCm2     / CM2_TO_M2),
+    kantWasteArea: roundM2(kantWasteAreaCm2 / CM2_TO_M2),
+    kantTotalArea: roundM2(kantTotalAreaCm2 / CM2_TO_M2),
 
     perimeter,
     perimeterWithKant: kantedSideTop + kantedHeightRight + kantedWidthBottom + kantedHeightLeft,
 
-    maxWidth:  maxW,
+    maxWidth: maxW,
     maxHeight: maxH,
 
     rollWidth: finalRollWidth,
-    cutWidth:  maxW + SOLDER_ALLOWANCE,
+    cutWidth: maxW + SOLDER_ALLOWANCE,
     cutHeight: maxH + SOLDER_ALLOWANCE,
     isRotated: finalIsRotated,
     isOverSize: layout?.isOverSize ?? false,
@@ -446,8 +449,8 @@ export function calculateArea(window: WindowItem): number {
  */
 export function calculateOrderOptimization(windows: WindowItem[]): OrderOptimization {
   const results = windows.map(w => ({
-    id:       w.id,
-    geo:      calculateWindowGeometry(w),
+    id: w.id,
+    geo: calculateWindowGeometry(w),
     material: w.material || 'PVC_700',
   }));
 
@@ -458,14 +461,14 @@ export function calculateOrderOptimization(windows: WindowItem[]): OrderOptimiza
 
     if (!batchMap[key]) {
       batchMap[key] = {
-        material:    res.material,
-        rollWidth:   res.geo.rollWidth,
+        material: res.material,
+        rollWidth: res.geo.rollWidth,
         totalLength: 0,
-        windowIds:   [],
+        windowIds: [],
       };
     }
 
-    const orig   = windows.find(w => w.id === res.id)!;
+    const orig = windows.find(w => w.id === res.id)!;
     const length = res.geo.isRotated
       ? (Number(orig.widthTop) + SOLDER_ALLOWANCE)
       : (Math.max(Number(orig.heightLeft), Number(orig.heightRight)) + SOLDER_ALLOWANCE);
@@ -475,7 +478,7 @@ export function calculateOrderOptimization(windows: WindowItem[]): OrderOptimiza
   });
 
   return {
-    totalCutArea:   results.reduce((sum, r) => sum + r.geo.cutArea,   0),
+    totalCutArea: results.reduce((sum, r) => sum + r.geo.cutArea, 0),
     totalWasteArea: results.reduce((sum, r) => sum + r.geo.wasteArea, 0),
     batches: Object.values(batchMap),
   };

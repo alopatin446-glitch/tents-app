@@ -4,7 +4,6 @@ import React, { useState, useRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useVirtualizer } from '@tanstack/react-virtual'; // 🔥 НОВОЕ: Виртуализация
-
 import { useRouter } from 'next/navigation';
 import styles from './KanbanBoard.module.css';
 import ClientCard from './ClientCard';
@@ -12,7 +11,6 @@ import { Client, Stage } from './types';
 import { updatePipelineStage, deletePipelineStage } from '@/app/actions/pipeline';
 import { notifyError, notifySuccess } from '@/lib/notify';
 
-// Расширяем стандартный тип Stage для наших новых нужд
 interface ExtendedStage extends Stage {
   color?: string;
   isSystem?: boolean;
@@ -39,7 +37,6 @@ export default function StageColumn({
 }: StageColumnProps) {
   const router = useRouter();
 
-  // Логика сортировки колонок
   const {
     setNodeRef,
     attributes,
@@ -63,25 +60,13 @@ export default function StageColumn({
   const [editColor, setEditColor] = useState(stage.color || '#7BFF00');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Стилизуем полоску цвета сверху колонки
   const columnColor = stage.color || 'rgba(123, 255, 0, 0.1)';
 
-  // Стили для анимации перетаскивания колонки
   const dndStyle = {
     transition,
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.3 : 1,
   };
-
-  // 🔥 НОВОЕ: Настройка виртуализации
-  const parentRef = useRef<HTMLDivElement>(null);
-
-  const rowVirtualizer = useVirtualizer({
-    count: clients.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 140, // Примерная стартовая высота карточки с отступами
-    overscan: 10, // 🔥 Как ты и просил! Рендерим 10 невидимых карточек про запас для плавности
-  });
 
   const handleUpdateStage = async () => {
     if (!editName.trim()) return;
@@ -124,7 +109,7 @@ export default function StageColumn({
         notifySuccess('Стадия удалена');
         router.refresh();
       } else {
-        notifyError(res.error || 'Ошибка при удалении');
+        notifyError(res.error || 'Ошибка при удалении стадии');
       }
     } catch {
       notifyError('Сетевая ошибка');
@@ -139,11 +124,8 @@ export default function StageColumn({
       className={styles.column} 
       style={{ ...dndStyle, borderTop: `3px solid ${columnColor}` }}
     >
-      
-      {/* Шапка колонки с названием, итогами и меню настроек */}
       <div className={styles.columnHeader} style={{ position: 'relative' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          
           <div 
             {...attributes} 
             {...listeners} 
@@ -188,49 +170,21 @@ export default function StageColumn({
         )}
       </div>
 
-      {/* 🔥 НОВОЕ: Виртуализированный контейнер для карточек */}
-      <div 
-        ref={parentRef} 
-        className={styles.cardsContainer} 
-        style={{ overflowY: 'auto', position: 'relative' }}
-      >
-        <div
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
-          }}
-        >
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const client = clients[virtualRow.index];
-            return (
-              <div
-                key={client.id}
-                data-index={virtualRow.index}
-                ref={rowVirtualizer.measureElement}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`,
-                  paddingBottom: '10px', // Отступ между карточками
-                }}
-              >
-                <ClientCard
-                  client={client}
-                  isSelected={selectedIds.includes(String(client.id))}
-                  onSelect={() => onClientSelect(String(client.id))}
-                  onEdit={() => onClientEdit(client)}
-                  onOpenFull={() => onClientOpenFull(client)}
-                />
-              </div>
-            );
-          })}
-        </div>
+      {/* Контейнер для карточек клиентов — обычный рендер */}
+      <div className={styles.cardsContainer}>
+        {clients.map((client) => (
+          <div key={client.id} style={{ paddingBottom: '10px' }}>
+            <ClientCard
+              client={client}
+              isSelected={selectedIds.includes(String(client.id))}
+              onSelect={() => onClientSelect(String(client.id))}
+              onEdit={() => onClientEdit(client)}
+              onOpenFull={() => onClientOpenFull(client)}
+            />
+          </div>
+        ))}
       </div>
 
-      {/* Модальное окно редактирования стадии */}
       {isEditModalOpen && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
