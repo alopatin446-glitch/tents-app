@@ -27,6 +27,7 @@ import {
   getOuterTopCm,
   validateExtras,
   detectExtrasCollisions,
+  deriveStrapCountForWindow, // <--- Добавили сюда!
 } from '@/lib/logic/extrasCalculations';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -189,7 +190,7 @@ export default function ExtrasStep({
 
   // ── Вычисляемые значения ───────────────────────────────────────────────────
   const derivedStrapCount = useMemo(
-    () => (activeWindow ? deriveStrapCount(getOuterTopCm(activeWindow)) : 2),
+    () => (activeWindow ? deriveStrapCountForWindow(activeWindow) : 0),
     [activeWindow],
   );
 

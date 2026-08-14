@@ -32,7 +32,7 @@ import type {
   WeldingItem,
 } from '@/types';
 import { getInitialFastener } from '@/types';
-import { deriveStrapCount, getOuterTopCm } from '@/lib/logic/extrasCalculations';
+import { deriveStrapCount, getOuterTopCm, deriveStrapCountForWindow } from '@/lib/logic/extrasCalculations';
 import { calculateFastenerPoints } from '@/lib/logic/fastenerCalculations';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -552,50 +552,83 @@ function renderCutoutKantEdges(
  * Renders strap markers along the outer top edge.
  * grommet = circle with hole; fastex = filled rectangle tab.
  */
+/**
+ * Renders strap markers along the top edge, but bounded by the INNER width.
+ * (Straps hold the rolled-up light opening, not the kant).
+ */
 function renderStraps(
+  inner: QuadCorners,
   outer: QuadCorners,
   extras: AdditionalElements,
   circleR: number,
+  activeStrapCount: number
 ): React.ReactNode {
-  const count = extras.straps.isManual
-    ? extras.straps.count
-    : extras.straps.count; // already resolved in hook; just use it
-
-  if (count <= 0) return null;
+  if (activeStrapCount <= 0) return null;
 
   const markers: React.ReactNode[] = [];
-  for (let i = 0; i < count; i++) {
-    const t = count > 1 ? i / (count - 1) : 0.5;
-    const pt = getEdgePoint(outer.tl, outer.tr, t);
+  for (let i = 0; i < activeStrapCount; i++) {
+    const padding = activeStrapCount > 1 ? 0.1 : 0;
+    const t = activeStrapCount > 1 ? padding + (i / (activeStrapCount - 1)) * (1 - padding * 2) : 0.5;
+
+    // Берём X от внутренних углов (световой проём), а Y от внешнего края (верх окна)
+    const ptInner = getEdgePoint(inner.tl, inner.tr, t);
+    const pt = { x: ptInner.x, y: (outer.tl.y + outer.tr.y) / 2 };
+
     const isGrommet = extras.straps.type === 'grommet';
 
+    // Задаём пропорции "свисающего" ремешка
+    const strapWidth = circleR * 1.2;
+    const strapHeight = circleR * 3.5;
+
     if (isGrommet) {
+      // ВАРИАНТ 1: Ремешок ПВХ с люверсом (светлый хлястик свисает вниз)
       markers.push(
         <g key={`strap-${i}`}>
-          <circle cx={pt.x} cy={pt.y} r={circleR * 1.1} fill="rgba(230,230,230,0.95)" stroke="rgba(255,255,255,0.6)" strokeWidth="1" />
-          <circle cx={pt.x} cy={pt.y} r={circleR * 0.44} fill="rgba(30,40,60,0.85)" stroke="rgba(150,150,150,0.7)" strokeWidth="0.8" />
-        </g>,
+          <rect
+            x={pt.x - strapWidth / 2}
+            y={pt.y}
+            width={strapWidth}
+            height={strapHeight}
+            rx={3}
+            fill="rgba(220, 225, 230, 0.85)"
+            stroke="rgba(150, 160, 170, 0.9)"
+            strokeWidth="1"
+          />
+          <circle
+            cx={pt.x}
+            cy={pt.y + strapHeight - circleR * 0.8}
+            r={circleR * 0.35}
+            fill="rgba(30,40,60,0.85)"
+          />
+        </g>
       );
     } else {
-      // fastex — small rounded rectangle tab
-      const w = circleR * 1.8;
-      const h = circleR * 1.1;
+      // ВАРИАНТ 2: Ремешок Фастекс (тёмная тканевая стропа с пряжкой)
       markers.push(
-        <rect
-          key={`strap-${i}`}
-          x={pt.x - w / 2} y={pt.y - h / 2}
-          width={w} height={h}
-          rx={2}
-          fill="rgba(80,130,220,0.9)"
-          stroke="rgba(255,255,255,0.5)"
-          strokeWidth="0.8"
-        />,
+        <g key={`strap-${i}`}>
+          <rect
+            x={pt.x - strapWidth / 2}
+            y={pt.y}
+            width={strapWidth}
+            height={strapHeight}
+            rx={1}
+            fill="rgba(60, 70, 80, 0.9)"
+          />
+          <rect
+            x={pt.x - strapWidth * 0.7}
+            y={pt.y + strapHeight * 0.5}
+            width={strapWidth * 1.4}
+            height={circleR * 0.8}
+            rx={1.5}
+            fill="#111"
+          />
+        </g>
       );
     }
-  }
+  } // <--- Закрытие цикла for
 
   return <g key="straps">{markers}</g>;
-}
+} // <--- Закрытие функции renderStraps
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main component
@@ -615,9 +648,8 @@ export default function DrawingCanvas({
   const vbW = 600;
   const vbH = 500;
 
-  // Если показываем Допы, уменьшаем отступ до 10, чтобы окно раздулось на весь экран.
-  // Если только Крепеж, оставляем 40 (или 30), чтобы подписи не вылезали за края.
-  const padding = showExtras ? 10 : 35;
+  // Отступ от краев SVG-холста. Ставим 52px, чтобы подписи (вынос до -45px) гарантированно влезали.
+  const padding = 52;
 
   const drawW = vbW - padding * 2;
   const drawH = vbH - padding * 2;
@@ -704,7 +736,16 @@ export default function DrawingCanvas({
   const midLeft1: Point = { x: (x1 + outX1) / 2, y: (y1 + outY1) / 2 };
 
   // ── Extras setup ─────────────────────────────────────────────────────────
+  // ── Extras setup ─────────────────────────────────────────────────────────
   const extras = item.additionalElements;
+  // 🔥 Считаем живое количество ремешков для чертежа
+  // Было:
+  // const activeStrapCount = extras ? (extras.straps.isManual ? extras.straps.count : deriveStrapCount(getOuterTopCm(item))) : 0;
+
+  // Стало:
+  const activeStrapCount = extras
+    ? (extras.straps.isManual ? extras.straps.count : deriveStrapCountForWindow(item))
+    : 0;
 
   const cutoutMaskId = `material-cutout-mask-${item.id ?? 'current'}`;
 
@@ -936,8 +977,14 @@ export default function DrawingCanvas({
             )}
             {extras.cutouts.map((c) => renderCutoutItem(c, innerCorners, item))}
 
+            {/* 6f. Cutout kant edges + patches */}
+            {extras.cutouts.map((c) =>
+              renderCutoutKantEdges(c, innerCorners, item, strokeColor, scale),
+            )}
+            {extras.cutouts.map((c) => renderCutoutItem(c, innerCorners, item))}
+
             {/* 6g. Straps */}
-            {renderStraps(outerCorners, extras, circleR)}
+            {renderStraps(innerCorners, outerCorners, extras, circleR, activeStrapCount)}
           </g>
         )}
       </svg>

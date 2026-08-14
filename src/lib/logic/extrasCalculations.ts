@@ -29,33 +29,62 @@ import { logger } from '@/lib/logger';
 // ─────────────────────────────────────────────────────────────────────────────
 // Strap count derivation
 // ─────────────────────────────────────────────────────────────────────────────
-
 /**
- * Derives required strap count from the outer top horizontal dimension (cm).
- *
- * Table (per spec):
- *   0–115:   2
- *   116–140: 3
- *   141–205: 4
- *   206–275: 5
- *   276–345: 6
- *   >345:    6 + ceil((outerTop − 345) / 70)
+ * Проверяет, является ли окно открывающимся (сворачиваемым в рулон).
+ * Ремешки фиксации НЕ нужны, если окно без креплений или закреплено наглухо.
  */
-export function deriveStrapCount(outerTopCm: number): number {
-  if (outerTopCm <= 115) return 2;
-  if (outerTopCm <= 140) return 3;
-  if (outerTopCm <= 205) return 4;
-  if (outerTopCm <= 275) return 5;
-  if (outerTopCm <= 345) return 6;
-  return 6 + Math.ceil((outerTopCm - 345) / 70);
+export function isWindowOpenable(item: WindowItem): boolean {
+  const fasteners = item.fasteners;
+  if (!fasteners) return false;
+
+  // Без креплений или глухие люверсы 10мм -> окно не имеет функции открывания
+  if (fasteners.type === 'none' || fasteners.type === 'eyelet_10') {
+    return false;
+  }
+
+  // Проверяем, есть ли хотя бы одна активная расстёгивающаяся сторона
+  const sides = fasteners.sides;
+  if (!sides) return false;
+
+  return (
+    sides.left === true ||
+    sides.right === true ||
+    sides.bottom === true ||
+    sides.top === true
+  );
 }
 
 /**
- * Returns the outer top horizontal dimension for a window in cm.
- * Outer top = widthTop + kantLeft + kantRight.
+ * Вычисляет расчетное количество ремешков с учётом открываемости окна.
+ */
+export function deriveStrapCountForWindow(item: WindowItem): number {
+  if (!isWindowOpenable(item)) {
+    return 0;
+  }
+  return deriveStrapCount(item.widthTop);
+}
+/**
+ * Вычисляет количество ремешков фиксации от ВНУТРЕННЕЙ ширины изделия (widthTop, см).
+ * * Таблица шага (по световому проёму):
+ * 0–140 см:   2 ремешка
+ * 141–210 см: 3 ремешка
+ * 211–280 см: 4 ремешка
+ * 281–350 см: 5 ремешков
+ * >350 см:    5 + ceil((widthTop − 350) / 70)
+ */
+export function deriveStrapCount(widthTopCm: number): number {
+  if (widthTopCm <= 140) return 2;
+  if (widthTopCm <= 210) return 3;
+  if (widthTopCm <= 280) return 4;
+  if (widthTopCm <= 350) return 5;
+  return 5 + Math.ceil((widthTopCm - 350) / 70);
+}
+
+/**
+ * Возвращает внутреннюю ширину верхнего края без учёта канта.
  */
 export function getOuterTopCm(item: WindowItem): number {
-  return item.widthTop + item.kantLeft + item.kantRight;
+  return item.widthTop;
 }
 
 /**
@@ -292,15 +321,40 @@ export function detectExtrasCollisions(item: WindowItem): CollisionWarning[] {
 // Legacy window normalization
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Legacy window normalization
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Legacy window normalization
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function normalizeWindowExtras(item: WindowItem): WindowItem {
-  if (item.additionalElements) return item;
-  const outerTop = getOuterTopCm(item);
-  const derivedCount = deriveStrapCount(outerTop);
+  const derivedCount = deriveStrapCountForWindow(item);
+
+  if (item.additionalElements) {
+    if (!item.additionalElements.straps.isManual) {
+      if (item.additionalElements.straps.count !== derivedCount) {
+        return {
+          ...item,
+          additionalElements: {
+            ...item.additionalElements,
+            straps: {
+              ...item.additionalElements.straps,
+              count: derivedCount
+            }
+          }
+        };
+      }
+    }
+    return item;
+  }
+
   const additionalElements: AdditionalElements = {
     ...createDefaultAdditionalElements(),
     straps: { count: derivedCount, isManual: false, type: 'grommet' },
   };
-  logger.info('[extrasCalculations] Normalized additionalElements for legacy window', { windowId: item.id, derivedStrapCount: derivedCount });
+  logger.info('[extrasCalculations] Normalized additionalElements', { windowId: item.id, derivedStrapCount: derivedCount });
   return { ...item, additionalElements };
 }
 
@@ -341,8 +395,7 @@ export function normalizeExtrasOnResize(current: WindowItem, prev: WindowItem): 
     return { ...c, x: cx * scaleX - newW / 2, y: cy * scaleY - newH / 2, width: newW, height: newH };
   };
 
-  const outerTop = getOuterTopCm(current);
-  const derivedCount = deriveStrapCount(outerTop);
+  const derivedCount = deriveStrapCountForWindow(current);
   const straps = extras.straps.isManual ? extras.straps : { ...extras.straps, count: derivedCount };
 
   return { ...extras, straps, zippers: extras.zippers.map(scaleZipper), dividers: extras.dividers.map(scaleDivider), welding: extras.welding.map(scaleWelding), cutouts: extras.cutouts.map(scaleCutout) };
@@ -352,12 +405,6 @@ export function normalizeExtrasOnResize(current: WindowItem, prev: WindowItem): 
 // Price calculation: extras → ServiceItem[]
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Читает пару retail/cost для slug из PriceMap.
- *
- * Ключи берутся из ADDON_PRICE_CONFIG — единственного источника имён ключей.
- * Если ключ отсутствует в priceMap → 9999, что активирует hasPriceError в OrderLedger.
- */
 function resolveAddonPrice(
   priceMap: PriceMap,
   slug: AddonSlug,
@@ -369,19 +416,6 @@ function resolveAddonPrice(
   };
 }
 
-/**
- * Конвертирует все допы одного окна в массив ServiceItem[].
- *
- * Использует тот же PriceMap, что и calculateWindowFinance — никакого
- * дублирования источника цен.
- *
- * id строки детерминирован (`${slug}-w${window.id}-${element.id}`),
- * что позволяет extractWindowServices() точно фильтровать гроссбух по окну.
- *
- * @param window    — изделие с additionalElements
- * @param priceMap  — живой прайс (Record<string, number>)
- * @param windowIdx — индекс для лейблов (опционально)
- */
 export function calculateExtrasAsServiceItems(
   window: WindowItem,
   priceMap: PriceMap,
@@ -398,14 +432,14 @@ export function calculateExtrasAsServiceItems(
   const dividers = extras.dividers ?? [];
   const cutouts = extras.cutouts ?? [];
   const welding = extras.welding ?? [];
-  const strapsCount = extras.straps?.count ?? 0;
+
+  // 🔥 Берем живой расчёт с учётом типа крепления
+  const strapsCount = extras.straps?.isManual
+    ? (extras.straps?.count ?? 0)
+    : deriveStrapCountForWindow(window);
   const strapsType = extras.straps?.type ?? 'grommet';
 
   // ── Молнии ────────────────────────────────────────────────────────────────
-  // retail: из addo_zipper_retail (не меняем)
-  // cost:   outer_length_м × addo_zipper_cost_per_meter (250 ₽/м)
-  //         vertical   → outerHeight = max(heightLeft, heightRight) + kantTop + kantBottom
-  //         horizontal → outerWidth  = max(widthTop, widthBottom)  + kantLeft + kantRight
   const outerWidthCm = Math.max(window.widthTop, window.widthBottom) + window.kantLeft + window.kantRight;
   const outerHeightCm = Math.max(window.heightLeft, window.heightRight) + window.kantTop + window.kantBottom;
   const zipperCostPerMeter = priceMap['addo_zipper_cost_per_meter'] ?? 250;
