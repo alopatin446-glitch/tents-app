@@ -372,8 +372,8 @@ function GeoSection({ row }: { row: WindowRow }) {
         <Row label="Рулон" value={fCm(g.rollWidth)} />
         <Row label="Длина отреза по рулону" value={fM(g.isRotated ? g.cutWidth : g.cutHeight)} />
         <Row label="Производство м²" value={`${g.productionArea.toFixed(4)} м²`} />
-        <Row label="Чек (Max W×H) м²" value={`${g.retailArea.toFixed(4)} м²`} variant="ok" />
-        <Row label="С кантом м²" value={formatArea(g.areaWithKant)} />
+        <Row label="Чек розницы (Max W×H) м²" value={`${g.retailArea.toFixed(4)} м²`} variant="ok" />
+        <Row label="Загатовка" value={formatArea(g.areaWithKant)} />
         <Row label="Списание рулона" value={formatArea(g.cutArea)} variant="ok" />
         <Row label="Перерасход плёнки" value={formatArea(g.wasteArea)} variant={g.wasteArea > 0 ? 'warn' : 'ok'} />
         {g.type === 'trapezoid' && (

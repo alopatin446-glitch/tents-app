@@ -44,8 +44,9 @@
 import {
   ROLL_WIDTHS,
   SMART_TOLERANCE,
+  SOLDER_ALLOWANCE, // 🔥 Добавили сюда!
 } from '@/lib/logic/windowCalculations';
-import { buildTopologySummary }    from './topologySummary';
+import { buildTopologySummary } from './topologySummary';
 import { buildOrderSharedLayouts } from './buildSharedLayouts';
 import type {
   FilmElement,
@@ -97,31 +98,32 @@ function fitElementToRoll(el: FilmElement): ElementRollFit {
       : undefined;
 
   // Cut areas (rollWidth × stripLength along roll)
-  const normalArea:  number = normalRoll  ? normalRoll  * el.cutH : Infinity;
+  const normalArea: number = normalRoll ? normalRoll * el.cutH : Infinity;
   const rotatedArea: number = rotatedRoll ? rotatedRoll * el.cutW : Infinity;
 
-  let rollWidth:  number;
-  let isRotated:  boolean;
+  let rollWidth: number;
+  let isRotated: boolean;
   let isOverSize: boolean;
 
   if (normalRoll !== undefined && normalArea <= rotatedArea) {
-    rollWidth  = normalRoll;
-    isRotated  = false;
+    rollWidth = normalRoll;
+    isRotated = false;
     isOverSize = false;
   } else if (rotatedRoll !== undefined) {
-    rollWidth  = rotatedRoll;
-    isRotated  = true;
+    rollWidth = rotatedRoll;
+    isRotated = true;
     isOverSize = false;
   } else {
-    rollWidth  = maxRoll;
-    isRotated  = false;
+    rollWidth = maxRoll;
+    isRotated = false;
     isOverSize = true;
   }
 
-  const stripLength:    number = isRotated ? el.cutW : el.cutH;
-  const cutArea:        number = round2(rollWidth * stripLength / 10_000);
-  const productionArea: number = round2(el.physW * el.physH / 10_000);
-  const wasteArea:      number = Math.max(0, round2(cutArea - productionArea));
+  const stripLength: number = isRotated ? el.cutW : el.cutH;
+  const cutArea: number = round2(rollWidth * stripLength / 10_000);
+  // 🔥 ИСПРАВЛЕНИЕ: Добавляем припуск 6 см, чтобы он не улетал в перерасход!
+  const productionArea: number = round2((el.physW + SOLDER_ALLOWANCE) * (el.physH + SOLDER_ALLOWANCE) / 10_000);
+  const wasteArea: number = Math.max(0, round2(cutArea - productionArea));
 
   return {
     elementId: el.id,
@@ -139,12 +141,12 @@ function fitElementToRoll(el: FilmElement): ElementRollFit {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Default remnant thresholds: 80×80 cm (both sides must pass). */
-const DEFAULT_MIN_REMNANT_WIDTH_CM  = 80;
+const DEFAULT_MIN_REMNANT_WIDTH_CM = 80;
 const DEFAULT_MIN_REMNANT_LENGTH_CM = 80;
 
 /** Shape matches OptimizerInput.remnantOptions. */
 interface RemnantThresholds {
-  minUsableWidthCm?:  number;
+  minUsableWidthCm?: number;
   minUsableLengthCm?: number;
 }
 
@@ -165,29 +167,29 @@ interface RemnantThresholds {
  *       Does NOT affect totalExpenses or financial snapshots.
  */
 function detectRemnant(
-  el:          FilmElement,
-  fit:         ElementRollFit,
+  el: FilmElement,
+  fit: ElementRollFit,
   thresholds?: RemnantThresholds,
 ): PotentialRemnant | null {
   if (fit.isOverSize) return null;
 
-  const minWidth:  number = thresholds?.minUsableWidthCm  ?? DEFAULT_MIN_REMNANT_WIDTH_CM;
+  const minWidth: number = thresholds?.minUsableWidthCm ?? DEFAULT_MIN_REMNANT_WIDTH_CM;
   const minLength: number = thresholds?.minUsableLengthCm ?? DEFAULT_MIN_REMNANT_LENGTH_CM;
 
-  const usedWidth:       number = fit.isRotated ? el.cutH : el.cutW;
-  const remnantWidthCm:  number = fit.rollWidth - usedWidth;
+  const usedWidth: number = fit.isRotated ? el.cutH : el.cutW;
+  const remnantWidthCm: number = fit.rollWidth - usedWidth;
   const remnantLengthCm: number = fit.isRotated ? el.cutW : el.cutH;
 
-  if (remnantWidthCm  < minWidth)  return null;
+  if (remnantWidthCm < minWidth) return null;
   if (remnantLengthCm < minLength) return null;
 
   return {
-    material:        el.material,
-    rollWidth:       fit.rollWidth,
-    remnantWidthCm:  Math.round(remnantWidthCm),
+    material: el.material,
+    rollWidth: fit.rollWidth,
+    remnantWidthCm: Math.round(remnantWidthCm),
     remnantLengthCm: Math.round(remnantLengthCm),
-    area:            round2(remnantWidthCm * remnantLengthCm / 10_000),
-    note:            'optimization_metadata_only',
+    area: round2(remnantWidthCm * remnantLengthCm / 10_000),
+    note: 'optimization_metadata_only',
   };
 }
 
@@ -196,7 +198,7 @@ function detectRemnant(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function detectElementConstraintViolations(
-  el:  FilmElement,
+  el: FilmElement,
   fit: ElementRollFit,
 ): ConstraintViolation[] {
   const violations: ConstraintViolation[] = [];
@@ -204,8 +206,8 @@ function detectElementConstraintViolations(
   if (fit.isOverSize) {
     violations.push({
       constraintId: 'ROLL_FITTING',
-      description:  `Элемент ${el.id} (${el.cutW}×${el.cutH} см) превышает максимальный рулон для ${el.material}. Требуется split-стратегия (Chapter D).`,
-      severity:     'hard',
+      description: `Элемент ${el.id} (${el.cutW}×${el.cutH} см) превышает максимальный рулон для ${el.material}. Требуется split-стратегия (Chapter D).`,
+      severity: 'hard',
     });
   }
 
@@ -217,9 +219,9 @@ function detectElementConstraintViolations(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildElementStrategy(el: FilmElement): ElementProductionStrategy {
-  const rollFit:             ElementRollFit      = fitElementToRoll(el);
+  const rollFit: ElementRollFit = fitElementToRoll(el);
   const violatedConstraints: ConstraintViolation[] = detectElementConstraintViolations(el, rollFit);
-  const isValid:             boolean             = violatedConstraints.every(
+  const isValid: boolean = violatedConstraints.every(
     (v: ConstraintViolation) => v.severity !== 'hard',
   );
 
@@ -255,7 +257,7 @@ function countRollSwitches(strategies: ElementProductionStrategy[]): number {
  * This function is NOT modified by Chapter D.
  */
 function buildSinglePieceAllVariant(
-  elements:    FilmElement[],
+  elements: FilmElement[],
   thresholds?: RemnantThresholds,
 ): CandidateVariant {
   const strategies: ElementProductionStrategy[] = elements.map(
@@ -314,14 +316,14 @@ function buildSinglePieceAllVariant(
     .filter((r: PotentialRemnant | null): r is PotentialRemnant => r !== null);
 
   return {
-    id:           'v1_single_piece_all',
+    id: 'v1_single_piece_all',
     strategyType: 'single_piece_all',
     // Description is topology-aware — built from actual section/seam counts.
     // NOT derived from strategyType string to avoid misleading "no seams" text
     // when split sections are present.
     description: topologyExplanation,
 
-    elementStrategies:   strategies,
+    elementStrategies: strategies,
     totalCutArea,
     totalWasteArea,
     totalProductionArea,
@@ -381,7 +383,7 @@ function buildSinglePieceAllVariant(
  *   In that case generateCandidateVariants returns only [v1].
  */
 function buildGroupedSharedRowVariant(
-  elements:    FilmElement[],
+  elements: FilmElement[],
   thresholds?: RemnantThresholds,
 ): CandidateVariant | null {
   if (elements.length < 2) return null;
@@ -445,26 +447,27 @@ function buildGroupedSharedRowVariant(
       // to its own placedLength, even though physically the strip is shared.
       // This is conservative (sum of prorated areas ≥ SharedLayout.cutArea)
       // and honest — it never understates waste.
-      const proratedCutArea:   number = round2(layout.rollWidth * placement.placedLength / 10_000);
-      const productionArea:    number = round2(el.physW * el.physH / 10_000);
+      const proratedCutArea: number = round2(layout.rollWidth * placement.placedLength / 10_000);
+      // 🔥 ИСПРАВЛЕНИЕ: Добавляем припуск 6 см
+      const productionArea: number = round2((el.physW + SOLDER_ALLOWANCE) * (el.physH + SOLDER_ALLOWANCE) / 10_000);
       const proratedWasteArea: number = round2(Math.max(0, proratedCutArea - productionArea));
 
       const rollFit: ElementRollFit = {
-        elementId:      el.id,
-        rollWidth:      layout.rollWidth,
-        isRotated:      placement.isRotated,
-        isOverSize:     false,
-        cutArea:        proratedCutArea,
+        elementId: el.id,
+        rollWidth: layout.rollWidth,
+        isRotated: placement.isRotated,
+        isOverSize: false,
+        cutArea: proratedCutArea,
         productionArea,
-        wasteArea:      proratedWasteArea,
+        wasteArea: proratedWasteArea,
         // sharedLayoutId links this element to its SharedLayout for UI / audit
         sharedLayoutId: layout.id,
       };
 
       strategies.push({
-        element:             el,
+        element: el,
         rollFit,
-        isValid:             true,
+        isValid: true,
         violatedConstraints: [],
       });
     } else {
@@ -497,7 +500,7 @@ function buildGroupedSharedRowVariant(
       0,
     );
 
-  const totalCutArea:        number = round2(groupedLayoutArea + individualArea);
+  const totalCutArea: number = round2(groupedLayoutArea + individualArea);
   const totalProductionArea: number = round2(
     strategies.reduce(
       (acc: number, es: ElementProductionStrategy) => acc + es.rollFit.productionArea,
@@ -547,19 +550,19 @@ function buildGroupedSharedRowVariant(
   // Individual elements: standard detectRemnant (unused rollWidth after single cut).
   // All remnants are METADATA ONLY — not written to DB, not financial credits.
   const potentialRemnants: PotentialRemnant[] = [];
-  const minWidth:  number = thresholds?.minUsableWidthCm  ?? 80;
+  const minWidth: number = thresholds?.minUsableWidthCm ?? 80;
   const minLength: number = thresholds?.minUsableLengthCm ?? 80;
 
   for (const sl of sharedLayouts) {
     // SharedLayout remnant: the unused strip width × the strip length
     if (sl.remnantWidthCm >= minWidth && sl.layoutLength >= minLength) {
       potentialRemnants.push({
-        material:        sl.material,
-        rollWidth:       sl.rollWidth,
-        remnantWidthCm:  Math.round(sl.remnantWidthCm),
+        material: sl.material,
+        rollWidth: sl.rollWidth,
+        remnantWidthCm: Math.round(sl.remnantWidthCm),
         remnantLengthCm: Math.round(sl.layoutLength),
-        area:            round2(sl.remnantWidthCm * sl.layoutLength / 10_000),
-        note:            'optimization_metadata_only',
+        area: round2(sl.remnantWidthCm * sl.layoutLength / 10_000),
+        note: 'optimization_metadata_only',
       });
     }
   }
@@ -589,11 +592,11 @@ function buildGroupedSharedRowVariant(
 
   // ── Return ─────────────────────────────────────────────────────────────────
   return {
-    id:           'v2_grouped_shared_row',
+    id: 'v2_grouped_shared_row',
     strategyType: 'grouped_shared_row',
-    description:  v2Description,
+    description: v2Description,
 
-    elementStrategies:   strategies,
+    elementStrategies: strategies,
     totalCutArea,
     totalWasteArea,
     totalProductionArea,
@@ -637,7 +640,7 @@ function buildGroupedSharedRowVariant(
  * Do NOT return early on validity — all variants must reach validateProductionStrategy.
  */
 export function generateCandidateVariants(
-  elements:    FilmElement[],
+  elements: FilmElement[],
   thresholds?: RemnantThresholds,
 ): CandidateVariant[] {
   if (elements.length === 0) return [];
