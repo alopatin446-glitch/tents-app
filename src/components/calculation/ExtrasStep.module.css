@@ -2,22 +2,22 @@
 
 /* ── Layout ────────────────────────────────────────────────────────────────── */
 
+/* 1. ГЛАВНАЯ СЕТКА: 340px левая панель, остальное под чертеж */
 .layout {
   display: grid;
-  /* Левая панель строго 280px, правая забирает ВСЁ остальное (1fr) */
-  grid-template-columns: 330px 1fr;
-  gap: 15px;
-  /* Уменьшаем зазор между панелями до эталонного */
-  padding: 10px;
-  /* Уменьшаем внешние поля, чтобы панели стали шире */
-  height: 100%;
-  width: 45%;
-  /* Убедимся, что сетка растянута на всю ширину */
-  box-sizing: border-box;
-  overflow: hidden;
-  height: 100%;
+  grid-template-columns: 340px 1fr;
+  /* БЫЛО 330px */
+  gap: 20px;
+  /* БЫЛО 15px */
   align-items: stretch;
-  /* ДОБАВЛЕНО: Гарантируем, что макет не выйдет за пределы экрана. */
+  padding: 20px;
+  /* БЫЛО 10px */
+  width: 100%;
+  /* БЫЛО 45% — вот она, главная ошибка! */
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 /* ── Panels ────────────────────────────────────────────────────────────────── */
@@ -38,12 +38,15 @@
   background: #242D3E;
   border: 1px solid rgba(123, 255, 0, 0.2);
   border-radius: 20px;
-  padding: 15px;
+  padding: 24px;
+  /* БЫЛО 15px, стало 24px как в эталоне */
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
   min-width: 0;
+  height: 100%;
+  /* На всякий случай жестко задаем высоту */
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
@@ -487,7 +490,8 @@
   transition: 0.3s;
   letter-spacing: 0.04em;
   flex-shrink: 0;
-  margin: 0;
+  margin-top: auto;
+  /* ВОТ ЭТА МАГИЯ прижмёт кнопку в самый низ! */
 }
 
 .saveButton:hover:not(:disabled) {
@@ -575,4 +579,29 @@
   height: 100%;
   color: rgba(255, 255, 255, 0.3);
   font-size: 14px;
+}
+
+/* ── Инфо-бар под чертежом ─────────────────────────────────────────────────── */
+
+.bottomInfoBar {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 30px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(123, 255, 0, 0.1);
+  border-radius: 50px;
+  margin-top: 15px;
+  flex-shrink: 0;
+}
+
+.statLabel {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.statLabel span {
+  color: #fff;
+  font-weight: 700;
+  margin-left: 8px;
 }

@@ -864,18 +864,14 @@ export default function ExtrasStep({
                   switch (text) {
                     case 'Skirt is enabled but skirtWidth is missing or zero':
                       return 'Включена юбка, но не задана её ширина';
-
                     case 'Invalid skirt width':
                       return 'Некорректная ширина юбки';
-
                     case 'Invalid input values':
                       return 'Некорректные значения параметров';
-
                     default:
                       return text;
                   }
                 };
-
                 return <li key={err}>{translateError(err)}</li>;
               })}
             </ul>
@@ -891,24 +887,18 @@ export default function ExtrasStep({
                   switch (text) {
                     case 'Skirt overlaps with bottom fasteners':
                       return 'Юбка пересекается с нижними креплениями';
-
                     case 'Zipper overlaps with fasteners':
                       return 'Молния пересекается с креплениями';
-
                     case 'Separator overlaps with fasteners':
                       return 'Разделитель пересекается с креплениями';
-
                     case 'Cutout overlaps with fasteners':
                       return 'Вырез пересекается с креплениями';
-
                     case 'Patch overlaps with fasteners':
                       return 'Заплатка пересекается с креплениями';
-
                     default:
                       return text;
                   }
                 };
-
                 return <li key={i}>{translateWarning(w.message)}</li>;
               })}
             </ul>
@@ -952,6 +942,50 @@ export default function ExtrasStep({
 
         <div className={styles.canvasWrapper}>
           <DrawingCanvas item={activeWindow} showFasteners showExtras />
+        </div>
+
+        {/* ── ДОБАВЛЕННЫЙ ИНФО-БАР (СВОДКА ПО ДОПАМ) ── */}
+        <div className={styles.bottomInfoBar}>
+          <div className={styles.statLabel}>
+            Выбрано: <span>{activeWindow.name}</span>
+          </div>
+
+          <div className={styles.statLabel}>
+            Ремешки: <span>{extras.straps.count} шт.</span>
+          </div>
+
+          {(extras.zippers.length > 0 || extras.dividers.length > 0) && (
+            <div className={styles.statLabel}>
+              Врезки:{' '}
+              <span>
+                {[
+                  extras.zippers.length > 0 ? `${extras.zippers.length} молн.` : null,
+                  extras.dividers.length > 0 ? `${extras.dividers.length} разд.` : null,
+                ].filter(Boolean).join(' + ')}
+              </span>
+            </div>
+          )}
+
+          {extras.cutouts.length > 0 && (
+            <div className={styles.statLabel}>
+              Вырезы/Заплатки: <span>{extras.cutouts.length} шт.</span>
+            </div>
+          )}
+
+          {extras.welding.length > 0 && (
+            <div className={styles.statLabel}>
+              Швы: <span>{extras.welding.length} шт.</span>
+            </div>
+          )}
+
+          {(extras.hasSkirt || extras.hasWeight) && (
+            <div className={styles.statLabel} style={{ color: '#7BFF00' }}>
+              {[
+                extras.hasSkirt ? 'ЮБКА' : null,
+                extras.hasWeight ? 'УТЯЖЕЛИТЕЛЬ' : null,
+              ].filter(Boolean).join(' + ')}
+            </div>
+          )}
         </div>
       </div>
     </div>
