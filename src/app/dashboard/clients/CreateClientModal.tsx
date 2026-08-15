@@ -2,113 +2,111 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-// createClientAction живёт в @/app/actions, а не в ./actions
-import { createClientAction } from '@/app/actions';
-import { useClients } from './ClientContext';
-// Добавляем импорт типа для priceMap, если он есть, или используем Record
-import ClientStep, { type ClientFormData } from '@/components/calculation/ClientStep';
-import styles from './KanbanBoard.module.css';
-import { notifyError, notifySuccess } from '@/lib/notify';
+import { createClientAction } from './actions';
+import { notifyError } from '@/lib/notify';
+import styles from './CreateClientModal.module.css';
 
-// Добавляем priceMap в пропсы модалки
-export default function CreateClientModal({
-  onClose,
-  priceMap
-}: {
+interface CreateClientModalProps {
+  priceMap: Record<string, number>;
   onClose: () => void;
-  priceMap: Record<string, number>; // Добавили обязательный пропс
-}) {
+}
+
+export default function CreateClientModal({ onClose }: CreateClientModalProps) {
   const router = useRouter();
-  const { addClient } = useClients();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fio, setFio] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
 
-  // 🔥 НОВОЕ: Добавляем стейт для защиты от двойного клика (BUG-001/BUG-006 protection)
-  const [isSaving, setIsSaving] = useState(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fio.trim()) {
+      notifyError('Введите имя клиента');
+      return;
+    }
 
-  // Сигнатура совпадает с ClientStep.onSave: (data: ClientFormData) => void | Promise<void>
-  const handleFinalSave = async (formData: ClientFormData): Promise<void> => {
-    if (isSaving) return; // 🔥 Блокируем повторный вызов
-    setIsSaving(true);
-
+    setIsSubmitting(true);
     try {
-      const result = await createClientAction({
-        fio: formData.fio,
-        phone: formData.phone,
-        address: formData.address,
-        source: formData.source,
-        status: formData.status ?? 'negotiation',
-        paymentType: formData.paymentType,
-        managerComment: formData.managerComment,
-        engineerComment: formData.engineerComment,
-        totalPrice: formData.totalPrice,
-        advance: formData.advance,
-        costPrice: formData.costPrice,
-        overspending: formData.overspending,
-        productionCost: formData.productionCost,
-        mountingCost: formData.mountingCost,
-        measurementDate: formData.measurementDate,
-        installDate: formData.installDate,
+      const res = await createClientAction({
+        fio,
+        phone,
+        address,
       });
 
-      if (result.success) {
-        addClient({
-          id: result.id,
-          fio: String(formData.fio || 'Без имени'),
-          phone: String(formData.phone || ''),
-          address: formData.address ? String(formData.address) : null,
-          source: formData.source ? String(formData.source) : null,
-          totalPrice: Number(formData.totalPrice || 0),
-          advance: Number(formData.advance || 0),
-          balance: Number(formData.totalPrice || 0) - Number(formData.advance || 0),
-          status: (formData.status || 'negotiation') as any, // 🔥 Обманываем TypeScript
-          createdAt: new Date().toISOString(),
-          paymentType: formData.paymentType ? String(formData.paymentType) : null,
-          managerComment: formData.managerComment ? String(formData.managerComment) : null,
-          engineerComment: formData.engineerComment ? String(formData.engineerComment) : null,
-        });
-
-        notifySuccess('Клиент успешно создан');
+      if (res.success) {
         onClose();
         router.refresh();
       } else {
-        notifyError(result.error || 'Ошибка при сохранении карточки');
+        notifyError(res.error || 'Ошибка создания клиента');
       }
     } catch {
-      notifyError('Ошибка при сохранении карточки');
+      notifyError('Ошибка сети');
     } finally {
-      setIsSaving(false); // 🔥 Освобождаем блокировку при любом исходе (успех/ошибка)
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className={styles.modalOverlay}>
-      <div
-        className={styles.editModal}
-        style={{ width: '1000px', maxWidth: '95vw', height: '90vh', overflowY: 'auto', padding: '0', background: '#0a0a0a', position: 'relative' }}
-      >
-        <div style={{ padding: '20px', borderBottom: '1px solid rgba(0,243,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ color: '#00f3ff', margin: 0, fontSize: '1.2rem' }}>НОВЫЙ ЗАКАЗ / КЛИЕНТ</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.5rem' }}>×</button>
-        </div>
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <header className={styles.modalHeader}>
+          <h2 className={styles.modalTitle}>👤 НОВЫЙ КЛИЕНТ</h2>
+          <button className={styles.closeBtn} onClick={onClose} disabled={isSubmitting}>
+            ×
+          </button>
+        </header>
 
-        {/* ПЕРЕДАЕМ priceMap — ЭТО УБИРАЕТ ОШИБКУ ТИПОВ */}
-        <ClientStep
-          initialData={{ status: 'negotiation' }}
-          onSave={handleFinalSave}
-          onClose={onClose}
-          priceMap={priceMap}
-          calculatedTotalExpenses={0}
-        />
+        <form onSubmit={handleSubmit}>
+          <div className={styles.modalBody}>
+            <div className={styles.field}>
+              <label>ФИО / ИМЯ КЛИЕНТА *</label>
+              <input
+                type="text"
+                className={styles.input}
+                placeholder="Иван Иванов"
+                value={fio}
+                onChange={(e) => setFio(e.target.value)}
+                autoFocus
+              />
+            </div>
 
-        {/* 🔥 НОВОЕ: Визуальный индикатор загрузки, если кто-то нажал кнопку */}
-        {isSaving && (
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.5)', zIndex: 10, display: 'flex',
-            justifyContent: 'center', alignItems: 'center', color: '#00f3ff'
-          }}>
-            Сохранение...
+            <div className={styles.field}>
+              <label>ТЕЛЕФОН</label>
+              <input
+                type="text"
+                className={styles.input}
+                placeholder="+7 (999) 000-00-00"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label>АДРЕС ОБЪЕКТА</label>
+              <input
+                type="text"
+                className={styles.input}
+                placeholder="г. Москва, ул. Ленина, д. 10"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </div>
           </div>
-        )}
+
+          <footer className={styles.modalFooter}>
+            <button
+              type="button"
+              className={styles.cancelBtn}
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Отмена
+            </button>
+            <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+              {isSubmitting ? 'Сохранение...' : 'Создать'}
+            </button>
+          </footer>
+        </form>
       </div>
     </div>
   );

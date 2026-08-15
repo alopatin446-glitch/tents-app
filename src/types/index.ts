@@ -15,7 +15,7 @@
  */
 
 import { type ClientStatus } from '@/lib/logic/statusDictionary';
-import { type ServiceItem }  from '@/logic/orders/Order';
+import { type ServiceItem } from '@/logic/orders/Order';
 
 // Реэкспортируем WindowGeometry, чтобы импортировать её из '@/types'
 // вместо прямого пути к windowCalculations.ts.
@@ -42,32 +42,32 @@ export type FastenerFinish = 'zinc' | 'black' | 'color' | null;
 export type FastenerSideState = 'default' | boolean;
 
 export interface FastenerSides {
-  top:    FastenerSideState;
-  right:  boolean;
+  top: FastenerSideState;
+  right: boolean;
   bottom: boolean;
-  left:   boolean;
+  left: boolean;
 }
 
 export interface FastenerConfig {
-  type:         FastenerType;
-  sides:        FastenerSides;
-  finish:       FastenerFinish;
-  priceRetail:  number;
+  type: FastenerType;
+  sides: FastenerSides;
+  finish: FastenerFinish;
+  priceRetail: number;
   pointsCount?: number;
-  priceCost:    number;
-  retailCost?:  number;
-  costCost?:    number;
+  priceCost: number;
+  retailCost?: number;
+  costCost?: number;
 }
 
 export function getInitialFastener(): FastenerConfig {
   return {
-    type:   'none',
-    sides:  { top: false, right: false, bottom: false, left: false },
+    type: 'none',
+    sides: { top: false, right: false, bottom: false, left: false },
     finish: null,
     priceRetail: 0,
-    priceCost:   0,
-    retailCost:  0,
-    costCost:    0,
+    priceCost: 0,
+    retailCost: 0,
+    costCost: 0,
   };
 }
 
@@ -81,9 +81,9 @@ export const getDefaultFastenerConfig = getInitialFastener;
 export type StrapType = 'grommet' | 'fastex';
 
 export interface StrapConfig {
-  count:    number;
+  count: number;
   isManual: boolean;
-  type:     StrapType;
+  type: StrapType;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,13 +93,13 @@ export interface StrapConfig {
 export type ElementOrientation = 'horizontal' | 'vertical';
 
 export interface ZipperItem {
-  id:                string;
-  orientation:       ElementOrientation;
+  id: string;
+  orientation: ElementOrientation;
   positionFromStart: number;
-  offsetStart:       number;
-  offsetEnd:         number;
-  bandLeft:          number;
-  bandRight:         number;
+  offsetStart: number;
+  offsetEnd: number;
+  bandLeft: number;
+  bandRight: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,12 +107,12 @@ export interface ZipperItem {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface DividerItem {
-  id:          string;
+  id: string;
   orientation: ElementOrientation;
-  position:    number;
+  position: number;
   offsetStart: number;
-  offsetEnd:   number;
-  width:       number;
+  offsetEnd: number;
+  width: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,11 +122,11 @@ export interface DividerItem {
 export type CutoutType = 'cut' | 'patch';
 
 export interface CutoutItem {
-  id:     string;
-  type:   CutoutType;
-  x:      number;
-  y:      number;
-  width:  number;
+  id: string;
+  type: CutoutType;
+  x: number;
+  y: number;
+  width: number;
   height: number;
 }
 
@@ -135,9 +135,9 @@ export interface CutoutItem {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface WeldingItem {
-  id:          string;
+  id: string;
   orientation: ElementOrientation;
-  position:    number;
+  position: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,14 +145,14 @@ export interface WeldingItem {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface AdditionalElements {
-  straps:     StrapConfig;
-  zippers:    ZipperItem[];
-  dividers:   DividerItem[];
-  cutouts:    CutoutItem[];
-  welding:    WeldingItem[];
-  hasSkirt:   boolean;
+  straps: StrapConfig;
+  zippers: ZipperItem[];
+  dividers: DividerItem[];
+  cutouts: CutoutItem[];
+  welding: WeldingItem[];
+  hasSkirt: boolean;
   skirtWidth: number;
-  hasWeight:  boolean;
+  hasWeight: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -206,16 +206,16 @@ export function toMaterialCode(raw: unknown): WindowMaterial {
 
   switch (raw) {
     // ── Короткие коды (новые записи) ────────────────────────────────────────
-    case 'PVC_700':  return 'PVC_700';
-    case 'TINTED':   return 'TINTED';
-    case 'TPU':      return 'TPU';
+    case 'PVC_700': return 'PVC_700';
+    case 'TINTED': return 'TINTED';
+    case 'TPU': return 'TPU';
     case 'MOSQUITO': return 'MOSQUITO';
 
     // ── Длинные строки (старые записи в БД) ─────────────────────────────────
-    case 'ПВХ 700 мкм (Прозрачная)':   return 'PVC_700';
+    case 'ПВХ 700 мкм (Прозрачная)': return 'PVC_700';
     case 'ПВХ 700 мкм (Тонированная)': return 'TINTED';
-    case 'ТПУ Полиуретан':             return 'TPU';
-    case 'Москитная сетка':            return 'MOSQUITO';
+    case 'ТПУ Полиуретан': return 'TPU';
+    case 'Москитная сетка': return 'MOSQUITO';
 
     // ── Неизвестная строка ──────────────────────────────────────────────────
     default:
@@ -242,10 +242,10 @@ export type KantColor =
 
 export type WindowNumericField =
   | 'widthTop' | 'heightRight' | 'widthBottom' | 'heightLeft'
-  | 'kantTop'  | 'kantRight'   | 'kantBottom'  | 'kantLeft'
+  | 'kantTop' | 'kantRight' | 'kantBottom' | 'kantLeft'
   | 'diagonalLeft' | 'diagonalRight' | 'crossbar';
 
-export type WindowTextField    = 'name' | 'kantColor' | 'material';
+export type WindowTextField = 'name' | 'kantColor' | 'material';
 export type WindowBooleanField = 'isTrapezoid';
 export type WindowEditableField = WindowNumericField | WindowTextField | WindowBooleanField;
 
@@ -257,22 +257,22 @@ export type WindowEditableField = WindowNumericField | WindowTextField | WindowB
  * снимок цен (price snapshot), привязанные услуги.
  */
 export interface WindowItem {
-  id:          number;
-  name:        string;
-  widthTop:    number;
+  id: number;
+  name: string;
+  widthTop: number;
   heightRight: number;
   widthBottom: number;
-  heightLeft:  number;
-  kantTop:     number;
-  kantRight:   number;
-  kantBottom:  number;
-  kantLeft:    number;
-  kantColor:   KantColor;
-  material:    WindowMaterial;
+  heightLeft: number;
+  kantTop: number;
+  kantRight: number;
+  kantBottom: number;
+  kantLeft: number;
+  kantColor: KantColor;
+  material: WindowMaterial;
   isTrapezoid: boolean;
-  diagonalLeft:  number;
+  diagonalLeft: number;
   diagonalRight: number;
-  crossbar:      number;
+  crossbar: number;
 
   fasteners?: FastenerConfig;
 
@@ -316,36 +316,36 @@ export interface WindowItem {
 
 export function createDefaultAdditionalElements(): AdditionalElements {
   return {
-    straps:     { count: 2, isManual: false, type: 'grommet' },
-    zippers:    [],
-    dividers:   [],
-    cutouts:    [],
-    welding:    [],
-    hasSkirt:   false,
+    straps: { count: 2, isManual: false, type: 'grommet' },
+    zippers: [],
+    dividers: [],
+    cutouts: [],
+    welding: [],
+    hasSkirt: false,
     skirtWidth: 0,
-    hasWeight:  false,
+    hasWeight: false,
   };
 }
 
 export function createDefaultWindowItem(id: number, index: number): WindowItem {
   return {
     id,
-    name:          `Окно ${index}`,
-    widthTop:      200,
-    heightRight:   200,
-    widthBottom:   200,
-    heightLeft:    200,
-    kantTop:       5,
-    kantRight:     5,
-    kantBottom:    5,
-    kantLeft:      5,
-    kantColor:     'Коричневый',
-    material:      'PVC_700',
-    isTrapezoid:   false,
-    diagonalLeft:  0,
+    name: `Окно ${index}`,
+    widthTop: 200,
+    heightRight: 200,
+    widthBottom: 200,
+    heightLeft: 200,
+    kantTop: 5,
+    kantRight: 5,
+    kantBottom: 5,
+    kantLeft: 5,
+    kantColor: 'Коричневый',
+    material: 'PVC_700',
+    isTrapezoid: false,
+    diagonalLeft: 0,
     diagonalRight: 0,
-    crossbar:      0,
-    fasteners:          getInitialFastener(),
+    crossbar: 0,
+    fasteners: getInitialFastener(),
     additionalElements: createDefaultAdditionalElements(),
   };
 }
@@ -355,40 +355,48 @@ export function isWindowItem(value: unknown): value is WindowItem {
   const obj = value as Record<string, unknown>;
   const numericFields: WindowNumericField[] = [
     'widthTop', 'heightRight', 'widthBottom', 'heightLeft',
-    'kantTop',  'kantRight',   'kantBottom',  'kantLeft',
+    'kantTop', 'kantRight', 'kantBottom', 'kantLeft',
     'diagonalLeft', 'diagonalRight', 'crossbar',
   ];
   const allNumericValid = numericFields.every(
     (field) => typeof obj[field] === 'number' && Number.isFinite(obj[field] as number),
   );
   return (
-    typeof obj['id']          === 'number'  &&
-    typeof obj['name']        === 'string'  &&
+    typeof obj['id'] === 'number' &&
+    typeof obj['name'] === 'string' &&
     typeof obj['isTrapezoid'] === 'boolean' &&
-    typeof obj['kantColor']   === 'string'  &&
-    typeof obj['material']    === 'string'  &&
+    typeof obj['kantColor'] === 'string' &&
+    typeof obj['material'] === 'string' &&
     allNumericValid
   );
 }
 
 export function parseWindowItems(raw: unknown): WindowItem[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.reduce<WindowItem[]>((acc, item) => {
+  let parsed = raw;
+
+  // 🔥 Если данные пришли из БД в виде JSON-строки — парсим их в массив
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      console.warn('[parseWindowItems] Не удалось распарсить JSON строку:', raw);
+      return [];
+    }
+  }
+
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed.reduce<WindowItem[]>((acc, item) => {
     if (!isWindowItem(item)) {
-      console.warn('[parseWindowItems] Skipping invalid record:', item);
+      console.warn('[parseWindowItems] Пропуск невалидной записи:', item);
       return acc;
     }
     acc.push({
       ...item,
-      // Нормализуем material при чтении из БД.
-      // Это единственная точка входа данных из хранилища —
-      // после этой строки весь код работает только с каноническими короткими кодами.
-      // Старые длинные строки ('ТПУ Полиуретан', 'ПВХ 700 мкм (Прозрачная)' и т.д.)
-      // прозрачно конвертируются в 'TPU', 'PVC_700' и т.д.
-      material:           toMaterialCode(item.material),
-      fasteners:          item.fasteners          ?? getInitialFastener(),
-      additionalElements: item.additionalElements  ?? undefined,
-      services:           item.services            ?? undefined,
+      material: toMaterialCode(item.material),
+      fasteners: item.fasteners ?? getInitialFastener(),
+      additionalElements: item.additionalElements ?? undefined,
+      services: item.services ?? undefined,
     });
     return acc;
   }, []);
@@ -436,25 +444,25 @@ export interface Stage { id: ClientStatus; title: string; }
  */
 export interface WindowGeometrySnapshot {
   // ── Идентификация ───────────────────────────────────────────────────────
-  windowId:  number;
-  material:  string;  // 'PVC_700' | 'TPU' | 'TINTED' | 'MOSQUITO'
+  windowId: number;
+  material: string;  // 'PVC_700' | 'TPU' | 'TINTED' | 'MOSQUITO'
 
   // ── Финансово-значимые поля (см / м² / boolean) ─────────────────────────
-  rollWidth:         number;  // см  — ширина подобранного рулона
-  cutWidth:          number;  // см  — maxW + SOLDER_ALLOWANCE
-  cutHeight:         number;  // см  — maxH + SOLDER_ALLOWANCE
-  isRotated:         boolean; //      — деталь повёрнута на 90°
-  productionArea:    number;  // м², 4 знака — реальная площадь (ЗП цеха)
-  retailArea:        number;  // м², 4 знака — Max W × Max H (чек клиента)
+  rollWidth: number;  // см  — ширина подобранного рулона
+  cutWidth: number;  // см  — maxW + SOLDER_ALLOWANCE
+  cutHeight: number;  // см  — maxH + SOLDER_ALLOWANCE
+  isRotated: boolean; //      — деталь повёрнута на 90°
+  productionArea: number;  // м², 4 знака — реальная площадь (ЗП цеха)
+  retailArea: number;  // м², 4 знака — Max W × Max H (чек клиента)
   perimeterWithKant: number;  // см  — внешний периметр с кантом
 
   // ── Производные (аудит) ─────────────────────────────────────────────────
   stripLength: number;  // см  — длина полосы вдоль рулона
-  fitsWidth:   number;  // см  — ширина детали поперёк рулона
+  fitsWidth: number;  // см  — ширина детали поперёк рулона
 
   // ── Display / production planning ───────────────────────────────────────
-  cutArea:    number;   // м²  — площадь списания (rollWidth × stripLength)
-  wasteArea:  number;   // м²  — геометрический перерасход
+  cutArea: number;   // м²  — площадь списания (rollWidth × stripLength)
+  wasteArea: number;   // м²  — геометрический перерасход
   isOverSize: boolean;  //      — деталь шире максимального рулона
 }
 
@@ -472,7 +480,7 @@ export interface WindowGeometrySnapshot {
  *   При изменении схемы — инкрементировать version, писать converter.
  */
 export interface GeometrySnapshotV1 {
-  version:  '1.0';
+  version: '1.0';
   createdAt: string;  // ISO 8601
 
   /** Событие, при котором создан snapshot. */
@@ -485,13 +493,13 @@ export interface GeometrySnapshotV1 {
   /** Значение SOLDER_ALLOWANCE (сейчас 6 см). */
   solderAllowance: number;
   /** Значение SMART_TOLERANCE (сейчас 4 см). */
-  smartTolerance:  number;
+  smartTolerance: number;
 
   // ── Конфигурация рулонов ─────────────────────────────────────────────────
   /** Источник справочника рулонов: 'code_constants' = ROLL_WIDTHS из windowCalculations.ts. */
   rollConfigSource: 'code_constants';
   /** Фактически использованный справочник ширин рулонов. */
-  rollWidthsUsed:   Record<string, number[]>;
+  rollWidthsUsed: Record<string, number[]>;
 
   // ── Per-window данные ────────────────────────────────────────────────────
   /**

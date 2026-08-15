@@ -7,17 +7,16 @@ import styles from './DashboardSidebar.module.css';
 
 type NavItem = { href: string | null; label: string; icon: string; soon?: boolean };
 
-// href ведут на существующие страницы. Производство/Финансы — заглушки «скоро»
-// (по рабочей тетради: нефункциональные кнопки не должны выглядеть рабочими).
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: '▦' },
-  { href: '/dashboard/clients', label: 'Заказы', icon: '🗂' },
-  { href: '/dashboard/clients', label: 'Клиенты', icon: '👥' },
+  { href: '/dashboard/clients', label: 'Канбан', icon: '📊' },
   { href: '/dashboard/calendar', label: 'Календарь', icon: '📅' },
+  { href: '/dashboard/settings/team', label: 'Сотрудники', icon: '👷' },
+  { href: '/dashboard/prices', label: 'Настройки прайса', icon: '🏷️' },
   { href: null, label: 'Производство', icon: '🏭', soon: true },
   { href: null, label: 'Финансы', icon: '💳', soon: true },
   { href: '/dashboard/archive', label: 'Архив', icon: '🗄' },
-  { href: '/dashboard/settings', label: 'Настройки', icon: '⚙' },
+  { href: '/dashboard/settings/profile', label: 'Настройки', icon: '⚙' },
 ];
 
 export default function DashboardSidebar({ userName, userRole }: { userName: string; userRole: string }) {
@@ -26,7 +25,7 @@ export default function DashboardSidebar({ userName, userRole }: { userName: str
   return (
     <aside className={styles.sidebar}>
       <div className={styles.logo}>
-        EASY MO<br /><span>CORE</span>{/* замените на свой бренд */}
+        EASY MO<br /><span>CORE</span>
       </div>
 
       <nav className={styles.nav}>
@@ -39,7 +38,11 @@ export default function DashboardSidebar({ userName, userRole }: { userName: str
             <Link
               key={item.label}
               href={item.href}
-              className={`${styles.navItem} ${pathname === item.href ? styles.navItemActive : ''}`}
+              className={`${styles.navItem} ${
+                pathname === item.href || (item.href?.includes('/settings') && pathname.includes('/settings'))
+                  ? styles.navItemActive 
+                  : ''
+              }`}
             >
               <span className={styles.navIcon}>{item.icon}</span>{item.label}
             </Link>

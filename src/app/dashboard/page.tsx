@@ -3,6 +3,8 @@ import { requireAuth } from '@/lib/auth/requireAuth';
 import { prisma } from '@/lib/prisma';
 import { normalizeStatus } from '@/lib/logic/statusDictionary';
 import styles from './dashboard.module.css';
+import NewClientBtn from './NewClientBtn'; 
+import QuickCalcBtn from './QuickCalcBtn'; // 🔥 Импорт теперь на правильном месте!
 
 const MONTH_PLAN = 2_450_000; // план месяца, ₽ — позже вынести в настройки организации
 
@@ -28,7 +30,7 @@ export default async function DashboardPage() {
   const startOfMonth = d(now.getFullYear(), now.getMonth(), 1);
 
   const [
-    measurementsToday, mountsToday, newRequestsToday, debtorsCount, overdueCount, recentOrders, monthAgg, clientsMonth,
+    measurementsToday, mountsToday, newRequestsToday, debtorsCount, overdueCount, recentOrders, monthAgg, clientsMonth, pricingData
   ] = await Promise.all([
     prisma.client.count({ where: { organizationId: orgId, measurementDate: { gte: startOfToday, lt: endOfToday } } }),
     prisma.client.count({ where: { organizationId: orgId, installDate: { gte: startOfToday, lt: endOfToday } } }),
@@ -38,7 +40,13 @@ export default async function DashboardPage() {
     prisma.client.findMany({ where: { organizationId: orgId }, orderBy: { createdAt: 'desc' }, take: 5 }),
     prisma.client.aggregate({ where: { organizationId: orgId, createdAt: { gte: startOfMonth } }, _sum: { totalPrice: true }, _count: true }),
     prisma.client.count({ where: { organizationId: orgId, createdAt: { gte: startOfMonth } } }),
+    prisma.price.findMany({ where: { organizationId: orgId } }),
   ]);
+
+  const priceMap: Record<string, number> = pricingData.reduce((acc, item) => {
+    acc[item.slug] = item.value;
+    return acc;
+  }, {} as Record<string, number>);
 
   const factMoney = monthAgg._sum.totalPrice ?? 0;
   const restMoney = Math.max(MONTH_PLAN - factMoney, 0);
@@ -55,7 +63,6 @@ export default async function DashboardPage() {
 
   return (
     <main className={styles.page}>
-      {/* ── Top bar ── */}
       <header className={styles.topBar}>
         <h1 className={styles.pageTitle}>ПАНЕЛЬ УПРАВЛЕНИЯ</h1>
         <div className={styles.searchWrap}>
@@ -65,40 +72,29 @@ export default async function DashboardPage() {
           />
           <span className={styles.searchKbd}>⌘K</span>
         </div>
-        <div className={styles.topActions}>
-          <Link href="/dashboard/new-calculation" className={styles.newOrderBtn}>+ НОВЫЙ ЗАКАЗ</Link>
-          <Link href="/dashboard/new-calculation" className={styles.iconBtn}>+</Link>
-          <button className={styles.iconBtn} type="button" title="Уведомления">
-            🔔{overdueCount > 0 && <span className={styles.bellBadge}>{overdueCount}</span>}
-          </button>
-        </div>
       </header>
 
       <div className={styles.content}>
-        {/* ── Быстрые действия ── */}
         <section>
           <h2 className={styles.sectionTitle}>БЫСТРЫЕ ДЕЙСТВИЯ</h2>
           <div className={styles.quickGrid}>
             <Link href="/dashboard/new-calculation" className={styles.quickCard}>
-              <span className={`${styles.quickIcon} ${styles.qiGreen}`}>🗂</span>
+              <span className={`${styles.quickIcon} ${styles.qiGreen}`}>📝</span>
               <span><b>Новый заказ</b><small>Создать заказ</small></span>
             </Link>
-            <Link href="/dashboard/new-calculation" className={styles.quickCard}>
-              <span className={`${styles.quickIcon} ${styles.qiGreen}`}>👤</span>
-              <span><b>Новый клиент</b><small>Добавить клиента</small></span>
-            </Link>
-            <Link href="/dashboard/new-calculation" className={styles.quickCard}>
-              <span className={`${styles.quickIcon} ${styles.qiGreen}`}>🧮</span>
-              <span><b>Новый расчёт</b><small>Рассчитать стоимость</small></span>
-            </Link>
+            
+            <NewClientBtn priceMap={priceMap} />
+            
+            {/* 🔥 А вот и правильный вызов нашей новой кнопки! */}
+            <QuickCalcBtn priceMap={priceMap} /> 
+            
             <Link href="/dashboard/calendar" className={styles.quickCard}>
               <span className={`${styles.quickIcon} ${styles.qiCyan}`}>📅</span>
-              <span><b>Новый монтаж</b><small>Запланировать монтаж</small></span>
+              <span><b>Будущая функция</b><small>Неизвестная кнопка</small></span>
             </Link>
           </div>
         </section>
 
-        {/* ── Сводка ── */}
         <section className={styles.statsRow}>
           <div className={styles.panel}>
             <h3 className={styles.panelTitle}>СЕГОДНЯ</h3>
@@ -137,7 +133,6 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* ── Последние заказы ── */}
         <section className={styles.panel}>
           <h3 className={styles.panelTitle}>ПОСЛЕДНИЕ ЗАКАЗЫ</h3>
           <table className={styles.table}>
@@ -150,14 +145,41 @@ export default async function DashboardPage() {
             <tbody>
               {recentOrders.map((o) => {
                 const meta = STATUS_META[normalizeStatus(o.status)] ?? STATUS_META.negotiation;
+                const clientUrl = `/dashboard/new-calculation?id=${o.id}`;
+                const cellLinkStyle = { color: 'inherit', textDecoration: 'none', display: 'block' };
+
                 return (
-                  <tr key={o.id}>
-                    <td>{o.fio || '—'}</td>
-                    <td className={styles.muted}>{o.address || '—'}</td>
-                    <td><span className={`${styles.statusBadge} ${styles[meta.cls]}`}>{meta.label}</span></td>
-                    <td>{fmtMoney(o.totalPrice ?? 0)}</td>
-                    <td className={styles.muted}>{o.createdAt.toLocaleDateString('ru-RU')}</td>
-                    <td className={styles.muted}>{o.createdByName || user.name}</td>
+                  <tr key={o.id} style={{ cursor: 'pointer' }}>
+                    <td>
+                      <Link href={clientUrl} style={cellLinkStyle}>
+                        <b>{o.fio || '—'}</b>
+                      </Link>
+                    </td>
+                    <td className={styles.muted}>
+                      <Link href={clientUrl} style={cellLinkStyle}>
+                        {o.address || '—'}
+                      </Link>
+                    </td>
+                    <td>
+                      <Link href={clientUrl} style={cellLinkStyle}>
+                        <span className={`${styles.statusBadge} ${styles[meta.cls]}`}>{meta.label}</span>
+                      </Link>
+                    </td>
+                    <td>
+                      <Link href={clientUrl} style={cellLinkStyle}>
+                        {fmtMoney(o.totalPrice ?? 0)}
+                      </Link>
+                    </td>
+                    <td className={styles.muted}>
+                      <Link href={clientUrl} style={cellLinkStyle}>
+                        {o.createdAt.toLocaleDateString('ru-RU')}
+                      </Link>
+                    </td>
+                    <td className={styles.muted}>
+                      <Link href={clientUrl} style={cellLinkStyle}>
+                        {o.createdByName || user.name}
+                      </Link>
+                    </td>
                   </tr>
                 );
               })}
